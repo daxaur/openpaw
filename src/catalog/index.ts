@@ -1,4 +1,4 @@
-import type { CliTool, Skill } from "../types.js";
+import type { CliTool, Preset, Skill } from "../types.js";
 
 // ── CLI Tool Definitions ──
 
@@ -441,6 +441,55 @@ export const categoryLabels: Record<string, string> = {
 	automation: "Browser & Automation",
 	system: "System & Files",
 };
+
+// ── Presets ──
+
+export const presets: Preset[] = [
+	{
+		id: "everything",
+		name: "Everything",
+		description: "Install all skills available for your platform",
+		skillIds: [],
+	},
+	{
+		id: "essentials",
+		name: "Essentials",
+		description: "Email, calendar, notes, music, browser, system",
+		skillIds: ["email", "calendar", "notes", "music", "browser", "system", "notify"],
+	},
+	{
+		id: "productivity",
+		name: "Productivity",
+		description: "Notes, tasks, email, calendar, slack, files",
+		skillIds: ["notes", "obsidian", "tasks", "email", "calendar", "slack", "files", "notify"],
+	},
+	{
+		id: "developer",
+		name: "Developer",
+		description: "GitHub, Linear, Jira, browser, network, AI",
+		skillIds: ["github", "linear", "jira", "browser", "network", "ai", "cron"],
+	},
+	{
+		id: "creative",
+		name: "Creative & Media",
+		description: "Music, video, screen capture, voice, browser",
+		skillIds: ["music", "video", "screen", "voice", "browser", "research"],
+	},
+	{
+		id: "smart-home",
+		name: "Smart Home",
+		description: "Lights, speakers, bluetooth, system control",
+		skillIds: ["lights", "speakers", "bluetooth", "system", "display", "notify"],
+	},
+];
+
+export function getPresetSkills(presetId: string, platform: string): Skill[] {
+	const preset = presets.find((p) => p.id === presetId);
+	if (!preset) return [];
+	const available = getSkillsForPlatform(platform);
+	if (preset.id === "everything") return available;
+	return available.filter((s) => preset.skillIds.includes(s.id));
+}
 
 export function getSkillById(id: string): Skill | undefined {
 	return skills.find((s) => s.id === id);

@@ -26,7 +26,16 @@ export type SkillCategory =
 	| "media"
 	| "smart-home"
 	| "research"
-	| "developer";
+	| "developer"
+	| "automation"
+	| "system";
+
+export interface Preset {
+	id: string;
+	name: string;
+	description: string;
+	skillIds: string[];
+}
 
 export interface AuthStep {
 	tool: string;
