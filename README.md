@@ -1,135 +1,173 @@
-# OpenPaw
+<p align="center">
+<pre>
+    ▄▀▀▄  ▄▀▀▄
+    █░░█  █░░█
+    ▀▄▄▀  ▀▄▄▀
+  ▄▀▀▄      ▄▀▀▄
+  █░░█      █░░█
+  ▀▄▄▀      ▀▄▄▀
+      ▄██████▄
+    ▄██░░░░░░██▄
+   ██░░░░░░░░░░██
+   ██░░░░░░░░░░██
+    ▀██░░░░░░██▀
+      ▀▀████▀▀
+</pre>
+</p>
 
-**Personal Assistant Wizard for Claude Code**
-
-Turn Claude Code into a full personal assistant. Pick skills, install CLI tools, and start asking Claude to manage your email, notes, calendar, music, smart home, and more.
-
-```
-npx openpaw
-```
-
-One command. No daemon. No API keys. No monthly fees.
+<h1 align="center">OpenPaw</h1>
+<p align="center"><b>Personal Assistant Wizard for Claude Code</b></p>
+<p align="center">
+  <a href="https://www.npmjs.com/package/openpaw"><img src="https://img.shields.io/npm/v/openpaw?color=6366f1&label=npm" alt="npm"></a>
+  <a href="https://github.com/daxaur/openpaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/daxaur/openpaw?color=a855f7" alt="license"></a>
+</p>
 
 ---
 
-## Why
-
-[OpenClaw](https://github.com/openclaw/openclaw) proved that an AI personal assistant with installable skills is a great idea. But it comes with:
-
-- Security nightmares (CVE-2026-25253, 40K exposed instances, 341 malicious skills)
-- $5-750/mo in API costs
-- A complex daemon architecture
-- 15+ hour setup time
-
-**OpenPaw** takes the same concept and runs it through Claude Code instead — which already has a sandbox, permission system, and your subscription.
-
-| | OpenClaw | OpenPaw |
-|---|---|---|
-| Setup time | 15+ hours | 5 minutes |
-| Monthly cost | $5-750 (API keys) | $0 (uses Claude Code sub) |
-| Security CVEs | 3 critical | 0 |
-| Exposed instances | 40,000+ | 0 (no daemon) |
-| Architecture | Always-on daemon | No daemon — just skills |
-
-## How It Works
-
-OpenPaw is a **setup wizard**, not a runtime. It runs once, configures everything, then gets out of the way.
-
-1. **You pick skills** — notes, email, music, smart home, whatever you want
-2. **It installs CLI tools** — via Homebrew, npm, or pip
-3. **It creates skill files** — `~/.claude/skills/c-*/SKILL.md` that teach Claude how to use each tool
-4. **It configures permissions** — so Claude can run tools without prompting every time
-5. **Done.** Open Claude Code and talk naturally.
-
-After setup, Claude just knows things:
-
-```
-> What are my latest emails?          → runs gog mail list
-> Add milk to my grocery reminders    → runs remindctl add --list Grocery "milk"
-> Play some jazz on Spotify           → runs spogo play jazz
-> Summarize this YouTube video        → runs summarize <url>
-> Turn the living room lights blue    → runs openhue set --room "Living Room" --color blue
-```
-
-## Available Skills
-
-### Productivity
-- **c-notes** — Apple Notes & Reminders (`memo`, `remindctl`)
-- **c-obsidian** — Obsidian vault management (`obsidian-cli`)
-- **c-notion** — Notion pages & databases (`notion-cli`)
-- **c-tasks** — Todoist, Things 3, or Taskwarrior
-
-### Communication
-- **c-email** — Gmail (`gogcli`) or IMAP (`himalaya`)
-- **c-calendar** — Google Calendar (`gogcli`) or Apple Calendar (`icalpal`)
-- **c-messaging** — iMessage (`imsg`) & WhatsApp (`wacli`)
-- **c-slack** — Slack messaging (`slack-cli`)
-- **c-social** — Twitter/X (`bird`)
-
-### Media
-- **c-music** — Spotify (`spogo`)
-- **c-video** — YouTube & video processing (`yt-dlp`, `ffmpeg`)
-- **c-screen** — Screenshots & OCR (`peekaboo`, `camsnap`)
-- **c-voice** — Speech-to-text & TTS (`sag`, `say`)
-
-### Smart Home
-- **c-lights** — Philips Hue (`openhue`)
-- **c-speakers** — Sonos (`sonoscli`)
-- **c-bluetooth** — Bluetooth devices (`blucli`)
-
-### Research & Utilities
-- **c-research** — Summarize URLs/PDFs/videos (`summarize`)
-- **c-location** — Apple Maps & places (`goplaces`)
-- **c-tracking** — Package tracking (`ordercli`)
-- **c-secrets** — 1Password (`op`) or Bitwarden (`bw`)
-
-### Developer
-- **c-github** — GitHub CLI (`gh`, `jq`)
-- **c-linear** — Linear issues (`linear-cli`)
-- **c-jira** — Jira issues (`jira-cli`)
-
-## Commands
-
 ```bash
-npx openpaw              # Interactive setup wizard
-npx openpaw setup        # Same as above
-npx openpaw add <skills> # Add skills: openpaw add notes music email
-npx openpaw remove <skills>  # Remove skills
-npx openpaw status       # Show installed skills & tool versions
-npx openpaw doctor       # Diagnose issues
-npx openpaw update       # Update CLI tools via Homebrew
-npx openpaw reset        # Remove all skills & permissions
+npx openpaw
 ```
 
-## Platform Support
+Pick skills. Install tools. Claude does the rest.
 
-Most skills work on macOS. Some work cross-platform:
+No daemon. No API keys. No monthly fees.
 
-| Platform | Available Skills |
-|----------|-----------------|
-| macOS | All 23 skills |
-| Linux | email, calendar, social, music, video, lights, speakers, research, tracking, secrets, github, linear, jira, obsidian, notion, tasks (todoist/taskwarrior) |
-| Windows | email, social, music, video, lights, speakers, research, tracking, secrets, github, linear, obsidian, notion |
+---
 
-## How It Connects to Claude Code
+### How it works
 
-OpenPaw writes three things:
+OpenPaw runs once, writes config, exits. Not a runtime.
 
-1. **Skill files** (`~/.claude/skills/c-*/SKILL.md`) — Claude Code auto-discovers these at session start
-2. **Permissions** (`~/.claude/settings.json`) — Pre-authorizes CLI tool commands so Claude doesn't prompt every time
-3. **Safety hooks** — Blocks dangerous patterns (mass-delete, mass-send)
+```
+npx openpaw
+  → you pick: email, notes, music, obsidian...
+  → CLI tools get installed (brew/npm/pip)
+  → SKILL.md files land in ~/.claude/skills/
+  → permissions added to ~/.claude/settings.json
+  → done
 
-That's it. No daemon, no server, no ports, no processes. Just files on disk that Claude Code reads.
+Open Claude Code:
+  > "What emails did I get today?"
+  > "Add milk to my grocery list"
+  > "Play lo-fi on Spotify"
+  > "Open my Obsidian vault and search for meeting notes"
+  > "Turn the bedroom lights to 20%"
+```
 
-## Contributing
+---
 
-PRs welcome! To add a new skill:
+### Skills
 
-1. Fork the repo
-2. Create `skills/c-yourskill/SKILL.md` with YAML frontmatter + instructions
-3. Add the skill definition to `src/catalog/index.ts`
-4. Submit a PR
+23 capabilities. Pick what you need.
 
-## License
+<details>
+<summary><b>Productivity</b></summary>
+
+| Skill | What | Tools |
+|---|---|---|
+| `c-notes` | Apple Notes + Reminders | `memo` `remindctl` |
+| `c-obsidian` | Obsidian vaults | `obsidian-cli` |
+| `c-notion` | Notion pages + databases | `notion-cli` |
+| `c-tasks` | Todoist / Things 3 / Taskwarrior | `todoist` `things-cli` `task` |
+
+</details>
+
+<details>
+<summary><b>Communication</b></summary>
+
+| Skill | What | Tools |
+|---|---|---|
+| `c-email` | Read, send, search email | `gog` `himalaya` |
+| `c-calendar` | Events + scheduling | `gog` `icalpal` |
+| `c-messaging` | iMessage + WhatsApp | `imsg` `wacli` |
+| `c-slack` | Slack messages | `slack` |
+| `c-social` | Twitter/X | `bird` |
+
+</details>
+
+<details>
+<summary><b>Media</b></summary>
+
+| Skill | What | Tools |
+|---|---|---|
+| `c-music` | Spotify | `spogo` |
+| `c-video` | YouTube + convert | `yt-dlp` `ffmpeg` |
+| `c-screen` | Screenshots + OCR | `peekaboo` `camsnap` |
+| `c-voice` | Speech-to-text + TTS | `sag` `say` |
+
+</details>
+
+<details>
+<summary><b>Smart Home</b></summary>
+
+| Skill | What | Tools |
+|---|---|---|
+| `c-lights` | Philips Hue | `openhue` |
+| `c-speakers` | Sonos | `sonos` |
+| `c-bluetooth` | Bluetooth devices | `blu` |
+
+</details>
+
+<details>
+<summary><b>Research + Utilities</b></summary>
+
+| Skill | What | Tools |
+|---|---|---|
+| `c-research` | Summarize URLs/PDFs/videos | `summarize` |
+| `c-location` | Apple Maps | `goplaces` |
+| `c-tracking` | Package tracking | `ordercli` |
+| `c-secrets` | 1Password / Bitwarden | `op` `bw` |
+
+</details>
+
+<details>
+<summary><b>Developer</b></summary>
+
+| Skill | What | Tools |
+|---|---|---|
+| `c-github` | GitHub CLI | `gh` `jq` |
+| `c-linear` | Linear issues | `linear` |
+| `c-jira` | Jira issues | `jira` |
+
+</details>
+
+---
+
+### Commands
+
+```
+openpaw              setup wizard
+openpaw add <skills> add skills     openpaw add notes music obsidian
+openpaw remove <s>   remove skills
+openpaw status       what's installed
+openpaw doctor       diagnose issues
+openpaw update       upgrade tools
+openpaw reset        remove everything
+```
+
+---
+
+### vs OpenClaw
+
+|  | OpenClaw | OpenPaw |
+|---|---|---|
+| Setup | 15+ hours | 5 min |
+| Cost | $5-750/mo | $0 |
+| CVEs | 3 critical | 0 |
+| Exposed instances | 40,000+ | 0 |
+| Architecture | daemon on :18789 | no daemon |
+| Malicious skills | 341 | 0 |
+
+Same CLI tools. Same skill format. None of the risk.
+
+---
+
+### Contributing
+
+```
+1. Create skills/c-yourskill/SKILL.md
+2. Add tool definitions to src/catalog/index.ts
+3. PR
+```
 
 MIT
