@@ -1,37 +1,51 @@
 import chalk, { type ChalkInstance } from "chalk";
 
 // ── Colors ──
-const accent = chalk.hex("#30d2be");
-const subtle = chalk.hex("#3584a7");
+const accent = chalk.hex("#b4783c");
+const subtle = chalk.hex("#8a5a2a");
 const dim = chalk.dim;
 const bold = chalk.bold;
-const pawClr = chalk.hex("#30d2be");
+const pawClr = chalk.hex("#b4783c");
 
 // ── Paw Art ──
-// Graduated block art (▁▂▃▄▅▆▇█) — smooth anti-aliased edges, single color.
+// Graduated block art (▁▂▃▄▅▆▇█) — single brown color.
 
 const PAW_ART = [
-	"                ▁▁▁            ▁▁▁",
-	"             ▂▄▅▆▆▆▅▄▂▁     ▂▄▅▆▆▆▅▄▂▁",
-	"           ▁▃▆███████▆▃▁  ▁▃▆███████▆▃▁",
-	"           ▁▃▇███████▇▄▁  ▁▃▇███████▇▄▁",
-	"   ▁▂▃▄▄▄▂▁ ▁▂▅▆▇▇▇▆▅▃▁    ▁▂▅▆▇▇▇▆▅▃▁ ▁▂▃▄▄▄▂▁",
-	"  ▂▅▇████▇▅▂   ▁▁▁▁▁          ▁▁▁▁▁   ▂▅▇████▇▅▃▁",
-	" ▁▄▇██████▇▄▁                        ▁▄▇██████▇▄▁",
-	"  ▂▄▇████▇▅▂                          ▂▄▇████▇▅▂",
-	"    ▁▃▃▃▃▂▁                             ▁▃▃▃▃▂▁",
-	"                      ▁▁▁▁▁▁",
-	"                ▁▂▃▄▅▆▆▆▇▇▇▆▆▅▄▃▂▁",
-	"              ▂▄▆▇██████████████▇▆▄▂",
-	"            ▁▄▆████████████████████▇▄▂",
-	"           ▂▅▇███████████████████████▅▂",
-	"          ▁▄▇████████████████████████▇▄▁",
-	"          ▁▅▇████████████████████████▇▅▂",
-	"          ▁▃▆████████████████████████▇▄▁",
-	"           ▁▄▆██████████████████████▇▄▁",
-	"             ▂▅▇██████████████████▇▅▃▁",
-	"               ▂▃▅▆▇██████████▇▇▅▄▂▁",
-	"                  ▁▂▃▃▄▄▄▄▄▄▃▃▂▁",
+	"                                            ▃▅",
+	"                                           ▁██▁               ▄█▁",
+	"                                       ▁▁▂▆▇██▃               ▅█▆",
+	"                                      ▅▆█▇▆▄███▆▂         ▁▂▆▇██▇▅▁",
+	"                                    ▁▃█▆▁   ▄███▄▁       ▆▇▇▅▄▄███▇▃▁",
+	"                                   ▁▃█▄     ▁████▂     ▁▅█▃   ▁▃████▂",
+	"                                   ▄█▇▁     ▂████▄▁   ▁▃█▇     ▁████▅▂",
+	"                                   ▅█▆      ▂█████▁   ▄█▇▁      ▂████▃",
+	"                        ▂▁         ▆█▆      ▂█████▁   ▄█▇      ▁▂████▂",
+	"                      ▁▅█▂         ▆█▆▁   ▁▃▇████▆▁   ▄█▇     ▂▄█████▂",
+	"                      ▁██▄▂        ▂██▇▆▃▄▇██████     ▄██▄▇▇▃▃▆█████▁",
+	"                     ▂█████▇▅▂▁    ▁▄▇█████████▆▂     ▃▇████████████▁        ▁▂▁",
+	"                    ▄█▇▃  ▁███▆▁     ▁▃▆▇▇▇▇▃▄▂        ▂▆█████████▅         ▁▇█▂",
+	"                   ▃▆▄▁    ▅███▆▃                         ▄▄▅▅▅▅▂▁       ▂▄▃▄██▂",
+	"                   ▆█▄     ▃████▄           ▁▄▄██████▄▃▃▂            ▁▂▆▇▇▆████▇▁",
+	"                   ▆█▄      ▂████▄        ▂▅▇▇▅▅▁▃▅█▇████▆▂         ▅▇▇▅▄▁ ▂▆████▂",
+	"                   ▇█▄      ▅████▄        ▇█▄     ▁▃▇▆████▇▂      ▂▃█▇▃ ▁    ▃███▂",
+	"                   ▇██▅   ▂▆████▄▁       ▆█▄▁ ▁    ▅▄▅█████▅      ▆█▆▂      ▃▆███▁",
+	"                   ▁████████████▃       ▂▇▆▂         ▄█████▆     ▃██▂      ▂▆███▆",
+	"                    ▃█████████▅▂        ██▂          ▄█████▆     ▅██▁     ▁████▇",
+	"                      ▂▄▄▄▄▄▄          ▇█▃▁         ▁▅█████▅     ▃██▄▇▆▁▁▄▇████▆",
+	"                                   ▁▁▁▇█▂▁ ▁        ▄██████▆▂     ▇███████████▅▁",
+	"                               ▁▁▄▅▆██▅▂  ▁▁        ▄███████▄      ▄▅██████▆▅▂",
+	"                              ▄██▆▅▄▂▁  ▁           ▃▆██████▇▄▂      ▁▁▁▁▁▁▁",
+	"                            ▂██▄▁▁                   ▁▄▅██████▇▆▂▁",
+	"                           ▃▇▇▂    ▁▁                  ▁ ▃▇██████▇▃▁",
+	"                          ▁▄█▆   ▁                        ▁▆█▇█████▆▂",
+	"                          ▄██▇                             ▃▅███████▅▁",
+	"                          ▄██▇▁       ▂▂▂▁▁▂▆▇▇▇▇▇▃▁       ▄▆▄▂▇█████▃",
+	"                          ▃▇██▇▃   ▁▂▆▆██▆▇█████████▆▄▁▁  ▁▁▁▄▇██████▃",
+	"                           ▄█████▆▆▇███████████████████▆▃▁ ▁▄▇███████▃",
+	"                           ▁▅█████████████████████████████▅█████████▄▁",
+	"                            ▁▂▆█████████████████████████████████████▂",
+	"                              ▁▂▆▆▆▆▆▆▃▂▂▂▂▂▂▂▂▂▂▂▂▂▅▆███████████▇▆▁",
+	"                                                      ▃▃▇▇▇▇▇▇▇▃▃",
 ];
 
 const PAW_ROWS = PAW_ART.length;
@@ -40,15 +54,36 @@ function sleep(ms: number): Promise<void> {
 	return new Promise((r) => setTimeout(r, ms));
 }
 
+// ── Box renderer ──
+
+function renderBox(title: string, subtitle: string): string {
+	const boxW = 48;
+	const center = (s: string, w: number) => {
+		const pad = w - s.length;
+		const left = Math.floor(pad / 2);
+		return " ".repeat(left) + s + " ".repeat(pad - left);
+	};
+	const margin = "               ";
+	const lines = [
+		pawClr(margin + "┌" + "─".repeat(boxW) + "┐"),
+		pawClr(margin + "│" + " ".repeat(boxW) + "│"),
+		pawClr(margin + "│" + center(title, boxW) + "│"),
+		dim(margin + "│" + center(subtitle, boxW) + "│"),
+		pawClr(margin + "│" + " ".repeat(boxW) + "│"),
+		pawClr(margin + "└" + "─".repeat(boxW) + "┘"),
+	];
+	return lines.join("\n");
+}
+
 // ── Moods ──
 export type PawMood = "wave" | "think" | "happy" | "work" | "done" | "warn";
 
 const MOOD_HEX: Record<PawMood, string> = {
-	wave: "#30d2be",
-	think: "#30d2be",
-	happy: "#30d2be",
-	work: "#28b9a8",
-	done: "#3ce6d2",
+	wave: "#b4783c",
+	think: "#b4783c",
+	happy: "#b4783c",
+	work: "#9a6832",
+	done: "#c88a48",
 	warn: "#dca03c",
 };
 
@@ -57,23 +92,23 @@ function pawColor(mood: PawMood): ChalkInstance {
 }
 
 function renderPaw(color: ChalkInstance): string {
-	return PAW_ART.map((line) => "  " + color(line)).join("\n");
+	return PAW_ART.map((line) => color(line)).join("\n");
 }
 
 // ── Public API ──
 
 /**
- * Animated banner: fade in paw → pulse → title.
+ * Animated banner: fade in paw → pulse → title box.
  */
 export async function showBanner(): Promise<void> {
 	process.stdout.write("\x1B[?25l"); // hide cursor
 
 	// Fade in: dim → mid → full
-	process.stdout.write(renderPaw(chalk.hex("#153d36")) + "\n");
+	process.stdout.write(renderPaw(chalk.hex("#3d2810")) + "\n");
 	await sleep(60);
 
 	process.stdout.write(`\x1B[${PAW_ROWS}A\x1B[J`);
-	process.stdout.write(renderPaw(chalk.hex("#1f7a6d")) + "\n");
+	process.stdout.write(renderPaw(chalk.hex("#7a501e")) + "\n");
 	await sleep(60);
 
 	process.stdout.write(`\x1B[${PAW_ROWS}A\x1B[J`);
@@ -82,7 +117,7 @@ export async function showBanner(): Promise<void> {
 
 	// Pulse: bright → settle
 	process.stdout.write(`\x1B[${PAW_ROWS}A\x1B[J`);
-	process.stdout.write(renderPaw(chalk.hex("#50f0da")) + "\n");
+	process.stdout.write(renderPaw(chalk.hex("#d4984c")) + "\n");
 	await sleep(80);
 
 	process.stdout.write(`\x1B[${PAW_ROWS}A\x1B[J`);
@@ -90,10 +125,9 @@ export async function showBanner(): Promise<void> {
 
 	process.stdout.write("\x1B[?25h"); // show cursor
 
-	// Title
+	// Title box
 	console.log("");
-	console.log(accent("  O P E N P A W"));
-	console.log(dim("  Personal Assistant Wizard for Claude Code"));
+	console.log(renderBox("O P E N P A W", "Personal Assistant Wizard for Claude Code"));
 	console.log("");
 }
 
@@ -138,8 +172,7 @@ export async function pawPulse(
 export function showBannerStatic(): void {
 	console.log(renderPaw(pawClr));
 	console.log("");
-	console.log(accent("  O P E N P A W"));
-	console.log(dim("  Personal Assistant Wizard for Claude Code"));
+	console.log(renderBox("O P E N P A W", "Personal Assistant Wizard for Claude Code"));
 	console.log("");
 }
 
