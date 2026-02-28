@@ -2,7 +2,7 @@ import * as p from "@clack/prompts";
 import chalk from "chalk";
 import { skills, categoryLabels, getSkillsByCategory, getAllTaps } from "../catalog/index.js";
 import { detectPlatform } from "../core/platform.js";
-import { showBanner, pawPulse, accent, dim } from "../core/branding.js";
+import { showBanner, pawStep, pawPulse, accent, subtle, dim } from "../core/branding.js";
 import { installTaps, getMissingTools, installTool } from "../core/installer.js";
 import { installSkill, getDefaultSkillsDir } from "../core/skills.js";
 import { addPermissions } from "../core/permissions.js";
@@ -15,7 +15,7 @@ export async function setupCommand(): Promise<void> {
 	const platform = detectPlatform();
 	p.intro(accent(" openpaw "));
 
-	// ── Platform Info ──
+	// ── Platform ──
 	const brewStatus = platform.hasBrew ? chalk.green("✓ brew") : chalk.red("✗ brew");
 	p.log.info(`${chalk.bold(platform.osName)} ${platform.osVersion}  ${brewStatus}`);
 
@@ -23,7 +23,9 @@ export async function setupCommand(): Promise<void> {
 		p.log.warn("Homebrew is required for most tools → https://brew.sh");
 	}
 
-	// ── Skill Selection (grouped by category) ──
+	// ── Step 1: Skill Selection ──
+	await pawStep("wave", "What should Claude be able to do?");
+
 	const grouped = getSkillsByCategory(platform.os);
 	const groupedOptions: Record<string, { value: string; label: string; hint?: string }[]> = {};
 
@@ -37,7 +39,7 @@ export async function setupCommand(): Promise<void> {
 	}
 
 	const selected = await p.groupMultiselect({
-		message: "What should Claude be able to do?",
+		message: "Pick your skills",
 		options: groupedOptions,
 		required: false,
 	});
@@ -48,7 +50,6 @@ export async function setupCommand(): Promise<void> {
 	}
 
 	const selectedIds = (selected as string[]).filter((id) => {
-		// groupMultiselect may include category labels — filter to actual skill IDs
 		return skills.some((s) => s.id === id);
 	});
 
@@ -62,9 +63,14 @@ export async function setupCommand(): Promise<void> {
 		.map((id) => skills.find((s) => s.id === id))
 		.filter((s): s is Skill => s !== undefined);
 
-	await pawPulse("happy", `${selectedSkills.length} skill${selectedSkills.length > 1 ? "s" : ""} selected`);
+	await pawStep("happy", `${selectedSkills.length} skill${selectedSkills.length > 1 ? "s" : ""} selected!`);
 
-	// ── Sub-Choices (only for skills that need them) ──
+	// ── Step 2: Sub-Choices ──
+	const skillsWithChoices = selectedSkills.filter((s) => s.subChoices);
+	if (skillsWithChoices.length > 0) {
+		await pawStep("think", "A few more choices...");
+	}
+
 	for (const skill of selectedSkills) {
 		if (skill.subChoices) {
 			const choice = await p.select({
@@ -87,7 +93,7 @@ export async function setupCommand(): Promise<void> {
 		}
 	}
 
-	// ── Skills Directory ──
+	// ── Step 3: Install Location ──
 	const defaultDir = getDefaultSkillsDir();
 	const skillsDir = await p.select({
 		message: "Where should skills live?",
@@ -117,7 +123,7 @@ export async function setupCommand(): Promise<void> {
 		targetDir = customDir as string;
 	}
 
-	// ── Collect all tools ──
+	// ── Collect tools ──
 	const allTools: CliTool[] = [];
 	for (const skill of selectedSkills) {
 		allTools.push(...skill.tools);
@@ -125,12 +131,11 @@ export async function setupCommand(): Promise<void> {
 	const uniqueTools = [...new Map(allTools.map((t) => [t.command, t])).values()];
 	const taps = getAllTaps(selectedSkills);
 
-	// ── Installation (using tasks API for clean progress) ──
-	await pawPulse("work", "Installing...");
+	// ── Step 4: Installation ──
+	await pawStep("work", "Installing everything...");
 
 	const s = p.spinner();
 
-	// Brew taps
 	if (taps.size > 0) {
 		s.start("Adding Homebrew taps");
 		const tapResults = installTaps(taps);
@@ -142,7 +147,6 @@ export async function setupCommand(): Promise<void> {
 		}
 	}
 
-	// CLI tools
 	const missing = getMissingTools(uniqueTools);
 	if (missing.length > 0) {
 		for (let i = 0; i < missing.length; i++) {
@@ -159,7 +163,6 @@ export async function setupCommand(): Promise<void> {
 		p.log.success("All tools already installed");
 	}
 
-	// Skills
 	s.start("Creating skills");
 	installSkill("core", targetDir);
 	const installed: string[] = ["c-core"];
@@ -168,16 +171,10 @@ export async function setupCommand(): Promise<void> {
 	}
 	s.stop(`${installed.length} skills created`);
 
-	// Permissions
 	s.start("Configuring permissions");
 	const added = addPermissions(uniqueTools);
-	s.stop(
-		added.length > 0
-			? `${added.length} permission${added.length > 1 ? "s" : ""} added`
-			: "Permissions up to date",
-	);
+	s.stop(added.length > 0 ? `${added.length} permission${added.length > 1 ? "s" : ""} added` : "Permissions up to date");
 
-	// Safety hooks
 	s.start("Installing safety hooks");
 	const hooksOk = installSafetyHooks();
 	s.stop(hooksOk ? "Safety hooks active" : "Safety hooks failed (non-critical)");
@@ -188,20 +185,21 @@ export async function setupCommand(): Promise<void> {
 		.filter((step, i, arr) => arr.findIndex((s) => s.command === step.command) === i);
 
 	if (authSteps.length > 0) {
+		await pawStep("warn", "Some tools need one-time auth");
 		const authList = authSteps
-			.map((s) => `${chalk.yellow("→")} ${chalk.bold(s.command)}  ${dim(s.description)}`)
+			.map((st) => `${chalk.yellow("→")} ${chalk.bold(st.command)}  ${dim(st.description)}`)
 			.join("\n");
-		p.note(authList, "One-time auth needed");
+		p.note(authList, "Auth steps");
 	}
 
 	// ── Done ──
-	await pawPulse("done");
+	await pawStep("done", "Setup complete!");
 
 	console.log("");
 	console.log(dim("  Open Claude Code and try:"));
-	console.log(`  ${accent('"What are my latest emails?"')}`);
-	console.log(`  ${accent('"Play some jazz on Spotify"')}`);
-	console.log(`  ${accent('"Go to hacker news and summarize the top posts"')}`);
+	console.log(`  ${subtle('"What are my latest emails?"')}`);
+	console.log(`  ${subtle('"Play some jazz on Spotify"')}`);
+	console.log(`  ${subtle('"Go to hacker news and summarize the top posts"')}`);
 	console.log("");
 
 	p.outro(accent("openpaw setup complete"));

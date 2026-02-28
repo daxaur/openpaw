@@ -1,215 +1,283 @@
 import chalk from "chalk";
 import gradient from "gradient-string";
+import * as readline from "node:readline";
 
-// ── Color Palette ──
-// Stripe-inspired indigo/violet — clean on dark and light terminals
-const brand = gradient(["#7c3aed", "#a78bfa", "#c4b5fd"]);
-const accent = chalk.hex("#a78bfa");
+// ── Color Palette (Poimandres-inspired — used by create-t3-app) ──
+const brand = gradient(["#add7ff", "#89ddff", "#5de4c7", "#fae4fc", "#d0679d"]);
+const accent = chalk.hex("#89ddff");
+const subtle = chalk.hex("#5de4c7");
 const dim = chalk.dim;
 const bold = chalk.bold;
 
-// ── Paw Layers ──
-// Dense Braille stamp — high-fidelity paw with proper oval toes + tapered palm
+// ── Paw Art — Block Elements with 3D depth (░▓█) ──
+// Design: top-left light source, ░ = highlight, ▓ = shadow, █ = fill
+// Compact, no wasted space, instantly recognizable paw print
 
-// 4 toe layers + 1 palm layer for toe-by-toe reveal animation
-const TOE_TOP_RIGHT = [
-	"                   ⢀⣴⣦⡀",
-	"                  ⢸⣿⣿⣿⡇",
-	"                   ⠙⠿⠋  ",
+const PAW_CENTER = [
+	"      ░██▓ ░██▓",
+	"      ░██▓ ░██▓",
+	"    ░██▓    ░██▓",
+	"    ░██▓    ░██▓",
+	"      ░██████▓",
+	"    ░██████████▓",
+	"    ░██████████▓",
+	"     ▓████████▓",
+	"      ▓▓▓▓▓▓▓▓",
 ];
 
-const TOE_TOP_LEFT = [
-	"          ⢀⣴⣦⡀        ",
-	"         ⢸⣿⣿⣿⡇       ",
-	"          ⠙⠿⠋         ",
+const PAW_LEFT = [
+	"    ░██▓ ░██▓",
+	"    ░██▓ ░██▓",
+	"  ░██▓    ░██▓",
+	"  ░██▓    ░██▓",
+	"    ░██████▓",
+	"  ░██████████▓",
+	"  ░██████████▓",
+	"   ▓████████▓",
+	"    ▓▓▓▓▓▓▓▓",
 ];
 
-const TOE_BOT_RIGHT = [
-	"                        ⢀⣴⣦⡀",
-	"                       ⢸⣿⣿⣿⡇",
-	"                        ⠙⠿⠋  ",
+const PAW_RIGHT = [
+	"        ░██▓ ░██▓",
+	"        ░██▓ ░██▓",
+	"      ░██▓    ░██▓",
+	"      ░██▓    ░██▓",
+	"        ░██████▓",
+	"      ░██████████▓",
+	"      ░██████████▓",
+	"       ▓████████▓",
+	"        ▓▓▓▓▓▓▓▓",
 ];
 
-const TOE_BOT_LEFT = [
-	"       ⢀⣴⣦⡀              ",
-	"      ⢸⣿⣿⣿⡇             ",
-	"       ⠙⠿⠋               ",
+// Different paw "moods" for wizard steps
+const PAW_WAVE = [
+	"      ░██▓ ░██▓    ~",
+	"      ░██▓ ░██▓   ~",
+	"    ░██▓    ░██▓  ~",
+	"    ░██▓    ░██▓",
+	"      ░██████▓",
+	"    ░██████████▓",
+	"    ░██████████▓",
+	"     ▓████████▓",
+	"      ▓▓▓▓▓▓▓▓",
 ];
 
-const PALM = [
-	"            ⣀⣤⣶⣶⣤⣀    ",
-	"          ⣴⣿⣿⣿⣿⣿⣿⣿⣦  ",
-	"         ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿ ",
-	"        ⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇",
-	"         ⠘⢿⣿⣿⣿⣿⣿⣿⣿⡿⠃ ",
-	"           ⠈⠛⢿⣿⣿⡿⠛⠁  ",
+const PAW_SPARKLE = [
+	"    ✦ ░██▓ ░██▓ ✦",
+	"      ░██▓ ░██▓",
+	"  ✦ ░██▓    ░██▓",
+	"    ░██▓    ░██▓ ✦",
+	"      ░██████▓",
+	"    ░██████████▓",
+	"    ░██████████▓",
+	"     ▓████████▓",
+	"      ▓▓▓▓▓▓▓▓",
 ];
 
-// Full assembled paw — all layers combined
-const PAW_FULL = `
-          ⢀⣴⣦⡀    ⢀⣴⣦⡀
-         ⢸⣿⣿⣿⡇  ⢸⣿⣿⣿⡇
-          ⠙⠿⠋    ⠙⠿⠋
-       ⢀⣴⣦⡀          ⢀⣴⣦⡀
-      ⢸⣿⣿⣿⡇        ⢸⣿⣿⣿⡇
-       ⠙⠿⠋            ⠙⠿⠋
-            ⣀⣤⣶⣶⣤⣀
-          ⣴⣿⣿⣿⣿⣿⣿⣿⣦
-         ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
-        ⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇
-         ⠘⢿⣿⣿⣿⣿⣿⣿⣿⡿⠃
-           ⠈⠛⢿⣿⣿⡿⠛⠁`;
+const PAW_PULSE = [
+	"      ▓██▓ ▓██▓",
+	"      ████ ████",
+	"    ▓██▓    ▓██▓",
+	"    ████    ████",
+	"      ████████",
+	"    ████████████",
+	"    ████████████",
+	"    ████████████",
+	"      ████████",
+];
 
-const PAW_COMPACT = `
-        ⣴⣷   ⣴⣷
-        ⠻⠟   ⠻⠟
-     ⣴⣷         ⣴⣷
-     ⠻⠟         ⠻⠟
-        ⣠⣶⣶⣶⣄
-      ⣰⣿⣿⣿⣿⣿⣿⣦
-      ⣿⣿⣿⣿⣿⣿⣿⣿⣿
-       ⠻⣿⣿⣿⣿⣿⣿⠟
-         ⠙⠿⣿⠿⠋`;
+const PAW_MINI = [
+	"   ██ ██",
+	"  ██   ██",
+	"   █████",
+	"  ███████",
+	"  ███████",
+	"   █████",
+	"    ███",
+];
 
 // ── Paw moods for wizard steps ──
 export type PawMood = "wave" | "think" | "happy" | "work" | "done" | "warn";
 
-const PAW_MOODS: Record<PawMood, { emoji: string; text: string }> = {
-	wave: { emoji: "🐾", text: "Hey there!" },
-	think: { emoji: "🤔", text: "Hmm, let me think..." },
-	happy: { emoji: "✨", text: "Nice choice!" },
-	work: { emoji: "⚡", text: "On it..." },
-	done: { emoji: "🎉", text: "All done!" },
-	warn: { emoji: "⚠️", text: "Heads up!" },
+const MOOD_CONFIG: Record<PawMood, { art: string[]; label: string }> = {
+	wave: { art: PAW_WAVE, label: "Hey there!" },
+	think: { art: PAW_LEFT, label: "Hmm..." },
+	happy: { art: PAW_SPARKLE, label: "Nice!" },
+	work: { art: PAW_PULSE, label: "Installing..." },
+	done: { art: PAW_SPARKLE, label: "All done!" },
+	warn: { art: PAW_RIGHT, label: "Heads up" },
 };
 
 function sleep(ms: number): Promise<void> {
 	return new Promise((r) => setTimeout(r, ms));
 }
 
-/**
- * Merge a layer onto a canvas of lines.
- * Each layer line overwrites non-space characters onto the canvas.
- */
-function mergeLayer(canvas: string[], layer: string[], startRow: number): void {
-	for (let i = 0; i < layer.length; i++) {
-		const row = startRow + i;
-		if (row >= canvas.length) continue;
-		const canvasChars = [...canvas[row]];
-		const layerChars = [...layer[i]];
-		for (let j = 0; j < layerChars.length; j++) {
-			if (layerChars[j] !== " " && j < canvasChars.length) {
-				canvasChars[j] = layerChars[j];
-			}
-		}
-		canvas[row] = canvasChars.join("");
-	}
+function renderPaw(lines: string[]): string {
+	return brand.multiline(lines.join("\n"));
 }
 
 /**
- * Animated banner — toes appear one by one, then palm draws in.
+ * Animated banner — toes appear, palm draws in, then interactive arrow-key phase.
  */
 export async function showBanner(): Promise<void> {
-	const totalRows = 14;
-	const emptyCanvas = (): string[] => Array(totalRows).fill(" ".repeat(35));
-
-	process.stdout.write("\x1B[2J\x1B[H"); // clear screen
+	process.stdout.write("\x1B[2J\x1B[H"); // clear
 	process.stdout.write("\x1B[?25l"); // hide cursor
 
-	// Frame 1: top-left toe
-	let canvas = emptyCanvas();
-	mergeLayer(canvas, TOE_TOP_LEFT, 1);
-	process.stdout.write("\x1B[H");
-	console.log(brand.multiline(canvas.join("\n")));
-	await sleep(150);
+	const artHeight = PAW_CENTER.length;
 
-	// Frame 2: + top-right toe
-	mergeLayer(canvas, TOE_TOP_RIGHT, 1);
-	process.stdout.write("\x1B[H");
-	console.log(brand.multiline(canvas.join("\n")));
-	await sleep(150);
+	// Phase 1: Draw toes one by one
+	const canvas: string[] = Array(artHeight).fill("");
 
-	// Frame 3: + bottom-left toe
-	mergeLayer(canvas, TOE_BOT_LEFT, 4);
+	// Top inner toes (rows 0-1)
+	canvas[0] = PAW_CENTER[0];
+	canvas[1] = PAW_CENTER[1];
 	process.stdout.write("\x1B[H");
-	console.log(brand.multiline(canvas.join("\n")));
-	await sleep(150);
+	console.log(renderPaw(canvas));
+	await sleep(120);
 
-	// Frame 4: + bottom-right toe
-	mergeLayer(canvas, TOE_BOT_RIGHT, 4);
+	// Bottom outer toes (rows 2-3)
+	canvas[2] = PAW_CENTER[2];
+	canvas[3] = PAW_CENTER[3];
 	process.stdout.write("\x1B[H");
-	console.log(brand.multiline(canvas.join("\n")));
-	await sleep(150);
+	console.log(renderPaw(canvas));
+	await sleep(120);
 
-	// Frames 5-7: palm draws in row by row
-	for (let r = 0; r < PALM.length; r++) {
-		mergeLayer(canvas, [PALM[r]], 8 + r);
+	// Palm rows one at a time
+	for (let i = 4; i < artHeight; i++) {
+		canvas[i] = PAW_CENTER[i];
 		process.stdout.write("\x1B[H");
-		console.log(brand.multiline(canvas.join("\n")));
-		await sleep(80);
+		console.log(renderPaw(canvas));
+		await sleep(60);
 	}
 
-	// Pulse: bright → normal → bright → settle
-	for (let p = 0; p < 3; p++) {
+	// Phase 2: Pulse
+	for (let p = 0; p < 2; p++) {
 		process.stdout.write("\x1B[H");
-		const style = p % 2 === 0 ? chalk.bold : (s: string) => s;
-		const rendered = brand.multiline(canvas.join("\n"));
-		console.log(rendered.split("\n").map((l) => style(l)).join("\n"));
+		console.log(renderPaw(p % 2 === 0 ? PAW_PULSE : PAW_CENTER));
 		await sleep(100);
 	}
-
-	// Final render
 	process.stdout.write("\x1B[H");
-	console.log(brand.multiline(canvas.join("\n")));
+	console.log(renderPaw(PAW_CENTER));
 
 	process.stdout.write("\x1B[?25h"); // show cursor
 
+	// Phase 3: Brief arrow-key reactive phase (1.5s)
+	await interactivePawPhase(1500, artHeight);
+
+	// Title box
 	console.log("");
-	console.log(accent("   ┌─────────────────────────────────┐"));
-	console.log(accent("   │") + bold.white("     O P E N P A W   v0.1.0      ") + accent("│"));
-	console.log(accent("   └─────────────────────────────────┘"));
-	console.log("");
-	console.log(dim("   Personal Assistant Wizard for Claude Code"));
+	console.log(accent("  ┌───────────────────────────────┐"));
+	console.log(accent("  │") + bold.white("    O P E N P A W   v0.1.0     ") + accent("│"));
+	console.log(accent("  └───────────────────────────────┘"));
+	console.log(dim("  Personal Assistant Wizard for Claude Code"));
 	console.log("");
 }
 
 /**
- * Animate a paw pulse — bold/dim flicker effect for between wizard steps.
+ * Arrow-key reactive phase — paw tilts left/right based on arrow presses.
+ */
+async function interactivePawPhase(durationMs: number, artHeight: number): Promise<void> {
+	return new Promise<void>((resolve) => {
+		let current = "center";
+
+		readline.emitKeypressEvents(process.stdin);
+		if (process.stdin.isTTY) {
+			process.stdin.setRawMode(true);
+		}
+		process.stdin.resume();
+
+		const redraw = (art: string[]) => {
+			process.stdout.write(`\x1B[${artHeight}A`); // move up
+			process.stdout.write("\x1B[J"); // clear down
+			console.log(renderPaw(art));
+		};
+
+		const handler = (_str: string | undefined, key: readline.Key) => {
+			if (!key) return;
+			if (key.name === "left" && current !== "left") {
+				current = "left";
+				redraw(PAW_LEFT);
+			} else if (key.name === "right" && current !== "right") {
+				current = "right";
+				redraw(PAW_RIGHT);
+			} else if (key.name === "return" || key.name === "space") {
+				cleanup();
+			}
+		};
+
+		const cleanup = () => {
+			process.stdin.removeListener("keypress", handler);
+			if (process.stdin.isTTY) {
+				process.stdin.setRawMode(false);
+			}
+			process.stdin.pause();
+
+			// Settle to center
+			if (current !== "center") {
+				redraw(PAW_CENTER);
+			}
+			resolve();
+		};
+
+		process.stdin.on("keypress", handler);
+		setTimeout(cleanup, durationMs);
+	});
+}
+
+/**
+ * Show a mood-specific paw between wizard steps.
+ * Renders the paw art + a label, then clears it for the next prompt.
+ */
+export async function pawStep(mood: PawMood, message?: string): Promise<void> {
+	const config = MOOD_CONFIG[mood];
+	const text = message ?? config.label;
+
+	console.log("");
+	console.log(renderPaw(config.art));
+	console.log(`  ${subtle(text)}`);
+	await sleep(600);
+
+	// Clear the paw (move up and erase)
+	const lineCount = config.art.length + 2; // art + blank + text
+	process.stdout.write(`\x1B[${lineCount}A`);
+	process.stdout.write("\x1B[J");
+}
+
+/**
+ * Quick inline paw pulse — for lightweight transitions.
  */
 export async function pawPulse(mood: PawMood, message?: string): Promise<void> {
-	const m = PAW_MOODS[mood];
-	const text = message ?? m.text;
-	const line = `  ${m.emoji} ${accent(text)}`;
+	const config = MOOD_CONFIG[mood];
+	const text = message ?? config.label;
+	const line = `  ${subtle("◉")} ${accent(text)}`;
 
-	for (let i = 0; i < 4; i++) {
-		if (i > 0) {
-			process.stdout.write("\x1B[1A"); // cursor up 1
-		}
+	for (let i = 0; i < 3; i++) {
+		if (i > 0) process.stdout.write("\x1B[1A");
 		const style = i % 2 === 0 ? bold : dim;
 		process.stdout.write(`\x1B[2K${style(line)}\n`);
-		await sleep(100);
+		await sleep(80);
 	}
 	process.stdout.write("\x1B[1A");
 	process.stdout.write(`\x1B[2K${line}\n`);
 }
 
 /**
- * Static banner — no animation, for non-interactive contexts.
+ * Static banner — no animation.
  */
 export function showBannerStatic(): void {
-	console.log(brand.multiline(PAW_COMPACT));
+	console.log(renderPaw(PAW_MINI));
 	console.log("");
-	console.log(accent("   ┌─────────────────────────────────┐"));
-	console.log(accent("   │") + bold.white("     O P E N P A W   v0.1.0      ") + accent("│"));
-	console.log(accent("   └─────────────────────────────────┘"));
+	console.log(accent("  ┌───────────────────────────────┐"));
+	console.log(accent("  │") + bold.white("    O P E N P A W   v0.1.0     ") + accent("│"));
+	console.log(accent("  └───────────────────────────────┘"));
 	console.log("");
 }
 
 /**
- * One-line mini brand for subcommands.
+ * One-line mini brand.
  */
 export function showMini(): void {
-	console.log(accent("  ⬤ openpaw") + dim(" — Personal Assistant Wizard for Claude Code"));
+	console.log(subtle("  ◉ openpaw") + dim(" — Personal Assistant Wizard for Claude Code"));
 }
 
-export { brand, accent, dim, bold };
+export { brand, accent, subtle, dim, bold };
