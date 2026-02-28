@@ -2,27 +2,26 @@ import type { CliTool, Preset, Skill } from "../types.js";
 
 // ── CLI Tool Definitions ──
 
-const memo: CliTool = { name: "memo", command: "memo", installCmd: "brew install steipete/tap/memo", installMethod: "brew-tap", tap: "steipete/tap", platforms: ["darwin"] };
+const memo: CliTool = { name: "memo", command: "memo", installCmd: "brew install antoniorodr/memo/memo", installMethod: "brew-tap", tap: "antoniorodr/memo", platforms: ["darwin"] };
 const remindctl: CliTool = { name: "remindctl", command: "remindctl", installCmd: "brew install steipete/tap/remindctl", installMethod: "brew-tap", tap: "steipete/tap", platforms: ["darwin"] };
 const obsidianCli: CliTool = { name: "obsidian-cli", command: "obsidian-cli", installCmd: "brew install yakitrak/yakitrak/obsidian-cli", installMethod: "brew-tap", tap: "yakitrak/yakitrak", platforms: ["darwin", "linux", "win32"] };
-const notionCli: CliTool = { name: "notion-cli", command: "notion-cli", installCmd: "npm install -g notion-cli-tool", installMethod: "npm", platforms: ["darwin", "linux", "win32"] };
+const notionCli: CliTool = { name: "notion-cli", command: "notion-cli", installCmd: "npm install -g @litencatt/notion-cli", installMethod: "npm", platforms: ["darwin", "linux", "win32"] };
 const todoistCli: CliTool = { name: "todoist-cli", command: "todoist", installCmd: "brew install todoist-cli", installMethod: "brew", platforms: ["darwin", "linux"] };
-const thingsCli: CliTool = { name: "things-cli", command: "things-cli", installCmd: "pip3 install things-cli", installMethod: "pip", platforms: ["darwin"] };
+const thingsCli: CliTool = { name: "things-cli", command: "things-cli", installCmd: "pipx install things-cli", installMethod: "pip", platforms: ["darwin"] };
 const taskwarrior: CliTool = { name: "taskwarrior", command: "task", installCmd: "brew install task", installMethod: "brew", platforms: ["darwin", "linux"] };
 const gogcli: CliTool = { name: "gogcli", command: "gog", installCmd: "brew install steipete/tap/gogcli", installMethod: "brew-tap", tap: "steipete/tap", platforms: ["darwin", "linux", "win32"] };
 const himalaya: CliTool = { name: "himalaya", command: "himalaya", installCmd: "brew install himalaya", installMethod: "brew", platforms: ["darwin", "linux"] };
-const icalpal: CliTool = { name: "icalpal", command: "icalpal", installCmd: "brew install icalpal", installMethod: "brew", platforms: ["darwin"] };
+const icalBuddy: CliTool = { name: "ical-buddy", command: "icalBuddy", installCmd: "brew install ical-buddy", installMethod: "brew", platforms: ["darwin"] };
 const imsg: CliTool = { name: "imsg", command: "imsg", installCmd: "brew install steipete/tap/imsg", installMethod: "brew-tap", tap: "steipete/tap", platforms: ["darwin"] };
 const wacli: CliTool = { name: "wacli", command: "wacli", installCmd: "brew install steipete/tap/wacli", installMethod: "brew-tap", tap: "steipete/tap", platforms: ["darwin"] };
-const slackCli: CliTool = { name: "slack-cli", command: "slack", installCmd: "brew tap rockymadden/rockymadden && brew install rockymadden/rockymadden/slack-cli", installMethod: "brew-tap", tap: "rockymadden/rockymadden", platforms: ["darwin", "linux"] };
-const bird: CliTool = { name: "bird", command: "bird", installCmd: "brew install steipete/tap/bird", installMethod: "brew-tap", tap: "steipete/tap", platforms: ["darwin", "linux", "win32"] };
+const slackCli: CliTool = { name: "slack-cli", command: "slack", installCmd: "npm install -g slack-cli", installMethod: "npm", platforms: ["darwin", "linux", "win32"] };
 const spogo: CliTool = { name: "spogo", command: "spogo", installCmd: "brew install steipete/tap/spogo", installMethod: "brew-tap", tap: "steipete/tap", platforms: ["darwin", "linux", "win32"] };
 const ytdlp: CliTool = { name: "yt-dlp", command: "yt-dlp", installCmd: "brew install yt-dlp", installMethod: "brew", platforms: ["darwin", "linux", "win32"] };
 const ffmpeg: CliTool = { name: "ffmpeg", command: "ffmpeg", installCmd: "brew install ffmpeg", installMethod: "brew", platforms: ["darwin", "linux", "win32"] };
 const peekaboo: CliTool = { name: "peekaboo", command: "peekaboo", installCmd: "brew install steipete/tap/peekaboo", installMethod: "brew-tap", tap: "steipete/tap", platforms: ["darwin"] };
 const camsnap: CliTool = { name: "camsnap", command: "camsnap", installCmd: "brew install steipete/tap/camsnap", installMethod: "brew-tap", tap: "steipete/tap", platforms: ["darwin"] };
 const sag: CliTool = { name: "sag", command: "sag", installCmd: "brew install steipete/tap/sag", installMethod: "brew-tap", tap: "steipete/tap", platforms: ["darwin"] };
-const openhue: CliTool = { name: "openhue", command: "openhue", installCmd: "brew install openhue-cli", installMethod: "brew", platforms: ["darwin", "linux", "win32"] };
+const openhue: CliTool = { name: "openhue-cli", command: "openhue", installCmd: "brew install openhue/cli/openhue-cli", installMethod: "brew-tap", tap: "openhue/cli", platforms: ["darwin", "linux", "win32"] };
 const sonoscli: CliTool = { name: "sonoscli", command: "sonos", installCmd: "brew install steipete/tap/sonoscli", installMethod: "brew-tap", tap: "steipete/tap", platforms: ["darwin", "linux", "win32"] };
 const blucli: CliTool = { name: "blucli", command: "blu", installCmd: "brew install steipete/tap/blucli", installMethod: "brew-tap", tap: "steipete/tap", platforms: ["darwin"] };
 const summarize: CliTool = { name: "summarize", command: "summarize", installCmd: "brew install steipete/tap/summarize", installMethod: "brew-tap", tap: "steipete/tap", platforms: ["darwin", "linux", "win32"] };
@@ -142,8 +141,8 @@ export const skills: Skill[] = [
 			question: "Which calendar?",
 			options: [
 				{ label: "Google Calendar", value: "google", tools: [gogcli] },
-				{ label: "Apple Calendar (macOS)", value: "apple", tools: [icalpal] },
-				{ label: "Both", value: "both", tools: [gogcli, icalpal] },
+				{ label: "Apple Calendar (macOS)", value: "apple", tools: [icalBuddy] },
+				{ label: "Both", value: "both", tools: [gogcli, icalBuddy] },
 			],
 		},
 		authSteps: [
@@ -170,17 +169,6 @@ export const skills: Skill[] = [
 		platforms: ["darwin", "linux"],
 		authSteps: [
 			{ tool: "slack-cli", command: "slack init", description: "Configure Slack token" },
-		],
-	},
-	{
-		id: "social",
-		name: "Social / Twitter",
-		description: "Post tweets, read timeline, search Twitter/X",
-		category: "communication",
-		tools: [bird],
-		platforms: ["darwin", "linux", "win32"],
-		authSteps: [
-			{ tool: "bird", command: "bird auth", description: "Connect Twitter/X" },
 		],
 	},
 	{

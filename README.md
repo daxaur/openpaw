@@ -17,7 +17,7 @@
 <p align="center"><i>*wags tail furiously* — your new best friend is here.</i></p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/openpaw"><img src="https://img.shields.io/npm/v/openpaw?color=b4783c&label=npm&style=flat-square" alt="npm"></a>
+  <a href="https://www.npmjs.com/package/pawmode"><img src="https://img.shields.io/npm/v/pawmode?color=b4783c&label=npm&style=flat-square" alt="npm"></a>
   <a href="https://github.com/daxaur/openpaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/daxaur/openpaw?color=c88a48&style=flat-square" alt="license"></a>
   <a href="https://github.com/daxaur/openpaw"><img src="https://img.shields.io/github/stars/daxaur/openpaw?color=dca03c&style=flat-square" alt="stars"></a>
 </p>
@@ -42,7 +42,7 @@ npx pawmode --preset developer --yes
 
 ## What is OpenPaw?
 
-OpenPaw turns **Claude Code** into a full personal assistant. One command, 30+ skills, and a really good boy who fetches your emails, plays your music, and controls your smart home.
+OpenPaw turns **Claude Code** into a full personal assistant. One command, 30 skills, and a really good boy who fetches your emails, plays your music, and controls your smart home.
 
 ```
 npx pawmode
@@ -122,7 +122,7 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 
 | Preset | Skills |
 |---|---|
-| **Everything** | All 31 skills for your platform |
+| **Everything** | All 30 skills for your platform |
 | **Essentials** | Email, calendar, notes, music, browser, system, notifications |
 | **Productivity** | Notes, Obsidian, tasks, email, calendar, Slack, cloud files |
 | **Developer** | GitHub, Linear, Jira, browser, network, AI, cron |
@@ -133,7 +133,7 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 
 ## Skills
 
-31 capabilities across 8 categories. Install only what you need.
+30 capabilities across 8 categories. Install only what you need.
 
 ### Productivity
 
@@ -149,10 +149,9 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 | Skill | Description | Tools |
 |---|---|---|
 | `c-email` | Read, send, search email (Gmail or IMAP) | `gog` `himalaya` |
-| `c-calendar` | Events + scheduling (Google or Apple) | `gog` `icalpal` |
+| `c-calendar` | Events + scheduling (Google or Apple) | `gog` `icalBuddy` |
 | `c-messaging` | iMessage + WhatsApp | `imsg` `wacli` |
 | `c-slack` | Slack channels + DMs | `slack` |
-| `c-social` | Twitter/X | `bird` |
 | `c-telegram` | Telegram bridge (built-in) | — |
 
 ### Media
@@ -264,7 +263,7 @@ OpenPaw doesn't run in the background (except the optional Telegram bridge). Her
 - **No attack surface** — no open ports, no cloud dependencies
 - **5-minute setup** — from zero to personal assistant
 - **Telegram built-in** — talk to Claude from your phone
-- **31 skills** — email, music, smart home, GitHub, browser, and more
+- **30 skills** — email, music, smart home, GitHub, browser, and more
 - **Open source** — MIT license, community-driven
 
 ---
