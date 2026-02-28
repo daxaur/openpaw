@@ -18,6 +18,9 @@ program
 program
 	.command("setup", { isDefault: true })
 	.description("Interactive setup wizard — pick skills, install tools, configure Claude Code")
+	.option("-p, --preset <name>", "Use a preset (everything, essentials, productivity, developer, creative, smart-home)")
+	.option("-y, --yes", "Skip confirmations, use defaults")
+	.option("--dry-run", "Show what would be installed without making changes")
 	.action(setupCommand);
 
 program
