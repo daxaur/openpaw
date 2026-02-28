@@ -35,6 +35,33 @@ const jq: CliTool = { name: "jq", command: "jq", installCmd: "brew install jq", 
 const linearCli: CliTool = { name: "linear-cli", command: "linear", installCmd: "npm install -g @linear/cli", installMethod: "npm", platforms: ["darwin", "linux", "win32"] };
 const jiraCli: CliTool = { name: "jira-cli", command: "jira", installCmd: "brew install jira-cli", installMethod: "brew", platforms: ["darwin", "linux"] };
 
+// ── New Tools: Browser ──
+const agentBrowser: CliTool = { name: "agent-browser", command: "agent-browser", installCmd: "npm install -g agent-browser", installMethod: "npm", platforms: ["darwin", "linux", "win32"] };
+const playwrightCli: CliTool = { name: "playwright-cli", command: "playwright-cli", installCmd: "npm install -g @playwright/cli@latest", installMethod: "npm", platforms: ["darwin", "linux", "win32"] };
+
+// ── New Tools: System ──
+const mcli: CliTool = { name: "m-cli", command: "m", installCmd: "brew install m-cli", installMethod: "brew", platforms: ["darwin"] };
+const mas: CliTool = { name: "mas", command: "mas", installCmd: "brew install mas", installMethod: "brew", platforms: ["darwin"] };
+const macosTrash: CliTool = { name: "macos-trash", command: "trash", installCmd: "brew install macos-trash", installMethod: "brew", platforms: ["darwin"] };
+const brightness: CliTool = { name: "brightness", command: "brightness", installCmd: "brew install brightness", installMethod: "brew", platforms: ["darwin"] };
+
+// ── New Tools: Scheduling ──
+const lunchyGo: CliTool = { name: "lunchy-go", command: "lunchy-go", installCmd: "brew install lunchy-go", installMethod: "brew", platforms: ["darwin"] };
+
+// ── New Tools: Files / Cloud ──
+const rclone: CliTool = { name: "rclone", command: "rclone", installCmd: "brew install rclone", installMethod: "brew", platforms: ["darwin", "linux", "win32"] };
+
+// ── New Tools: Notifications ──
+const terminalNotifier: CliTool = { name: "terminal-notifier", command: "terminal-notifier", installCmd: "brew install terminal-notifier", installMethod: "brew", platforms: ["darwin"] };
+
+// ── New Tools: Networking ──
+const doggo: CliTool = { name: "doggo", command: "doggo", installCmd: "brew install doggo", installMethod: "brew", platforms: ["darwin", "linux", "win32"] };
+const httpie: CliTool = { name: "httpie", command: "http", installCmd: "brew install httpie", installMethod: "brew", platforms: ["darwin", "linux", "win32"] };
+
+// ── New Tools: AI ──
+const llmCli: CliTool = { name: "llm", command: "llm", installCmd: "brew install llm", installMethod: "brew", platforms: ["darwin", "linux", "win32"] };
+const aichat: CliTool = { name: "aichat", command: "aichat", installCmd: "brew install aichat", installMethod: "brew", platforms: ["darwin", "linux", "win32"] };
+
 // ── Skill Catalog ──
 
 export const skills: Skill[] = [
@@ -299,6 +326,109 @@ export const skills: Skill[] = [
 			{ tool: "jira-cli", command: "jira init", description: "Configure Jira instance" },
 		],
 	},
+
+	// ── Browser & Automation ──
+	{
+		id: "browser",
+		name: "Browser",
+		description: "Headless browser automation — navigate, click, fill forms, scrape",
+		category: "automation",
+		tools: [],
+		platforms: ["darwin", "linux", "win32"],
+		subChoices: {
+			question: "Which browser engine?",
+			options: [
+				{ label: "Agent Browser (Vercel — built for AI)", value: "agent-browser", tools: [agentBrowser] },
+				{ label: "Playwright CLI (Microsoft)", value: "playwright", tools: [playwrightCli] },
+				{ label: "Both", value: "both", tools: [agentBrowser, playwrightCli] },
+			],
+		},
+	},
+	{
+		id: "cron",
+		name: "Scheduling / Cron",
+		description: "Manage cron jobs and launchctl services on macOS",
+		category: "automation",
+		tools: [lunchyGo],
+		platforms: ["darwin"],
+	},
+
+	// ── System ──
+	{
+		id: "system",
+		name: "System Control",
+		description: "macOS Swiss Army Knife — volume, wifi, battery, dock, trash",
+		category: "system",
+		tools: [mcli],
+		platforms: ["darwin"],
+	},
+	{
+		id: "apps",
+		name: "App Store",
+		description: "Install, update, search Mac App Store apps from CLI",
+		category: "system",
+		tools: [mas],
+		platforms: ["darwin"],
+	},
+	{
+		id: "files",
+		name: "Cloud Files",
+		description: "Sync files to Google Drive, S3, Dropbox, OneDrive, and 70+ providers",
+		category: "system",
+		tools: [rclone],
+		platforms: ["darwin", "linux", "win32"],
+		authSteps: [
+			{ tool: "rclone", command: "rclone config", description: "Set up cloud storage remotes" },
+		],
+	},
+	{
+		id: "display",
+		name: "Display & Brightness",
+		description: "Get/set display brightness, safe trash instead of rm",
+		category: "system",
+		tools: [brightness, macosTrash],
+		platforms: ["darwin"],
+	},
+	{
+		id: "notify",
+		name: "Notifications",
+		description: "Send native macOS notifications from the terminal",
+		category: "system",
+		tools: [terminalNotifier],
+		platforms: ["darwin"],
+	},
+
+	// ── Networking ──
+	{
+		id: "network",
+		name: "Networking",
+		description: "DNS lookups, HTTP client — readable API testing",
+		category: "research",
+		tools: [doggo, httpie],
+		platforms: ["darwin", "linux", "win32"],
+	},
+
+	// ── AI Tools ──
+	{
+		id: "ai",
+		name: "AI / LLM",
+		description: "Query LLMs from CLI — pipe text, chat, summarize with local or cloud models",
+		category: "research",
+		tools: [],
+		platforms: ["darwin", "linux", "win32"],
+		subChoices: {
+			question: "Which LLM CLI?",
+			options: [
+				{ label: "llm (Simon Willison — 100+ models)", value: "llm", tools: [llmCli] },
+				{ label: "aichat (Rust — fast, multi-provider)", value: "aichat", tools: [aichat] },
+				{ label: "Both", value: "both", tools: [llmCli, aichat] },
+			],
+		},
+		authSteps: [
+			{ tool: "llm", command: "llm keys set openai", description: "Set LLM API key" },
+			{ tool: "aichat", command: "aichat (follow setup prompts)", description: "Configure API key" },
+		],
+	},
 ];
 
 export const categoryLabels: Record<string, string> = {
@@ -308,6 +438,8 @@ export const categoryLabels: Record<string, string> = {
 	"smart-home": "Smart Home",
 	research: "Research & Utilities",
 	developer: "Developer",
+	automation: "Browser & Automation",
+	system: "System & Files",
 };
 
 export function getSkillById(id: string): Skill | undefined {
