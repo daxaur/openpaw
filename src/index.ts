@@ -6,6 +6,7 @@ import { statusCommand } from "./commands/status.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { updateCommand } from "./commands/update.js";
 import { resetCommand } from "./commands/reset.js";
+import { listCommand } from "./commands/list.js";
 
 const program = new Command();
 
@@ -30,6 +31,12 @@ program
 	.description("Remove skill(s) by name")
 	.argument("<skills...>", "Skill IDs to remove")
 	.action(removeCommand);
+
+program
+	.command("list")
+	.alias("ls")
+	.description("Show all available skills")
+	.action(listCommand);
 
 program
 	.command("status")

@@ -10,7 +10,7 @@ import { installSafetyHooks } from "../core/hooks.js";
 import type { CliTool, Skill } from "../types.js";
 
 export async function setupCommand(): Promise<void> {
-	showBanner();
+	await showBanner();
 
 	const platform = detectPlatform();
 	p.intro(chalk.bgHex("#6366f1").white(" openpaw setup "));

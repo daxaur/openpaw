@@ -11,7 +11,7 @@
     "skills"
   ],
   "scripts": {
-    "build": "tsdown",
+    "build": "tsdown && node -e \"const fs=require('fs');const f='dist/index.js';fs.writeFileSync(f,'#!/usr/bin/env node\\n'+fs.readFileSync(f,'utf8'));fs.chmodSync(f,0o755)\"",
     "dev": "tsdown --watch",
     "test": "vitest run",
     "test:watch": "vitest",
