@@ -71,6 +71,9 @@ Now open Claude Code and just ask:
 > "Turn the bedroom lights to 20%"
 > "What's on my calendar tomorrow?"
 > "Track my Amazon package"
+> "Go to hacker news and summarize the top 5 posts"
+> "Set my volume to 30%"
+> "Update all my Mac App Store apps"
 ```
 
 **No daemon.** OpenPaw runs once, writes config, exits. It's a wizard, not a runtime.
@@ -79,7 +82,7 @@ Now open Claude Code and just ask:
 
 ## 🧩 Skills
 
-23 capabilities across 6 categories. Install only what you need.
+32 capabilities across 8 categories. Install only what you need.
 
 ### 📝 Productivity
 
@@ -117,6 +120,23 @@ Now open Claude Code and just ask:
 | `c-speakers` | Sonos speakers | `sonos` |
 | `c-bluetooth` | Bluetooth devices | `blu` |
 
+### 🌐 Browser & Automation
+
+| Skill | Description | CLI Tools |
+|---|---|---|
+| `c-browser` | Headless browser — navigate, click, scrape | `agent-browser` `playwright-cli` |
+| `c-cron` | Cron jobs + launchctl services | `lunchy-go` |
+
+### 💻 System & Files
+
+| Skill | Description | CLI Tools |
+|---|---|---|
+| `c-system` | macOS Swiss Army Knife — volume, wifi, battery, dock | `m` |
+| `c-apps` | Mac App Store from CLI | `mas` |
+| `c-files` | Cloud sync — Google Drive, S3, Dropbox, 70+ providers | `rclone` |
+| `c-display` | Display brightness + safe trash | `brightness` `trash` |
+| `c-notify` | Native macOS notifications | `terminal-notifier` |
+
 ### 🔍 Research & Utilities
 
 | Skill | Description | CLI Tools |
@@ -125,6 +145,8 @@ Now open Claude Code and just ask:
 | `c-location` | Apple Maps + nearby places | `goplaces` |
 | `c-tracking` | Package tracking (UPS, FedEx, etc.) | `ordercli` |
 | `c-secrets` | 1Password / Bitwarden | `op` `bw` |
+| `c-network` | DNS lookups + HTTP client | `doggo` `http` |
+| `c-ai` | Query LLMs — pipe text, chat, summarize | `llm` `aichat` |
 
 ### 🛠️ Developer
 
