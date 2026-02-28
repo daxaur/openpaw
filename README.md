@@ -1,21 +1,18 @@
 <p align="center">
 <pre align="center">
-              ⣀⣀        ⣀⣀
-            ⣴⣿⣿⣷      ⣴⣿⣿⣷
-            ⠻⣿⣿⠟      ⠻⣿⣿⠟
-         ⣀⣀              ⣀⣀
-       ⣴⣿⣿⣷            ⣴⣿⣿⣷
-       ⠻⣿⣿⠟            ⠻⣿⣿⠟
-            ⣠⣴⣶⣶⣶⣶⣶⣶⣄
-          ⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷
-         ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
-         ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
-          ⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠟
-            ⠙⠻⢿⣿⣿⣿⣿⡿⠟⠁
+        ▄██▄ ▄██▄
+        ▀██▀ ▀██▀
+      ▄██▄     ▄██▄
+      ▀██▀     ▀██▀
+         ▄██████▄
+       ▄██████████▄
+       ██████████████
+       ▀██████████▀
+         ▀██████▀
 </pre>
 </p>
 
-<h1 align="center">🐾 OpenPaw</h1>
+<h1 align="center">OpenPaw</h1>
 <p align="center"><b>Personal Assistant Wizard for Claude Code</b></p>
 <p align="center"><i>Open-source. No daemon. No extra subscriptions.</i></p>
 
@@ -27,31 +24,39 @@
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
 ```bash
 npx openpaw
 ```
 
-Pick skills. Install tools. Claude does the rest. Works with your existing Claude subscription.
+Pick a preset or choose individual skills. Install tools. Claude does the rest.
+
+```bash
+# Or skip the wizard with a preset
+npx openpaw --preset essentials
+npx openpaw --preset developer --yes
+```
 
 ---
 
-## 🤔 What is OpenPaw?
+## What is OpenPaw?
 
 OpenPaw turns **Claude Code** into a full personal assistant. One command sets everything up:
 
 ```
 npx openpaw
-  ┌─────────────────────────────────────┐
-  │  🐾  What capabilities do you want? │
-  │                                     │
-  │  ● Email          ● Notes           │
-  │  ● Calendar       ● Obsidian        │
-  │  ● Music          ● Smart Home      │
-  │  ● Messaging      ● GitHub          │
-  │  ○ ...23 skills total               │
-  └─────────────────────────────────────┘
+  ┌─────────────────────────────────┐
+  │  How would you like to set up?  │
+  │                                 │
+  │  > Quick Setup (pick a preset)  │
+  │    Custom (individual skills)   │
+  └─────────────────────────────────┘
+
+  > Essentials — email, calendar, notes, music, browser, system
+  > Developer  — GitHub, Linear, Jira, browser, network, AI
+  > Creative   — music, video, screen, voice, browser
+  > Everything — all 32 skills
 
   ✔ Homebrew taps added
   ✔ CLI tools installed
@@ -80,11 +85,26 @@ Now open Claude Code and just ask:
 
 ---
 
-## 🧩 Skills
+## Presets
+
+Get started fast with a preset, or choose `Custom` to pick individual skills.
+
+| Preset | Skills |
+|---|---|
+| **Everything** | All 32 skills for your platform |
+| **Essentials** | Email, calendar, notes, music, browser, system, notifications |
+| **Productivity** | Notes, Obsidian, tasks, email, calendar, Slack, cloud files, notifications |
+| **Developer** | GitHub, Linear, Jira, browser, network, AI, cron |
+| **Creative & Media** | Music, video, screen, voice, browser, research |
+| **Smart Home** | Lights, speakers, Bluetooth, system, display, notifications |
+
+---
+
+## Skills
 
 32 capabilities across 8 categories. Install only what you need.
 
-### 📝 Productivity
+### Productivity
 
 | Skill | Description | CLI Tools |
 |---|---|---|
@@ -93,7 +113,7 @@ Now open Claude Code and just ask:
 | `c-notion` | Notion pages + databases | `notion-cli` |
 | `c-tasks` | Todoist / Things 3 / Taskwarrior | choose during setup |
 
-### 💬 Communication
+### Communication
 
 | Skill | Description | CLI Tools |
 |---|---|---|
@@ -103,7 +123,7 @@ Now open Claude Code and just ask:
 | `c-slack` | Slack channels + DMs | `slack` |
 | `c-social` | Twitter/X | `bird` |
 
-### 🎵 Media
+### Media
 
 | Skill | Description | CLI Tools |
 |---|---|---|
@@ -112,7 +132,7 @@ Now open Claude Code and just ask:
 | `c-screen` | Screenshots, OCR, webcam | `peekaboo` `camsnap` |
 | `c-voice` | Speech-to-text + TTS | `sag` `say` |
 
-### 🏠 Smart Home
+### Smart Home
 
 | Skill | Description | CLI Tools |
 |---|---|---|
@@ -120,14 +140,14 @@ Now open Claude Code and just ask:
 | `c-speakers` | Sonos speakers | `sonos` |
 | `c-bluetooth` | Bluetooth devices | `blu` |
 
-### 🌐 Browser & Automation
+### Browser & Automation
 
 | Skill | Description | CLI Tools |
 |---|---|---|
-| `c-browser` | Headless browser — navigate, click, scrape | `agent-browser` `playwright-cli` |
+| `c-browser` | Headless browser — navigate, click, scrape | [`agent-browser`](https://github.com/vercel-labs/agent-browser) / [`playwright`](https://playwright.dev/docs/cli) |
 | `c-cron` | Cron jobs + launchctl services | `lunchy-go` |
 
-### 💻 System & Files
+### System & Files
 
 | Skill | Description | CLI Tools |
 |---|---|---|
@@ -137,7 +157,7 @@ Now open Claude Code and just ask:
 | `c-display` | Display brightness + safe trash | `brightness` `trash` |
 | `c-notify` | Native macOS notifications | `terminal-notifier` |
 
-### 🔍 Research & Utilities
+### Research & Utilities
 
 | Skill | Description | CLI Tools |
 |---|---|---|
@@ -148,7 +168,7 @@ Now open Claude Code and just ask:
 | `c-network` | DNS lookups + HTTP client | `doggo` `http` |
 | `c-ai` | Query LLMs — pipe text, chat, summarize | `llm` `aichat` |
 
-### 🛠️ Developer
+### Developer
 
 | Skill | Description | CLI Tools |
 |---|---|---|
@@ -158,27 +178,30 @@ Now open Claude Code and just ask:
 
 ---
 
-## 🔧 Commands
+## Commands
 
 | Command | Description |
 |---|---|
-| `openpaw` | 🧙 Interactive setup wizard |
-| `openpaw list` | 📋 Show all available skills |
-| `openpaw add <skills>` | ➕ Add skills — `openpaw add notes music email` |
-| `openpaw remove <skills>` | ➖ Remove skills |
-| `openpaw status` | 📊 Show installed skills + tool versions |
-| `openpaw doctor` | 🩺 Diagnose issues |
-| `openpaw update` | ⬆️ Upgrade CLI tools |
-| `openpaw reset` | 🗑️ Remove everything OpenPaw installed |
+| `openpaw` | Interactive setup wizard |
+| `openpaw --preset <name>` | Quick setup with a preset |
+| `openpaw --preset <name> --yes` | Non-interactive setup |
+| `openpaw --dry-run` | Preview what would be installed |
+| `openpaw list` | Show all available skills |
+| `openpaw add <skills>` | Add skills — `openpaw add notes music email` |
+| `openpaw remove <skills>` | Remove skills |
+| `openpaw status` | Show installed skills + tool versions |
+| `openpaw doctor` | Diagnose issues |
+| `openpaw update` | Upgrade CLI tools |
+| `openpaw reset` | Remove everything OpenPaw installed |
 
 ---
 
-## 🏗️ How It Works Under the Hood
+## How It Works
 
 OpenPaw doesn't run in the background. Here's what happens when you run the wizard:
 
 ```
-1. You pick skills from an interactive menu
+1. You pick a preset or choose individual skills
 2. Homebrew taps are added (steipete/tap, yakitrak/yakitrak, etc.)
 3. CLI tools are installed via brew/npm/pip
 4. SKILL.md files are created in ~/.claude/skills/c-*/
@@ -195,7 +218,7 @@ OpenPaw doesn't run in the background. Here's what happens when you run the wiza
 
 ---
 
-## 🐾 The `/c` Coordinator
+## The `/c` Coordinator
 
 Every OpenPaw install includes `c-core` — a coordinator skill that acts as the brain. It knows what skills are installed and routes your requests to the right tool.
 
@@ -210,16 +233,16 @@ Just type `/c` in Claude Code followed by what you need:
 
 ---
 
-## ⚔️ OpenPaw vs OpenClaw
+## OpenPaw vs OpenClaw
 
 |  | OpenClaw | OpenPaw |
 |---|---|---|
-| 💰 Cost | $5-750/mo on top of Claude | **$0 extra** — uses your Claude subscription |
-| ⏱️ Setup | 15+ hours | **5 minutes** |
-| 🔒 Security | 3 critical CVEs, 40K exposed instances | **Zero attack surface** |
-| 🏗️ Architecture | Daemon on port :18789 | **No daemon** |
-| 🛡️ Malicious skills | 341 reported | **Community-vetted only** |
-| 📦 Dependencies | Docker, agent runtime, cloud | **Just CLI tools** |
+| Cost | $5-750/mo on top of Claude | **$0 extra** — uses your Claude subscription |
+| Setup | 15+ hours | **5 minutes** |
+| Security | 3 critical CVEs, 40K exposed instances | **Zero attack surface** |
+| Architecture | Daemon on port :18789 | **No daemon** |
+| Malicious skills | 341 reported | **Community-vetted only** |
+| Dependencies | Docker, agent runtime, cloud | **Just CLI tools** |
 
 Same CLI tools. Same capabilities. None of the risk.
 
@@ -229,7 +252,7 @@ OpenPaw adds nothing to your bill. It installs CLI tools locally, writes config 
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Want to add a skill? It's simple:
 
@@ -264,8 +287,8 @@ Instructions for Claude on how to use the CLI tool...
 
 ---
 
-## 📄 License
+## License
 
 MIT — do whatever you want with it.
 
-Made with 🐾 by [@daxaur](https://github.com/daxaur)
+Made with care by [@daxaur](https://github.com/daxaur)
