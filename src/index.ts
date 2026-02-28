@@ -7,6 +7,8 @@ import { doctorCommand } from "./commands/doctor.js";
 import { updateCommand } from "./commands/update.js";
 import { resetCommand } from "./commands/reset.js";
 import { listCommand } from "./commands/list.js";
+import { soulCommand } from "./commands/soul.js";
+import { exportCommand, importCommand } from "./commands/export.js";
 
 const program = new Command();
 
@@ -60,5 +62,21 @@ program
 	.command("reset")
 	.description("Remove all OpenPaw skills, permissions, and hooks")
 	.action(resetCommand);
+
+program
+	.command("soul")
+	.description("Set up or edit Claude's personality (SOUL.md)")
+	.action(soulCommand);
+
+program
+	.command("export")
+	.description("Export skills, memory, and config to a file")
+	.action(exportCommand);
+
+program
+	.command("import")
+	.description("Import skills, memory, and config from a file")
+	.argument("<file>", "Path to openpaw-export.json")
+	.action(importCommand);
 
 program.parse();
