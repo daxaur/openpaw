@@ -1,9 +1,10 @@
 import * as p from "@clack/prompts";
+import * as os from "node:os";
 import chalk from "chalk";
 import { execSync } from "node:child_process";
 import { skills, categoryLabels, getSkillsByCategory, getPresetSkills, presets, getAllTaps, getSkillById } from "../catalog/index.js";
 import { detectPlatform } from "../core/platform.js";
-import { showBanner, pawStep, pawPulse, accent, subtle, dim, bold } from "../core/branding.js";
+import { showBanner, pawStep, pawPulse, showPuppyDisclaimer, accent, subtle, dim, bold } from "../core/branding.js";
 import { installTaps, getMissingTools, installTool } from "../core/installer.js";
 import { installSkill, getDefaultSkillsDir } from "../core/skills.js";
 import { addPermissions } from "../core/permissions.js";
@@ -11,7 +12,9 @@ import { installSafetyHooks } from "../core/hooks.js";
 import { mcpServers, installMcpServer, type McpServer } from "../core/mcp.js";
 import { soulQuestionnaire, writeSoul, showSoulSummary, soulExists } from "../core/soul.js";
 import { setupMemory } from "../core/memory.js";
-import type { CliTool, Skill } from "../types.js";
+import { telegramQuestionnaire, writeTelegramConfig, telegramConfigExists } from "../core/telegram.js";
+import { isTmuxAvailable, isInTmux, launchInTmux, launchInBackground } from "../core/tmux.js";
+import type { CliTool, InterfaceMode, Skill, TelegramConfig } from "../types.js";
 
 // Category icons for the wizard
 const CATEGORY_ICONS: Record<string, string> = {
@@ -48,10 +51,10 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 
 	// ── Step 2: Personality (SOUL.md) ──
 	if (!opts.yes && !soulExists()) {
-		await pawPulse("think", "Let's personalize your assistant...");
+		await pawPulse("think", "Let's get to know you...");
 
 		const wantSoul = await p.confirm({
-			message: "Set up a personality for Claude? (name, tone, preferences)",
+			message: "Teach me your name and preferences? (makes me a better pup)",
 			initialValue: true,
 		});
 
@@ -64,7 +67,6 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 				p.log.success("Personality saved to ~/.claude/SOUL.md");
 			}
 		} else {
-			// Still set up memory without a name
 			setupMemory();
 		}
 	} else if (opts.yes) {
@@ -87,8 +89,8 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	}
 
 	if (selectedSkills.length === 0) {
-		p.log.warn("No skills selected. Run openpaw again when ready.");
-		p.outro("See you later!");
+		p.log.warn("No skills selected. Run openpaw again when you're ready!");
+		p.outro("I'll be here napping... come back soon! 🐾");
 		return;
 	}
 
@@ -96,11 +98,11 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	const resolved = resolveDependencies(selectedSkills);
 	if (resolved.length > 0) {
 		const depNames = resolved.map((s) => s.name).join(", ");
-		p.log.info(`${dim("Auto-adding dependencies:")} ${depNames}`);
+		p.log.info(`${dim("Auto-fetching dependencies:")} ${depNames}`);
 		selectedSkills.push(...resolved);
 	}
 
-	await pawPulse("happy", `${selectedSkills.length} skill${selectedSkills.length > 1 ? "s" : ""} selected`);
+	await pawPulse("happy", `${selectedSkills.length} skill${selectedSkills.length > 1 ? "s" : ""} selected — good taste!`);
 
 	// ── Step 4: Sub-Choices ──
 	if (!opts.yes) {
@@ -115,7 +117,7 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 				});
 
 				if (p.isCancel(choice)) {
-					p.cancel("Setup cancelled.");
+					p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
 					process.exit(0);
 				}
 
@@ -133,6 +135,80 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		}
 	}
 
+	// ── Step 5: Interface Mode ──
+	let interfaceMode: InterfaceMode = "native";
+	let telegramConfig: TelegramConfig | null = null;
+
+	if (!opts.yes) {
+		const modeChoice = await p.select({
+			message: "How do you want to talk to Claude? 🐾",
+			options: [
+				{ value: "native", label: "🖥  Terminal only", hint: "Claude Code in your terminal" },
+				{ value: "telegram", label: "📱 Telegram", hint: "talk to Claude from your phone" },
+				{ value: "both", label: "🖥📱 Both", hint: "terminal + Telegram" },
+			],
+		});
+
+		if (p.isCancel(modeChoice)) {
+			p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
+			process.exit(0);
+		}
+
+		interfaceMode = modeChoice as InterfaceMode;
+
+		// Telegram setup
+		if (interfaceMode === "telegram" || interfaceMode === "both") {
+			if (telegramConfigExists()) {
+				p.log.info(dim("Telegram already configured — keeping existing config"));
+			} else {
+				telegramConfig = await telegramQuestionnaire();
+				if (!telegramConfig) {
+					p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
+					process.exit(0);
+				}
+			}
+
+			// Auto-add telegram skill if not already selected
+			if (!selectedSkills.find((s) => s.id === "telegram")) {
+				const tgSkill = skills.find((s) => s.id === "telegram");
+				if (tgSkill) selectedSkills.push(tgSkill);
+			}
+		}
+	}
+
+	// ── Step 6: Working Directory ──
+	let projectDir = os.homedir();
+
+	if (!opts.yes) {
+		const workChoice = await p.select({
+			message: "Where should Claude work? 🐾",
+			options: [
+				{ value: "home", label: `Home directory ${dim("~")}`, hint: "recommended for general assistant" },
+				{ value: "custom", label: "Pick a project directory", hint: "for project-focused work" },
+			],
+		});
+
+		if (p.isCancel(workChoice)) {
+			p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
+			process.exit(0);
+		}
+
+		if (workChoice === "custom") {
+			const customDir = await p.text({
+				message: "Project directory path:",
+				placeholder: "~/projects/my-app",
+				validate: (v) => (v.length === 0 ? "Path cannot be empty" : undefined),
+			});
+
+			if (p.isCancel(customDir)) {
+				p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
+				process.exit(0);
+			}
+
+			projectDir = (customDir as string).replace(/^~/, os.homedir());
+		}
+	}
+
 	// ── Collect tools ──
 	const allTools: CliTool[] = [];
 	for (const skill of selectedSkills) {
@@ -142,7 +218,7 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	const taps = getAllTaps(selectedSkills);
 	const missing = getMissingTools(uniqueTools);
 
-	// ── Step 5: Install Location ──
+	// ── Step 7: Install Location ──
 	let targetDir: string;
 	if (opts.yes) {
 		targetDir = getDefaultSkillsDir();
@@ -150,36 +226,36 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		targetDir = await selectInstallLocation();
 	}
 
-	// ── Step 6: Confirmation ──
-	const summary = buildSummary(selectedSkills, uniqueTools, missing, taps);
-	p.note(summary, "Installation summary");
+	// ── Step 8: Confirmation ──
+	const summary = buildSummary(selectedSkills, uniqueTools, missing, taps, interfaceMode, projectDir);
+	p.note(summary, "Here's what we're fetching");
 
 	if (!opts.yes) {
 		const proceed = await p.confirm({
-			message: "Proceed with installation?",
+			message: "Ready to fetch all these goodies?",
 			initialValue: true,
 		});
 
 		if (p.isCancel(proceed) || !proceed) {
-			p.cancel("Setup cancelled.");
+			p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
 			process.exit(0);
 		}
 	}
 
-	// ── Step 7: Dry Run ──
+	// ── Step 9: Dry Run ──
 	if (opts.dryRun) {
-		p.log.info(dim("Dry run — no changes made."));
-		p.outro(accent("openpaw dry run complete"));
+		p.log.info(dim("Dry run — no changes made. Just sniffing around."));
+		p.outro(accent("openpaw dry run complete 🐾"));
 		return;
 	}
 
-	// ── Step 8: Installation ──
-	await pawStep("work", "Installing...");
+	// ── Step 10: Installation ──
+	await pawStep("work", "Fetching your goodies...");
 
 	const s = p.spinner();
 
 	if (taps.size > 0) {
-		s.start("🐾 Adding Homebrew taps...");
+		s.start("🐾 Sniffing out Homebrew taps...");
 		const tapResults = installTaps(taps);
 		const failed = [...tapResults].filter(([, ok]) => !ok);
 		if (failed.length > 0) {
@@ -192,7 +268,7 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	if (missing.length > 0) {
 		for (let i = 0; i < missing.length; i++) {
 			const tool = missing[i];
-			s.start(`🐾 [${i + 1}/${missing.length}] Installing ${tool.name}...`);
+			s.start(`🐾 [${i + 1}/${missing.length}] Teaching Claude a new trick: ${tool.name}...`);
 			const result = installTool(tool);
 			if (result.success) {
 				s.stop(`${chalk.green("✓")} ${tool.name}`);
@@ -201,30 +277,38 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 			}
 		}
 	} else if (uniqueTools.length > 0) {
-		p.log.success("All tools already installed");
+		p.log.success("All tools already installed — clever pup!");
 	}
 
-	s.start("🐾 Creating skills...");
+	s.start("🐾 Burying treats in ~/.claude/skills/...");
 	installSkill("core", targetDir);
 	installSkill("memory", targetDir);
 	const installed: string[] = ["c-core", "c-memory"];
 	for (const skill of selectedSkills) {
 		if (installSkill(skill.id, targetDir)) installed.push(`c-${skill.id}`);
 	}
-	s.stop(`🐾 ${installed.length} skills created`);
+	s.stop(`🐾 ${installed.length} skills buried`);
 
-	s.start("🐾 Configuring permissions...");
+	s.start("🐾 Setting up the doggy door...");
 	const added = addPermissions(uniqueTools);
-	s.stop(added.length > 0 ? `🐾 ${added.length} permission${added.length > 1 ? "s" : ""} added` : "🐾 Permissions up to date");
+	s.stop(added.length > 0 ? `🐾 ${added.length} permission${added.length > 1 ? "s" : ""} added` : "🐾 Doggy door already open");
 
-	s.start("🐾 Installing safety hooks...");
+	s.start("🐾 Putting up the baby gate...");
 	const hooksOk = installSafetyHooks();
-	s.stop(hooksOk ? "🐾 Safety hooks active" : "🐾 Safety hooks failed (non-critical)");
+	s.stop(hooksOk ? "🐾 Safety gate installed" : "🐾 Safety gate failed (non-critical)");
 
-	// ── Step 8b: MCP Servers ──
+	// ── Step 10b: Telegram Config ──
+	if (telegramConfig) {
+		telegramConfig.workspaceDir = projectDir;
+		telegramConfig.skills = selectedSkills.map((sk) => sk.id);
+		writeTelegramConfig(telegramConfig);
+		p.log.success("Telegram bridge configured");
+	}
+
+	// ── Step 10c: MCP Servers ──
 	if (!opts.yes) {
 		const wantMcp = await p.confirm({
-			message: "Set up MCP servers? (optional — adds AI tools like search, memory, browser)",
+			message: "Sniff out some MCP servers? (optional — search, memory, browser tools)",
 			initialValue: false,
 		});
 
@@ -250,7 +334,6 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 					}
 					s.stop(`🐾 ${mcpCount} MCP server${mcpCount > 1 ? "s" : ""} configured`);
 
-					// Show env vars that need filling in
 					const needsEnv = chosen
 						.map((id) => mcpServers.find((m) => m.id === id))
 						.filter((srv): srv is McpServer => !!srv?.envPlaceholders);
@@ -259,7 +342,7 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 						const envList = needsEnv
 							.flatMap((srv) =>
 								Object.entries(srv.envPlaceholders!).map(
-									([key, placeholder]) =>
+									([key, _placeholder]) =>
 										`${chalk.yellow("→")} ${bold(srv.name)}: Set ${dim(key)} in ~/.claude/settings.json`,
 								),
 							)
@@ -271,7 +354,7 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		}
 	}
 
-	// ── Step 9: Auth Reminders ──
+	// ── Step 11: Auth Reminders ──
 	const authSteps = selectedSkills
 		.flatMap((skill) => skill.authSteps ?? [])
 		.filter((step, i, arr) => arr.findIndex((s) => s.command === step.command) === i);
@@ -283,50 +366,117 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		p.note(authList, "One-time auth needed");
 	}
 
-	// ── Step 10: Done + Launch ──
-	await pawStep("done", "Setup complete!");
+	// ── Step 12: Done + Launch ──
+	await pawStep("done", "All done! *tail wag intensifies*");
 
 	console.log("");
-	console.log(dim("  Open Claude Code and try:"));
+	console.log(dim("  Your pup is ready to play! Try saying:"));
 	console.log(`  ${subtle('"What are my latest emails?"')}`);
 	console.log(`  ${subtle('"Play some jazz on Spotify"')}`);
 	console.log(`  ${subtle('"Go to hacker news and summarize the top posts"')}`);
 	console.log("");
 
-	// Offer to launch Claude Code
-	if (!opts.yes) {
-		const launch = await p.confirm({
-			message: "Launch Claude Code now?",
+	if (opts.yes) {
+		p.outro(accent("openpaw setup complete 🐾"));
+		return;
+	}
+
+	// Offer to launch
+	const launch = await p.confirm({
+		message: "Time to go for a walk? (Launch your assistant)",
+		initialValue: true,
+	});
+
+	if (p.isCancel(launch) || !launch) {
+		if (interfaceMode === "telegram" || interfaceMode === "both") {
+			p.log.info(`Start the Telegram bridge anytime with: ${bold("openpaw telegram")}`);
+		}
+		p.outro(accent("openpaw setup complete 🐾 — come back anytime!"));
+		return;
+	}
+
+	// ── Dangerous Mode Disclaimer ──
+	let useDangerousMode = false;
+	if (interfaceMode === "native" || interfaceMode === "both") {
+		showPuppyDisclaimer();
+
+		const acceptDanger = await p.confirm({
+			message: "Unleash full paw-er? *excited tail wag*",
 			initialValue: true,
 		});
 
-		if (!p.isCancel(launch) && launch) {
-			p.outro(accent("Starting Claude Code..."));
-			try {
-				execSync("claude", { stdio: "inherit" });
-			} catch {
-				p.log.warn("Could not launch Claude Code. Make sure it's installed: https://claude.ai/code");
-			}
-			return;
+		if (!p.isCancel(acceptDanger)) {
+			useDangerousMode = acceptDanger as boolean;
 		}
 	}
 
-	p.outro(accent("openpaw setup complete 🐾"));
+	// ── tmux Option ──
+	let useTmux = false;
+	if (isTmuxAvailable() && !isInTmux()) {
+		const tmuxDefault = interfaceMode === "both";
+		const tmuxChoice = await p.confirm({
+			message: "Run in tmux? (keeps going when you close the terminal)",
+			initialValue: tmuxDefault,
+		});
+
+		if (!p.isCancel(tmuxChoice)) {
+			useTmux = tmuxChoice as boolean;
+		}
+	}
+
+	// ── Build launch commands ──
+	const dangerFlag = useDangerousMode ? " --dangerously-skip-permissions" : "";
+	const nativeCmd = `claude${dangerFlag}`;
+	const telegramCmd = "npx openpaw telegram";
+
+	// ── Launch ──
+	if (useTmux) {
+		p.outro(accent("Launching in tmux... 🐾"));
+		launchInTmux({
+			nativeCmd: interfaceMode === "native" || interfaceMode === "both" ? nativeCmd : undefined,
+			telegramCmd: interfaceMode === "telegram" || interfaceMode === "both" ? telegramCmd : undefined,
+			workDir: projectDir,
+		});
+	} else if (interfaceMode === "native") {
+		p.outro(accent("Starting Claude Code... 🐾"));
+		try {
+			execSync(nativeCmd, { stdio: "inherit", cwd: projectDir });
+		} catch {
+			p.log.warn("Could not launch Claude Code. Make sure it's installed: https://claude.ai/code");
+		}
+	} else if (interfaceMode === "telegram") {
+		p.outro(accent("Starting Telegram bridge... 🐾"));
+		try {
+			execSync(telegramCmd, { stdio: "inherit" });
+		} catch {
+			p.log.warn("Telegram bridge failed to start.");
+		}
+	} else {
+		// Both without tmux: telegram in background, native in foreground
+		p.log.info(dim("Starting Telegram bridge in background..."));
+		launchInBackground(telegramCmd);
+		p.outro(accent("Starting Claude Code... 🐾"));
+		try {
+			execSync(nativeCmd, { stdio: "inherit", cwd: projectDir });
+		} catch {
+			p.log.warn("Could not launch Claude Code. Make sure it's installed: https://claude.ai/code");
+		}
+	}
 }
 
 // ── Skill Selection ──
 
 async function selectSkills(os: string): Promise<Skill[]> {
 	const mode = await p.select({
-		message: "How would you like to set up?",
+		message: "How should we set things up, human?",
 		options: [
-			{ value: "preset", label: "⚡ Quick Setup", hint: "pick a preset, get going fast" },
-			{ value: "custom", label: "🎯 Custom", hint: "choose skills category by category" },
+			{ value: "preset", label: "⚡ Quick Setup", hint: "pick a treat... I mean, a preset" },
+			{ value: "custom", label: "🎯 Custom", hint: "sniff through skills one by one" },
 		],
 	});
 
 	if (p.isCancel(mode)) {
-		p.cancel("Setup cancelled.");
+		p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
 		process.exit(0);
 	}
 
@@ -338,7 +488,7 @@ async function selectSkills(os: string): Promise<Skill[]> {
 
 async function selectFromPreset(os: string): Promise<Skill[]> {
 	const presetChoice = await p.select({
-		message: "Choose a preset",
+		message: "Pick a treat... I mean, a preset!",
 		options: presets.map((pr) => ({
 			value: pr.id,
 			label: pr.name,
@@ -347,7 +497,7 @@ async function selectFromPreset(os: string): Promise<Skill[]> {
 	});
 
 	if (p.isCancel(presetChoice)) {
-		p.cancel("Setup cancelled.");
+		p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
 		process.exit(0);
 	}
 
@@ -362,7 +512,6 @@ async function selectCustom(os: string): Promise<Skill[]> {
 	const grouped = getSkillsByCategory(os);
 	const allSelected: Skill[] = [];
 
-	// Walk through each category one at a time
 	for (const [category, categorySkills] of grouped) {
 		const label = categoryLabels[category] ?? category;
 		const icon = CATEGORY_ICONS[category] ?? "📦";
@@ -378,7 +527,7 @@ async function selectCustom(os: string): Promise<Skill[]> {
 		});
 
 		if (p.isCancel(selected)) {
-			p.cancel("Setup cancelled.");
+			p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
 			process.exit(0);
 		}
 
@@ -410,7 +559,7 @@ async function selectInstallLocation(): Promise<string> {
 	});
 
 	if (p.isCancel(skillsDir)) {
-		p.cancel("Setup cancelled.");
+		p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
 		process.exit(0);
 	}
 
@@ -422,7 +571,7 @@ async function selectInstallLocation(): Promise<string> {
 			validate: (v) => (v.length === 0 ? "Path cannot be empty" : undefined),
 		});
 		if (p.isCancel(customDir)) {
-			p.cancel("Setup cancelled.");
+			p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
 			process.exit(0);
 		}
 		targetDir = customDir as string;
@@ -438,15 +587,20 @@ function buildSummary(
 	uniqueTools: CliTool[],
 	missing: CliTool[],
 	taps: Set<string>,
+	interfaceMode: InterfaceMode,
+	projectDir: string,
 ): string {
 	const lines: string[] = [];
-	lines.push(`${bold("Skills:")}    ${selectedSkills.map((s) => s.name).join(", ")}`);
-	lines.push(`${bold("Tools:")}     ${uniqueTools.length} total, ${missing.length} to install`);
+	lines.push(`${bold("Skills:")}     ${selectedSkills.map((s) => s.name).join(", ")}`);
+	lines.push(`${bold("Tools:")}      ${uniqueTools.length} total, ${missing.length} to install`);
 	if (taps.size > 0) {
-		lines.push(`${bold("Taps:")}      ${[...taps].join(", ")}`);
+		lines.push(`${bold("Taps:")}       ${[...taps].join(", ")}`);
 	}
-	lines.push(`${bold("Memory:")}    ~/.claude/memory/`);
-	lines.push(`${bold("Soul:")}      ~/.claude/SOUL.md`);
+	const modeLabel = interfaceMode === "native" ? "Terminal" : interfaceMode === "telegram" ? "Telegram" : "Terminal + Telegram";
+	lines.push(`${bold("Interface:")}  ${modeLabel}`);
+	lines.push(`${bold("Workspace:")}  ${projectDir.replace(os.homedir(), "~")}`);
+	lines.push(`${bold("Memory:")}     ~/.claude/memory/`);
+	lines.push(`${bold("Soul:")}       ~/.claude/SOUL.md`);
 	return lines.join("\n");
 }
 

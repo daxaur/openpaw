@@ -1,84 +1,66 @@
 ---
 name: c-telegram
-description: Send and read Telegram messages via Bot API using curl. No daemon needed — works on demand.
-tags: [telegram, messaging, communication, bot]
+description: Bidirectional Telegram bridge — talk to Claude from your phone. Built into OpenPaw.
+tags: [telegram, messaging, communication, bot, bridge]
 ---
 
-# Telegram — Bot API via curl
+# Telegram Bridge
 
-Send and read Telegram messages using the Bot API. No extra tools needed — just curl.
+Full bidirectional Claude-from-Telegram. Send messages from your phone, get responses from Claude with all your skills available.
 
-## Configuration
+## How It Works
 
-Bot credentials are stored in `~/.config/openpaw/telegram.env`:
+The OpenPaw Telegram bridge (`openpaw telegram`) connects a Telegram bot to Claude via the Agent SDK. Every skill installed in `~/.claude/skills/` is available as a bot command.
 
-```bash
-TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
-TELEGRAM_CHAT_ID=123456789
-```
-
-Load them before any command:
+## Starting the Bridge
 
 ```bash
-source ~/.config/openpaw/telegram.env
+openpaw telegram
 ```
 
-## Send a Message
+This starts a long-running process. Keep it open in a terminal or tmux session.
+
+## Bot Commands
+
+Built-in:
+- `/start` — show status and available skills
+- `/model sonnet|opus|haiku` — switch Claude model
+- `/skills` — list installed skills
+- `/stop` — cancel current operation
+- `/clear` — reset conversation
+
+Skill commands (auto-generated from your installed skills):
+- `/email check my inbox`
+- `/music play some jazz`
+- `/notes add grocery list`
+- `/calendar what's on tomorrow`
+- (any installed skill becomes a /command)
+
+Or just send a regular message — Claude will figure out which skill to use.
+
+## Setup
+
+Run during `openpaw setup` or separately:
 
 ```bash
-curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-  -d "chat_id=${TELEGRAM_CHAT_ID}" \
-  -d "text=Hello from Claude" \
-  -d "parse_mode=Markdown"
+openpaw telegram setup
 ```
 
-## Read Recent Messages
+You'll need:
+1. A Telegram bot token (from @BotFather)
+2. Your Telegram user ID (from @userinfobot)
 
-```bash
-curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates?limit=10" | jq '.result[-5:][] | {from: .message.from.first_name, text: .message.text, date: .message.date}'
-```
+Config is saved to `~/.config/openpaw/telegram.json`.
 
-## Send a File
+## Security
 
-```bash
-curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
-  -F "chat_id=${TELEGRAM_CHAT_ID}" \
-  -F "document=@/path/to/file.pdf"
-```
-
-## Send a Photo
-
-```bash
-curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto" \
-  -F "chat_id=${TELEGRAM_CHAT_ID}" \
-  -F "photo=@/path/to/image.png" \
-  -F "caption=Here's the screenshot"
-```
-
-## Setup Guide
-
-The user needs to create a Telegram bot once:
-
-1. Open Telegram and message `@BotFather`
-2. Send `/newbot`, pick a name and username (must end in `bot`)
-3. Copy the **API token** BotFather gives you
-4. Send any message to your new bot in Telegram (creates the chat)
-5. Get your chat ID:
-   ```bash
-   curl -s "https://api.telegram.org/bot<TOKEN>/getUpdates" | jq '.result[0].message.chat.id'
-   ```
-6. Save credentials:
-   ```bash
-   mkdir -p ~/.config/openpaw
-   echo 'TELEGRAM_BOT_TOKEN=<your-token>' > ~/.config/openpaw/telegram.env
-   echo 'TELEGRAM_CHAT_ID=<your-chat-id>' >> ~/.config/openpaw/telegram.env
-   chmod 600 ~/.config/openpaw/telegram.env
-   ```
+- Only responds to whitelisted user IDs
+- Bot token stored with 600 permissions (owner-only)
+- All Claude operations run locally on your machine
 
 ## Guidelines
 
-- Always load credentials with `source ~/.config/openpaw/telegram.env` first
-- Use Markdown parse_mode for formatted messages
-- Check `getUpdates` to read what the user sent to the bot
-- Never expose the bot token in responses to the user
-- Rate limit: max ~30 messages/second to same chat
+- The bridge maintains conversation context per user
+- Use `/clear` to start fresh if Claude gets confused
+- Use `/stop` to cancel long-running operations
+- Model can be switched anytime with `/model`

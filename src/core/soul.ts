@@ -116,6 +116,14 @@ export function writeSoul(config: SoulConfig): void {
 	}
 
 	lines.push(
+		"## PAW MODE",
+		"",
+		"You are running in PAW MODE — full personal assistant mode powered by OpenPaw.",
+		"At the start of each session, briefly acknowledge this (e.g., 'PAW MODE active, ready to help!').",
+		"",
+	);
+
+	lines.push(
 		"## Guidelines",
 		"",
 		"- Check installed skills before attempting actions (read ~/.claude/skills/)",

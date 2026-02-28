@@ -65,6 +65,16 @@ export interface PlatformInfo {
 	hasPip: boolean;
 }
 
+export type InterfaceMode = "native" | "telegram" | "both";
+
+export interface TelegramConfig {
+	botToken: string;
+	allowedUserIds: string[];
+	workspaceDir: string;
+	model: string;
+	skills: string[];
+}
+
 export interface SettingsJson {
 	permissions?: {
 		allow?: string[];

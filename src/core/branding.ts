@@ -186,4 +186,27 @@ export function showMini(): void {
 	);
 }
 
+/**
+ * Puppy disclaimer about --dangerously-skip-permissions.
+ */
+export function showPuppyDisclaimer(): void {
+	console.log("");
+	console.log(pawClr("     /\\_/\\"));
+	console.log(pawClr("    ( o.o )") + `   ${bold("WOOF! One important sniff...")}`);
+	console.log(pawClr("     > ^ <"));
+	console.log("");
+	console.log(`  ${accent("You're about to let Claude off the leash!")}`);
+	console.log(dim("  (--dangerously-skip-permissions)"));
+	console.log("");
+	console.log("  This lets Claude run commands without asking each time.");
+	console.log("  It's how your assistant actually gets things done —");
+	console.log("  checking email, playing music, managing files.");
+	console.log("");
+	console.log(dim("  OpenPaw's safety hooks still block the dangerous stuff"));
+	console.log(dim("  (mass deletes, credential leaks, etc)."));
+	console.log("");
+	console.log(dim("  You can always run 'claude' normally without this."));
+	console.log("");
+}
+
 export { accent, subtle, dim, bold };

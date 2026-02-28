@@ -9,13 +9,14 @@ import { resetCommand } from "./commands/reset.js";
 import { listCommand } from "./commands/list.js";
 import { soulCommand } from "./commands/soul.js";
 import { exportCommand, importCommand } from "./commands/export.js";
+import { telegramCommand, telegramSetupCommand } from "./commands/telegram.js";
 
 const program = new Command();
 
 program
 	.name("openpaw")
 	.description("Personal Assistant Wizard for Claude Code")
-	.version("0.1.0");
+	.version("1.0.0");
 
 program
 	.command("setup", { isDefault: true })
@@ -78,5 +79,15 @@ program
 	.description("Import skills, memory, and config from a file")
 	.argument("<file>", "Path to openpaw-export.json")
 	.action(importCommand);
+
+const tg = program
+	.command("telegram")
+	.description("Start the Telegram bridge — talk to Claude from your phone");
+
+tg.action(telegramCommand);
+
+tg.command("setup")
+	.description("Set up or reconfigure the Telegram bot")
+	.action(telegramSetupCommand);
 
 program.parse();

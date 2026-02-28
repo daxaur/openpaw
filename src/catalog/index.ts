@@ -185,25 +185,11 @@ export const skills: Skill[] = [
 	},
 	{
 		id: "telegram",
-		name: "Telegram",
-		description: "Send/read Telegram messages via Bot API — no daemon, just curl",
+		name: "Telegram Bridge",
+		description: "Talk to Claude from your phone — full bidirectional Telegram bridge",
 		category: "communication",
-		tools: [curl, jq],
+		tools: [],
 		platforms: ["darwin", "linux", "win32"],
-		authSteps: [
-			{ tool: "curl", command: "Message @BotFather on Telegram", description: "Create a bot and save token to ~/.config/openpaw/telegram.env" },
-		],
-	},
-	{
-		id: "discord",
-		name: "Discord",
-		description: "Send messages to Discord channels via webhooks — no daemon, just curl",
-		category: "communication",
-		tools: [curl, jq],
-		platforms: ["darwin", "linux", "win32"],
-		authSteps: [
-			{ tool: "curl", command: "Create a Discord webhook", description: "Server Settings → Integrations → Webhooks → Copy URL to ~/.config/openpaw/discord.env" },
-		],
 	},
 
 	// ── Media ──
