@@ -1,34 +1,37 @@
-import chalk from "chalk";
-import gradient from "gradient-string";
+import chalk, { type ChalkInstance } from "chalk";
 
 // ── Colors ──
-const brand = gradient.mind;
-const glow = gradient.vice;
 const accent = chalk.hex("#30d2be");
 const subtle = chalk.hex("#3584a7");
 const dim = chalk.dim;
 const bold = chalk.bold;
-const paw = chalk.hex("#30d2be");
+const pawClr = chalk.hex("#30d2be");
 
 // ── Paw Art ──
-// Single-color block art — 4 toe pads + 1 palm pad.
+// Graduated block art (▁▂▃▄▅▆▇█) — smooth anti-aliased edges, single color.
 
 const PAW_ART = [
-	"          ▄███▄ ▄███▄",
-	"         ██████ ██████",
-	"          ▀███▀ ▀███▀",
-	"    ▄███▄             ▄███▄",
-	"   ██████             ██████",
-	"    ▀███▀             ▀███▀",
-	"        ▄█████████████▄",
-	"      ▄█████████████████▄",
-	"     ███████████████████████",
-	"    ████████████████████████",
-	"    ████████████████████████",
-	"     ███████████████████████",
-	"      ▀█████████████████▀",
-	"        ▀█████████████▀",
-	"           ▀███████▀",
+	"                ▁▁▁            ▁▁▁",
+	"             ▂▄▅▆▆▆▅▄▂▁     ▂▄▅▆▆▆▅▄▂▁",
+	"           ▁▃▆███████▆▃▁  ▁▃▆███████▆▃▁",
+	"           ▁▃▇███████▇▄▁  ▁▃▇███████▇▄▁",
+	"   ▁▂▃▄▄▄▂▁ ▁▂▅▆▇▇▇▆▅▃▁    ▁▂▅▆▇▇▇▆▅▃▁ ▁▂▃▄▄▄▂▁",
+	"  ▂▅▇████▇▅▂   ▁▁▁▁▁          ▁▁▁▁▁   ▂▅▇████▇▅▃▁",
+	" ▁▄▇██████▇▄▁                        ▁▄▇██████▇▄▁",
+	"  ▂▄▇████▇▅▂                          ▂▄▇████▇▅▂",
+	"    ▁▃▃▃▃▂▁                             ▁▃▃▃▃▂▁",
+	"                      ▁▁▁▁▁▁",
+	"                ▁▂▃▄▅▆▆▆▇▇▇▆▆▅▄▃▂▁",
+	"              ▂▄▆▇██████████████▇▆▄▂",
+	"            ▁▄▆████████████████████▇▄▂",
+	"           ▂▅▇███████████████████████▅▂",
+	"          ▁▄▇████████████████████████▇▄▁",
+	"          ▁▅▇████████████████████████▇▅▂",
+	"          ▁▃▆████████████████████████▇▄▁",
+	"           ▁▄▆██████████████████████▇▄▁",
+	"             ▂▅▇██████████████████▇▅▃▁",
+	"               ▂▃▅▆▇██████████▇▇▅▄▂▁",
+	"                  ▁▂▃▃▄▄▄▄▄▄▃▃▂▁",
 ];
 
 const PAW_ROWS = PAW_ART.length;
@@ -49,11 +52,11 @@ const MOOD_HEX: Record<PawMood, string> = {
 	warn: "#dca03c",
 };
 
-function pawColor(mood: PawMood): chalk.ChalkInstance {
+function pawColor(mood: PawMood): ChalkInstance {
 	return chalk.hex(MOOD_HEX[mood]);
 }
 
-function renderPaw(color: chalk.ChalkInstance): string {
+function renderPaw(color: ChalkInstance): string {
 	return PAW_ART.map((line) => "  " + color(line)).join("\n");
 }
 
@@ -65,27 +68,25 @@ function renderPaw(color: chalk.ChalkInstance): string {
 export async function showBanner(): Promise<void> {
 	process.stdout.write("\x1B[?25l"); // hide cursor
 
-	// Fade in: dim → normal
-	const dimPaw = renderPaw(chalk.hex("#153d36"));
-	process.stdout.write(dimPaw + "\n");
+	// Fade in: dim → mid → full
+	process.stdout.write(renderPaw(chalk.hex("#153d36")) + "\n");
 	await sleep(60);
 
 	process.stdout.write(`\x1B[${PAW_ROWS}A\x1B[J`);
-	const midPaw = renderPaw(chalk.hex("#1f7a6d"));
-	process.stdout.write(midPaw + "\n");
+	process.stdout.write(renderPaw(chalk.hex("#1f7a6d")) + "\n");
 	await sleep(60);
 
 	process.stdout.write(`\x1B[${PAW_ROWS}A\x1B[J`);
-	process.stdout.write(renderPaw(paw) + "\n");
+	process.stdout.write(renderPaw(pawClr) + "\n");
 	await sleep(60);
 
-	// Quick pulse: bright → normal
+	// Pulse: bright → settle
 	process.stdout.write(`\x1B[${PAW_ROWS}A\x1B[J`);
 	process.stdout.write(renderPaw(chalk.hex("#50f0da")) + "\n");
 	await sleep(80);
 
 	process.stdout.write(`\x1B[${PAW_ROWS}A\x1B[J`);
-	process.stdout.write(renderPaw(paw) + "\n");
+	process.stdout.write(renderPaw(pawClr) + "\n");
 
 	process.stdout.write("\x1B[?25h"); // show cursor
 
@@ -135,7 +136,7 @@ export async function pawPulse(
  * Static banner — no animation.
  */
 export function showBannerStatic(): void {
-	console.log(renderPaw(paw));
+	console.log(renderPaw(pawClr));
 	console.log("");
 	console.log(accent("  O P E N P A W"));
 	console.log(dim("  Personal Assistant Wizard for Claude Code"));
@@ -152,4 +153,4 @@ export function showMini(): void {
 	);
 }
 
-export { brand, glow, accent, subtle, dim, bold };
+export { accent, subtle, dim, bold };
