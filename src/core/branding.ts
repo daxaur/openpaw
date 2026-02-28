@@ -11,17 +11,10 @@ const dim = chalk.dim;
 const bold = chalk.bold;
 
 // ── Truecolor Paw Engine ──
-// Procedural 3D-shaded paw print using half-block pixel art.
-// Each character cell packs 2 vertical pixels via ▀ (upper half block)
-// with truecolor foreground (top pixel) + background (bottom pixel).
+// Procedural 3D paw using half-block pixel art (▀ with fg+bg truecolor).
+// Monochrome — one base color, 3D depth from shading only.
 
 type RGB = [number, number, number];
-
-interface PawPalette {
-	top: RGB;
-	bottom: RGB;
-	highlight: number;
-}
 
 interface Pad {
 	cx: number;
@@ -30,30 +23,30 @@ interface Pad {
 	ry: number;
 }
 
-const W = 23;
-const H = 16;
-const PAW_ROWS = H / 2; // 8 output character rows
-const MARGIN = "  ";
+const W = 29;
+const H = 20;
+const PAW_ROWS = H / 2; // 10 output character rows
 
 // Pad layout — 4 toes in arc + 1 palm
 const BASE_PADS: Pad[] = [
-	{ cx: 8, cy: 1.5, rx: 2.3, ry: 1.8 },
-	{ cx: 14, cy: 1.5, rx: 2.3, ry: 1.8 },
-	{ cx: 4, cy: 4, rx: 2.0, ry: 1.8 },
-	{ cx: 18, cy: 4, rx: 2.0, ry: 1.8 },
-	{ cx: 11, cy: 11, rx: 5.5, ry: 4.5 },
+	{ cx: 10.5, cy: 1.5, rx: 2.8, ry: 2.5 },
+	{ cx: 18.5, cy: 1.5, rx: 2.8, ry: 2.5 },
+	{ cx: 5, cy: 5, rx: 2.5, ry: 2.5 },
+	{ cx: 24, cy: 5, rx: 2.5, ry: 2.5 },
+	{ cx: 14.5, cy: 14, rx: 7, ry: 5.5 },
 ];
 
-// ── Mood palettes ──
+// ── Moods ──
 export type PawMood = "wave" | "think" | "happy" | "work" | "done" | "warn";
 
-const PALETTES: Record<PawMood, PawPalette> = {
-	wave: { top: [155, 125, 235], bottom: [55, 220, 200], highlight: 0.22 },
-	think: { top: [90, 110, 200], bottom: [60, 150, 210], highlight: 0.12 },
-	happy: { top: [220, 170, 80], bottom: [255, 120, 80], highlight: 0.25 },
-	work: { top: [120, 90, 200], bottom: [50, 160, 180], highlight: 0.10 },
-	done: { top: [60, 210, 190], bottom: [48, 230, 210], highlight: 0.25 },
-	warn: { top: [220, 160, 50], bottom: [220, 80, 50], highlight: 0.15 },
+// Monochrome palettes — single base color per mood
+const MOOD_COLORS: Record<PawMood, RGB> = {
+	wave: [48, 210, 190],
+	think: [48, 210, 190],
+	happy: [48, 210, 190],
+	work: [40, 185, 168],
+	done: [60, 230, 210],
+	warn: [220, 160, 60],
 };
 
 function clamp(v: number): number {
@@ -67,13 +60,14 @@ function sleep(ms: number): Promise<void> {
 // ── Pixel grid generation ──
 
 function generatePaw(
-	palette: PawPalette,
+	base: RGB,
 	brightness = 1.0,
 	offsetX = 0,
 ): (RGB | null)[][] {
-	const pads = offsetX === 0
-		? BASE_PADS
-		: BASE_PADS.map((p) => ({ ...p, cx: p.cx + offsetX }));
+	const pads =
+		offsetX === 0
+			? BASE_PADS
+			: BASE_PADS.map((p) => ({ ...p, cx: p.cx + offsetX }));
 
 	const grid: (RGB | null)[][] = [];
 	for (let y = 0; y < H; y++) {
@@ -85,32 +79,22 @@ function generatePaw(
 				const dy = (y - pad.cy) / pad.ry;
 				const dist = Math.sqrt(dx * dx + dy * dy);
 
-				// Anti-aliased edge
 				let alpha: number;
-				if (dist <= 0.85) alpha = 1.0;
-				else if (dist <= 1.0) alpha = 1.0 - (dist - 0.85) / 0.15;
+				if (dist <= 0.82) alpha = 1.0;
+				else if (dist <= 1.0) alpha = 1.0 - (dist - 0.82) / 0.18;
 				else continue;
 
-				// Vertical gradient
-				const t = y / H;
-				const baseR = palette.top[0] * (1 - t) + palette.bottom[0] * t;
-				const baseG = palette.top[1] * (1 - t) + palette.bottom[1] * t;
-				const baseB = palette.top[2] * (1 - t) + palette.bottom[2] * t;
-
-				// 3D depth: edge darkening + directional light
-				const edge = 1.0 - dist * 0.15;
-				const light = 1.0 + -dx * 0.1 + -dy * 0.1;
-
-				// Specular highlight (top-left of each pad)
+				// 3D: edge darkening + directional light + specular
+				const edge = 1.0 - dist * 0.2;
+				const light = 1.0 + -dx * 0.12 + -dy * 0.12;
 				const specD = Math.sqrt((dx + 0.3) ** 2 + (dy + 0.35) ** 2);
-				const spec =
-					Math.max(0, 1.0 - specD * 1.2) * palette.highlight * 255;
+				const spec = Math.max(0, 1.0 - specD * 1.1) * 0.2 * 255;
 
-				const shade = Math.max(0.2, edge * light) * alpha * brightness;
+				const shade = Math.max(0.25, edge * light) * alpha * brightness;
 				grid[y][x] = [
-					clamp(baseR * shade + spec * alpha * brightness),
-					clamp(baseG * shade + spec * alpha * brightness),
-					clamp(baseB * shade + spec * alpha * brightness),
+					clamp(base[0] * shade + spec * alpha * brightness),
+					clamp(base[1] * shade + spec * alpha * brightness),
+					clamp(base[2] * shade + spec * alpha * brightness),
 				];
 				break;
 			}
@@ -119,9 +103,9 @@ function generatePaw(
 	return grid;
 }
 
-// ── Truecolor half-block renderer ──
+// ── Half-block renderer ──
 
-function renderPaw(grid: (RGB | null)[][]): string {
+function renderPaw(grid: (RGB | null)[][], margin = "  "): string {
 	const lines: string[] = [];
 	for (let y = 0; y < grid.length; y += 2) {
 		let line = "";
@@ -138,7 +122,7 @@ function renderPaw(grid: (RGB | null)[][]): string {
 				line += " ";
 			}
 		}
-		lines.push(MARGIN + line.replace(/\s+$/, "") + "\x1b[0m");
+		lines.push(margin + line.replace(/\s+$/, "") + "\x1b[0m");
 	}
 	return lines.join("\n");
 }
@@ -146,55 +130,41 @@ function renderPaw(grid: (RGB | null)[][]): string {
 // ── Public API ──
 
 /**
- * Animated banner: fade-in → pulse → arrow-key reactive → title.
+ * Animated banner: render paw → quick pulse → arrow-key reactive → title.
+ * No screen clear — renders at current cursor position.
  */
 export async function showBanner(): Promise<void> {
-	process.stdout.write("\x1B[2J\x1B[H");
-	process.stdout.write("\x1B[?25l");
+	const base = MOOD_COLORS.wave;
 
-	const pal = PALETTES.wave;
+	process.stdout.write("\x1B[?25l"); // hide cursor
 
-	// Phase 1: Fade in (dark → full brightness)
-	for (let frame = 0; frame <= 8; frame++) {
-		const brightness = frame / 8;
-		const grid = generatePaw(pal, brightness);
-		process.stdout.write("\x1B[H");
-		process.stdout.write(renderPaw(grid) + "\n");
-		await sleep(40);
+	// Render paw
+	const paw = renderPaw(generatePaw(base));
+	process.stdout.write(paw + "\n");
+
+	// Quick pulse animation (bright → dim → normal)
+	for (const b of [1.2, 0.8, 1.1, 0.9, 1.0]) {
+		process.stdout.write(`\x1B[${PAW_ROWS}A`);
+		process.stdout.write(renderPaw(generatePaw(base, b)) + "\n");
+		await sleep(50);
 	}
 
-	// Phase 2: Pulse (brightness oscillation)
-	const pulseFrames = [1.15, 0.85, 1.1, 0.9, 1.0];
-	for (const b of pulseFrames) {
-		process.stdout.write("\x1B[H");
-		process.stdout.write(renderPaw(generatePaw(pal, b)) + "\n");
-		await sleep(60);
-	}
+	process.stdout.write("\x1B[?25h"); // show cursor
 
-	process.stdout.write("\x1B[?25h");
-
-	// Phase 3: Arrow-key reactive (1.5s)
-	await interactivePaw(1500, pal);
+	// Arrow-key reactive (1.5s)
+	await interactivePaw(1500, base);
 
 	// Title
-	console.log(accent("  ┌───────────────────────────────┐"));
-	console.log(
-		accent("  │") +
-			bold.white("    O P E N P A W   v0.1.0     ") +
-			accent("│"),
-	);
-	console.log(accent("  └───────────────────────────────┘"));
+	console.log("");
+	console.log(accent("  O P E N P A W"));
 	console.log(dim("  Personal Assistant Wizard for Claude Code"));
 	console.log("");
 }
 
 /**
- * Arrow-key reactive — paw shifts left/right with arrow keys.
+ * Arrow-key reactive — paw shifts left/right.
  */
-async function interactivePaw(
-	ms: number,
-	pal: PawPalette,
-): Promise<void> {
+async function interactivePaw(ms: number, base: RGB): Promise<void> {
 	return new Promise<void>((resolve) => {
 		let offset = 0;
 
@@ -204,7 +174,7 @@ async function interactivePaw(
 
 		const draw = (ox: number) => {
 			process.stdout.write(`\x1B[${PAW_ROWS}A\x1B[J`);
-			process.stdout.write(renderPaw(generatePaw(pal, 1.0, ox)) + "\n");
+			process.stdout.write(renderPaw(generatePaw(base, 1.0, ox)) + "\n");
 		};
 
 		const onKey = (_s: string | undefined, key: readline.Key) => {
@@ -234,20 +204,19 @@ async function interactivePaw(
 }
 
 /**
- * Show paw between wizard steps — renders in mood color, pauses, clears.
+ * Show paw between wizard steps — mood-colored, brief flash, then clears.
  */
 export async function pawStep(
 	mood: PawMood,
 	message?: string,
 ): Promise<void> {
-	const pal = PALETTES[mood];
-	const rendered = renderPaw(generatePaw(pal));
+	const base = MOOD_COLORS[mood];
+	const rendered = renderPaw(generatePaw(base));
 
-	console.log(rendered);
+	process.stdout.write(rendered + "\n");
 	if (message) console.log(`  ${accent(message)}`);
-	await sleep(400);
+	await sleep(350);
 
-	// Clear: paw rows + optional message line
 	const lines = PAW_ROWS + (message ? 1 : 0);
 	process.stdout.write(`\x1B[${lines}A\x1B[J`);
 }
@@ -260,10 +229,7 @@ export async function pawPulse(
 	message?: string,
 ): Promise<void> {
 	if (!message) return;
-	const pal = PALETTES[mood];
-	const [r, g, b] = pal.top;
-	const dot = `\x1b[38;2;${r};${g};${b}m◉\x1b[0m`;
-	const line = `  ${dot} ${subtle(message)}`;
+	const line = `  ${accent("◉")} ${subtle(message)}`;
 
 	for (let i = 0; i < 3; i++) {
 		if (i > 0) process.stdout.write("\x1B[1A");
@@ -275,24 +241,19 @@ export async function pawPulse(
 }
 
 /**
- * Static banner — no animation, for non-TTY or quick display.
+ * Static banner — no animation.
  */
 export function showBannerStatic(): void {
-	const pal = PALETTES.wave;
-	console.log(renderPaw(generatePaw(pal)));
+	const base = MOOD_COLORS.wave;
+	console.log(renderPaw(generatePaw(base)));
 	console.log("");
-	console.log(accent("  ┌───────────────────────────────┐"));
-	console.log(
-		accent("  │") +
-			bold.white("    O P E N P A W   v0.1.0     ") +
-			accent("│"),
-	);
-	console.log(accent("  └───────────────────────────────┘"));
+	console.log(accent("  O P E N P A W"));
+	console.log(dim("  Personal Assistant Wizard for Claude Code"));
 	console.log("");
 }
 
 /**
- * Mini one-liner for subcommands.
+ * Mini one-liner.
  */
 export function showMini(): void {
 	console.log(
