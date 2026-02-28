@@ -353,6 +353,17 @@ export const skills: Skill[] = [
 		],
 	},
 
+	// ── Automation ──
+	{
+		id: "briefing",
+		name: "Daily Briefing",
+		description: "Morning summary of email, calendar, tasks, and more",
+		category: "automation",
+		tools: [],
+		platforms: ["darwin", "linux", "win32"],
+		depends: ["email", "calendar"],
+	},
+
 	// ── Browser & Automation ──
 	{
 		id: "browser",

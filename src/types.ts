@@ -18,6 +18,7 @@ export interface Skill {
 	platforms: Platform[];
 	authSteps?: AuthStep[];
 	subChoices?: SubChoice;
+	depends?: string[];
 }
 
 export type SkillCategory =

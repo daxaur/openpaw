@@ -1,7 +1,7 @@
 import * as p from "@clack/prompts";
 import chalk from "chalk";
 import { execSync } from "node:child_process";
-import { skills, categoryLabels, getSkillsByCategory, getPresetSkills, presets, getAllTaps } from "../catalog/index.js";
+import { skills, categoryLabels, getSkillsByCategory, getPresetSkills, presets, getAllTaps, getSkillById } from "../catalog/index.js";
 import { detectPlatform } from "../core/platform.js";
 import { showBanner, pawStep, pawPulse, accent, subtle, dim, bold } from "../core/branding.js";
 import { installTaps, getMissingTools, installTool } from "../core/installer.js";
@@ -89,6 +89,14 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		p.log.warn("No skills selected. Run openpaw again when ready.");
 		p.outro("See you later!");
 		return;
+	}
+
+	// Resolve dependencies
+	const resolved = resolveDependencies(selectedSkills);
+	if (resolved.length > 0) {
+		const depNames = resolved.map((s) => s.name).join(", ");
+		p.log.info(`${dim("Auto-adding dependencies:")} ${depNames}`);
+		selectedSkills.push(...resolved);
 	}
 
 	await pawPulse("happy", `${selectedSkills.length} skill${selectedSkills.length > 1 ? "s" : ""} selected`);
@@ -389,4 +397,26 @@ function buildSummary(
 	lines.push(`${bold("Memory:")}    ~/.claude/memory/`);
 	lines.push(`${bold("Soul:")}      ~/.claude/SOUL.md`);
 	return lines.join("\n");
+}
+
+// ── Dependency Resolution ──
+
+function resolveDependencies(selectedSkills: Skill[]): Skill[] {
+	const selectedIds = new Set(selectedSkills.map((s) => s.id));
+	const added: Skill[] = [];
+
+	for (const skill of selectedSkills) {
+		if (!skill.depends) continue;
+		for (const depId of skill.depends) {
+			if (!selectedIds.has(depId)) {
+				const dep = getSkillById(depId);
+				if (dep) {
+					added.push(dep);
+					selectedIds.add(depId);
+				}
+			}
+		}
+	}
+
+	return added;
 }
