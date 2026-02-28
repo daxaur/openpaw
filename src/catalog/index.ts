@@ -62,6 +62,10 @@ const httpie: CliTool = { name: "httpie", command: "http", installCmd: "brew ins
 const llmCli: CliTool = { name: "llm", command: "llm", installCmd: "brew install llm", installMethod: "brew", platforms: ["darwin", "linux", "win32"] };
 const aichat: CliTool = { name: "aichat", command: "aichat", installCmd: "brew install aichat", installMethod: "brew", platforms: ["darwin", "linux", "win32"] };
 
+// ── New Tools: Telegram & Discord ──
+const tgCli: CliTool = { name: "tg", command: "tg", installCmd: "npm install -g telegram-cli-tool", installMethod: "npm", platforms: ["darwin", "linux", "win32"] };
+const discordCli: CliTool = { name: "discord-cli", command: "discord", installCmd: "npm install -g discord-cli-tool", installMethod: "npm", platforms: ["darwin", "linux", "win32"] };
+
 // ── Skill Catalog ──
 
 export const skills: Skill[] = [
@@ -178,6 +182,28 @@ export const skills: Skill[] = [
 		platforms: ["darwin", "linux", "win32"],
 		authSteps: [
 			{ tool: "bird", command: "bird auth", description: "Connect Twitter/X" },
+		],
+	},
+	{
+		id: "telegram",
+		name: "Telegram",
+		description: "Send/read Telegram messages, groups, channels, files",
+		category: "communication",
+		tools: [tgCli],
+		platforms: ["darwin", "linux", "win32"],
+		authSteps: [
+			{ tool: "tg", command: "tg auth", description: "Authenticate with Telegram" },
+		],
+	},
+	{
+		id: "discord",
+		name: "Discord",
+		description: "Send messages, manage servers, DMs, file uploads",
+		category: "communication",
+		tools: [discordCli],
+		platforms: ["darwin", "linux", "win32"],
+		authSteps: [
+			{ tool: "discord-cli", command: "discord auth", description: "Connect Discord" },
 		],
 	},
 
