@@ -2,7 +2,7 @@ import * as p from "@clack/prompts";
 import chalk from "chalk";
 import { skills, categoryLabels, getSkillsByCategory, getAllTaps } from "../catalog/index.js";
 import { detectPlatform } from "../core/platform.js";
-import { showBanner } from "../core/branding.js";
+import { showBanner, pawPulse, accent, dim } from "../core/branding.js";
 import { installTaps, getMissingTools, installTool } from "../core/installer.js";
 import { installSkill, getDefaultSkillsDir } from "../core/skills.js";
 import { addPermissions } from "../core/permissions.js";
@@ -13,7 +13,7 @@ export async function setupCommand(): Promise<void> {
 	await showBanner();
 
 	const platform = detectPlatform();
-	p.intro(chalk.bgHex("#6366f1").white(" openpaw setup "));
+	p.intro(accent(" openpaw setup "));
 
 	p.log.info(
 		`${chalk.bold(platform.osName)} ${platform.osVersion} detected` +
@@ -25,23 +25,24 @@ export async function setupCommand(): Promise<void> {
 	}
 
 	// ── Skill Selection ──
+	await pawPulse("wave", "What do you want Claude to do?");
+
 	const grouped = getSkillsByCategory(platform.os);
 	const options: { value: string; label: string; hint?: string }[] = [];
 
 	for (const [category, categorySkills] of grouped) {
 		const label = categoryLabels[category] ?? category;
-		// Add category header as a disabled separator-style option
 		for (const skill of categorySkills) {
 			options.push({
 				value: skill.id,
 				label: `${skill.name}`,
-				hint: `${chalk.dim(label)} — ${skill.description}`,
+				hint: `${dim(label)} — ${skill.description}`,
 			});
 		}
 	}
 
 	const selected = await p.multiselect({
-		message: "What capabilities do you want?",
+		message: "Pick your skills",
 		options,
 		required: false,
 	});
@@ -62,9 +63,13 @@ export async function setupCommand(): Promise<void> {
 		.map((id) => skills.find((s) => s.id === id))
 		.filter((s): s is Skill => s !== undefined);
 
+	await pawPulse("happy", `${selectedSkills.length} skills selected!`);
+
 	// ── Sub-Choices ──
 	for (const skill of selectedSkills) {
 		if (skill.subChoices) {
+			await pawPulse("think", `Configuring ${skill.name}...`);
+
 			const choice = await p.select({
 				message: skill.subChoices.question,
 				options: skill.subChoices.options.map((o) => ({
@@ -89,8 +94,8 @@ export async function setupCommand(): Promise<void> {
 	const skillsDir = await p.select({
 		message: "Where should skills be installed?",
 		options: [
-			{ value: getDefaultSkillsDir(), label: `~/.claude/skills/ ${chalk.dim("(recommended — global)")}` },
-			{ value: ".claude/skills", label: `.claude/skills/ ${chalk.dim("(project-local)")}` },
+			{ value: getDefaultSkillsDir(), label: `~/.claude/skills/ ${dim("(recommended — global)")}` },
+			{ value: ".claude/skills", label: `.claude/skills/ ${dim("(project-local)")}` },
 			{ value: "custom", label: "Custom path..." },
 		],
 	});
@@ -119,11 +124,12 @@ export async function setupCommand(): Promise<void> {
 	for (const skill of selectedSkills) {
 		allTools.push(...skill.tools);
 	}
-	// Deduplicate by command name
 	const uniqueTools = [...new Map(allTools.map((t) => [t.command, t])).values()];
 	const taps = getAllTaps(selectedSkills);
 
 	// ── Installation ──
+	await pawPulse("work", "Installing everything...");
+
 	const s = p.spinner();
 
 	// Install brew taps
@@ -157,7 +163,6 @@ export async function setupCommand(): Promise<void> {
 
 	// Create skill files
 	s.start("Creating Claude Code skills...");
-	// Always install core coordinator
 	installSkill("core", targetDir);
 	const skillResults: string[] = ["c-core"];
 	for (const skill of selectedSkills) {
@@ -186,20 +191,20 @@ export async function setupCommand(): Promise<void> {
 		.filter((step, i, arr) => arr.findIndex((s) => s.command === step.command) === i);
 
 	if (authSteps.length > 0) {
-		p.log.warn("Some tools need one-time auth:");
+		await pawPulse("warn", "Some tools need one-time auth:");
 		for (const step of authSteps) {
-			console.log(`  ${chalk.yellow("→")} ${chalk.bold(step.command)}  ${chalk.dim(step.description)}`);
+			console.log(`  ${chalk.yellow("→")} ${chalk.bold(step.command)}  ${dim(step.description)}`);
 		}
 		console.log("");
 	}
 
 	// ── Done ──
-	p.log.success("OpenPaw setup complete!");
+	await pawPulse("done", "OpenPaw setup complete!");
 	console.log("");
-	console.log(chalk.dim("  Open Claude Code and try:"));
-	console.log(`  ${chalk.cyan('"What are my latest emails?"')}`);
-	console.log(`  ${chalk.cyan('"Add milk to my reminders"')}`);
-	console.log(`  ${chalk.cyan('"Play some jazz on Spotify"')}`);
+	console.log(dim("  Open Claude Code and try:"));
+	console.log(`  ${accent('"What are my latest emails?"')}`);
+	console.log(`  ${accent('"Add milk to my reminders"')}`);
+	console.log(`  ${accent('"Play some jazz on Spotify"')}`);
 	console.log("");
 
 	p.outro(`Run ${chalk.bold("openpaw status")} to see what's installed`);
