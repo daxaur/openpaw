@@ -13,37 +13,32 @@ export async function setupCommand(): Promise<void> {
 	await showBanner();
 
 	const platform = detectPlatform();
-	p.intro(accent(" openpaw setup "));
+	p.intro(accent(" openpaw "));
 
-	p.log.info(
-		`${chalk.bold(platform.osName)} ${platform.osVersion} detected` +
-		(platform.hasBrew ? chalk.green(" — brew found") : chalk.red(" — brew not found")),
-	);
+	// ── Platform Info ──
+	const brewStatus = platform.hasBrew ? chalk.green("✓ brew") : chalk.red("✗ brew");
+	p.log.info(`${chalk.bold(platform.osName)} ${platform.osVersion}  ${brewStatus}`);
 
 	if (!platform.hasBrew && platform.os === "darwin") {
-		p.log.warn("Homebrew is required for most tools. Install it: https://brew.sh");
+		p.log.warn("Homebrew is required for most tools → https://brew.sh");
 	}
 
-	// ── Skill Selection ──
-	await pawPulse("wave", "What do you want Claude to do?");
-
+	// ── Skill Selection (grouped by category) ──
 	const grouped = getSkillsByCategory(platform.os);
-	const options: { value: string; label: string; hint?: string }[] = [];
+	const groupedOptions: Record<string, { value: string; label: string; hint?: string }[]> = {};
 
 	for (const [category, categorySkills] of grouped) {
 		const label = categoryLabels[category] ?? category;
-		for (const skill of categorySkills) {
-			options.push({
-				value: skill.id,
-				label: `${skill.name}`,
-				hint: `${dim(label)} — ${skill.description}`,
-			});
-		}
+		groupedOptions[label] = categorySkills.map((skill) => ({
+			value: skill.id,
+			label: skill.name,
+			hint: skill.description,
+		}));
 	}
 
-	const selected = await p.multiselect({
-		message: "Pick your skills",
-		options,
+	const selected = await p.groupMultiselect({
+		message: "What should Claude be able to do?",
+		options: groupedOptions,
 		required: false,
 	});
 
@@ -52,9 +47,13 @@ export async function setupCommand(): Promise<void> {
 		process.exit(0);
 	}
 
-	const selectedIds = selected as string[];
+	const selectedIds = (selected as string[]).filter((id) => {
+		// groupMultiselect may include category labels — filter to actual skill IDs
+		return skills.some((s) => s.id === id);
+	});
+
 	if (selectedIds.length === 0) {
-		p.log.warn("No skills selected. Run openpaw again when you're ready.");
+		p.log.warn("No skills selected. Run openpaw again when ready.");
 		p.outro("See you later!");
 		return;
 	}
@@ -63,15 +62,13 @@ export async function setupCommand(): Promise<void> {
 		.map((id) => skills.find((s) => s.id === id))
 		.filter((s): s is Skill => s !== undefined);
 
-	await pawPulse("happy", `${selectedSkills.length} skills selected!`);
+	await pawPulse("happy", `${selectedSkills.length} skill${selectedSkills.length > 1 ? "s" : ""} selected`);
 
-	// ── Sub-Choices ──
+	// ── Sub-Choices (only for skills that need them) ──
 	for (const skill of selectedSkills) {
 		if (skill.subChoices) {
-			await pawPulse("think", `Configuring ${skill.name}...`);
-
 			const choice = await p.select({
-				message: skill.subChoices.question,
+				message: `${skill.name}: ${skill.subChoices.question}`,
 				options: skill.subChoices.options.map((o) => ({
 					value: o.value,
 					label: o.label,
@@ -91,12 +88,13 @@ export async function setupCommand(): Promise<void> {
 	}
 
 	// ── Skills Directory ──
+	const defaultDir = getDefaultSkillsDir();
 	const skillsDir = await p.select({
-		message: "Where should skills be installed?",
+		message: "Where should skills live?",
 		options: [
-			{ value: getDefaultSkillsDir(), label: `~/.claude/skills/ ${dim("(recommended — global)")}` },
-			{ value: ".claude/skills", label: `.claude/skills/ ${dim("(project-local)")}` },
-			{ value: "custom", label: "Custom path..." },
+			{ value: defaultDir, label: `Global ${dim("~/.claude/skills/")}`, hint: "recommended" },
+			{ value: ".claude/skills", label: `Project ${dim(".claude/skills/")}` },
+			{ value: "custom", label: "Custom path" },
 		],
 	});
 
@@ -108,7 +106,7 @@ export async function setupCommand(): Promise<void> {
 	let targetDir = skillsDir as string;
 	if (targetDir === "custom") {
 		const customDir = await p.text({
-			message: "Enter skills directory path:",
+			message: "Skills directory path:",
 			placeholder: "~/.claude/skills",
 			validate: (v) => (v.length === 0 ? "Path cannot be empty" : undefined),
 		});
@@ -127,63 +125,62 @@ export async function setupCommand(): Promise<void> {
 	const uniqueTools = [...new Map(allTools.map((t) => [t.command, t])).values()];
 	const taps = getAllTaps(selectedSkills);
 
-	// ── Installation ──
-	await pawPulse("work", "Installing everything...");
+	// ── Installation (using tasks API for clean progress) ──
+	await pawPulse("work", "Installing...");
 
 	const s = p.spinner();
 
-	// Install brew taps
+	// Brew taps
 	if (taps.size > 0) {
-		s.start("Adding Homebrew taps...");
+		s.start("Adding Homebrew taps");
 		const tapResults = installTaps(taps);
 		const failed = [...tapResults].filter(([, ok]) => !ok);
 		if (failed.length > 0) {
-			s.stop(`Taps added (${failed.length} failed: ${failed.map(([t]) => t).join(", ")})`);
+			s.stop(`Taps: ${taps.size - failed.length} added, ${failed.length} failed`);
 		} else {
-			s.stop(`${taps.size} Homebrew tap${taps.size > 1 ? "s" : ""} ready`);
+			s.stop(`${taps.size} tap${taps.size > 1 ? "s" : ""} ready`);
 		}
 	}
 
-	// Install CLI tools
+	// CLI tools
 	const missing = getMissingTools(uniqueTools);
 	if (missing.length > 0) {
 		for (let i = 0; i < missing.length; i++) {
 			const tool = missing[i];
-			s.start(`Installing ${tool.name} [${i + 1}/${missing.length}]...`);
+			s.start(`[${i + 1}/${missing.length}] Installing ${tool.name}`);
 			const result = installTool(tool);
 			if (result.success) {
-				s.stop(`${chalk.green("✓")} ${tool.name} installed`);
+				s.stop(`${chalk.green("✓")} ${tool.name}`);
 			} else {
-				s.stop(`${chalk.red("✗")} ${tool.name} failed: ${result.error?.slice(0, 60)}`);
+				s.stop(`${chalk.red("✗")} ${tool.name} — ${result.error?.slice(0, 50)}`);
 			}
 		}
-	} else {
-		p.log.success("All CLI tools already installed");
+	} else if (uniqueTools.length > 0) {
+		p.log.success("All tools already installed");
 	}
 
-	// Create skill files
-	s.start("Creating Claude Code skills...");
+	// Skills
+	s.start("Creating skills");
 	installSkill("core", targetDir);
-	const skillResults: string[] = ["c-core"];
+	const installed: string[] = ["c-core"];
 	for (const skill of selectedSkills) {
-		const ok = installSkill(skill.id, targetDir);
-		if (ok) skillResults.push(`c-${skill.id}`);
+		if (installSkill(skill.id, targetDir)) installed.push(`c-${skill.id}`);
 	}
-	s.stop(`${skillResults.length} skills created`);
+	s.stop(`${installed.length} skills created`);
 
-	// Configure permissions
-	s.start("Configuring permissions...");
+	// Permissions
+	s.start("Configuring permissions");
 	const added = addPermissions(uniqueTools);
 	s.stop(
 		added.length > 0
-			? `${added.length} permission${added.length > 1 ? "s" : ""} added to settings.json`
-			: "Permissions already configured",
+			? `${added.length} permission${added.length > 1 ? "s" : ""} added`
+			: "Permissions up to date",
 	);
 
-	// Install safety hooks
-	s.start("Installing safety hooks...");
+	// Safety hooks
+	s.start("Installing safety hooks");
 	const hooksOk = installSafetyHooks();
-	s.stop(hooksOk ? "Safety hooks installed" : "Safety hooks failed (non-critical)");
+	s.stop(hooksOk ? "Safety hooks active" : "Safety hooks failed (non-critical)");
 
 	// ── Auth Reminders ──
 	const authSteps = selectedSkills
@@ -191,21 +188,21 @@ export async function setupCommand(): Promise<void> {
 		.filter((step, i, arr) => arr.findIndex((s) => s.command === step.command) === i);
 
 	if (authSteps.length > 0) {
-		await pawPulse("warn", "Some tools need one-time auth:");
-		for (const step of authSteps) {
-			console.log(`  ${chalk.yellow("→")} ${chalk.bold(step.command)}  ${dim(step.description)}`);
-		}
-		console.log("");
+		const authList = authSteps
+			.map((s) => `${chalk.yellow("→")} ${chalk.bold(s.command)}  ${dim(s.description)}`)
+			.join("\n");
+		p.note(authList, "One-time auth needed");
 	}
 
 	// ── Done ──
-	await pawPulse("done", "OpenPaw setup complete!");
+	await pawPulse("done");
+
 	console.log("");
 	console.log(dim("  Open Claude Code and try:"));
 	console.log(`  ${accent('"What are my latest emails?"')}`);
-	console.log(`  ${accent('"Add milk to my reminders"')}`);
 	console.log(`  ${accent('"Play some jazz on Spotify"')}`);
+	console.log(`  ${accent('"Go to hacker news and summarize the top posts"')}`);
 	console.log("");
 
-	p.outro(`Run ${chalk.bold("openpaw status")} to see what's installed`);
+	p.outro(accent("openpaw setup complete"));
 }
