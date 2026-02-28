@@ -17,7 +17,7 @@
 
 <h1 align="center">🐾 OpenPaw</h1>
 <p align="center"><b>Personal Assistant Wizard for Claude Code</b></p>
-<p align="center"><i>Open-source. Free forever. No daemon. No API keys.</i></p>
+<p align="center"><i>Open-source. No daemon. No extra subscriptions.</i></p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/openpaw"><img src="https://img.shields.io/npm/v/openpaw?color=6366f1&label=npm&style=flat-square" alt="npm"></a>
@@ -33,7 +33,7 @@
 npx openpaw
 ```
 
-That's it. Pick skills, install tools, Claude does the rest.
+Pick skills. Install tools. Claude does the rest. Works with your existing Claude subscription.
 
 ---
 
@@ -192,19 +192,18 @@ Just type `/c` in Claude Code followed by what you need:
 
 |  | OpenClaw | OpenPaw |
 |---|---|---|
-| 💰 Cost | $5-750/mo | **Free forever** |
+| 💰 Cost | $5-750/mo on top of Claude | **$0 extra** — uses your Claude subscription |
 | ⏱️ Setup | 15+ hours | **5 minutes** |
 | 🔒 Security | 3 critical CVEs, 40K exposed instances | **Zero attack surface** |
 | 🏗️ Architecture | Daemon on port :18789 | **No daemon** |
 | 🛡️ Malicious skills | 341 reported | **Community-vetted only** |
-| 🔑 API keys | Required | **None needed** |
 | 📦 Dependencies | Docker, agent runtime, cloud | **Just CLI tools** |
 
 Same CLI tools. Same capabilities. None of the risk.
 
-OpenClaw charges you money to run a daemon that was [found to have critical security vulnerabilities](https://www.cve.org/CVERecord?id=CVE-2026-25253), with over 40,000 exposed instances and 341 malicious skills in their marketplace.
+OpenClaw charges $5-750/mo **on top of** your Claude subscription to run a daemon that was [found to have critical security vulnerabilities](https://www.cve.org/CVERecord?id=CVE-2026-25253), with 40,000+ exposed instances and 341 malicious skills in their marketplace.
 
-OpenPaw installs CLI tools locally and writes config files. That's it. No daemon, no cloud, no attack surface.
+OpenPaw adds nothing to your bill. It installs CLI tools locally, writes config files, and gets out of the way. Your Claude subscription handles the rest.
 
 ---
 
