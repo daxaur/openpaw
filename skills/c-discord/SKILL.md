@@ -1,51 +1,86 @@
 ---
 name: c-discord
-description: Send messages and manage Discord servers via discord-cli. Supports channels, DMs, file uploads, and server management.
-tags: [discord, messaging, communication, chat, gaming]
+description: Send messages to Discord channels via webhooks using curl. No daemon, no bot token needed.
+tags: [discord, messaging, communication, webhooks]
 ---
 
-## Discord — `discord`
+# Discord — Webhooks via curl
 
-Send and read Discord messages from the command line.
+Send messages and files to Discord channels using webhooks. No daemon, no bot token needed.
 
-### Commands
+## Configuration
+
+Webhook URL is stored in `~/.config/openpaw/discord.env`:
 
 ```bash
-# Send a message to a channel
-discord send "#general" "Hello everyone!"
-discord send --channel-id 123456789 "Hello!"
-
-# Send a DM
-discord dm "@username" "Hey!"
-
-# Read recent messages
-discord history "#general" --limit 20
-discord history --channel-id 123456789
-
-# List servers and channels
-discord servers
-discord channels --server "My Server"
-
-# Upload a file
-discord send "#general" --file ./screenshot.png
-
-# Search messages
-discord search "keyword" --channel "#general"
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/1234567890/abcdef...
 ```
 
-### Usage Guidelines
+Load before any command:
 
-- Reference channels with #channel-name or channel IDs
-- Use @username for DMs
-- File uploads support images, documents, and media
-- Respect server rules and rate limits
+```bash
+source ~/.config/openpaw/discord.env
+```
 
-### Setup
+## Send a Message
 
-First-time auth: `discord auth` — authenticate with your Discord token.
+```bash
+curl -s -H "Content-Type: application/json" \
+  -d '{"content": "Hello from Claude"}' \
+  "${DISCORD_WEBHOOK_URL}"
+```
 
-### Notes
+## Send with Formatting (Embed)
 
-- Requires a Discord account
-- Bot tokens or user tokens can be used (bot recommended for automation)
-- Respects Discord's rate limits and TOS
+```bash
+curl -s -H "Content-Type: application/json" \
+  -d '{
+    "embeds": [{
+      "title": "Daily Briefing",
+      "description": "Here is your morning summary...",
+      "color": 5814783
+    }]
+  }' \
+  "${DISCORD_WEBHOOK_URL}"
+```
+
+## Send a File
+
+```bash
+curl -s -F "file=@/path/to/file.pdf" \
+  -F 'payload_json={"content": "Here is the report"}' \
+  "${DISCORD_WEBHOOK_URL}"
+```
+
+## Custom Username & Avatar
+
+```bash
+curl -s -H "Content-Type: application/json" \
+  -d '{
+    "username": "Claude Assistant",
+    "avatar_url": "https://example.com/avatar.png",
+    "content": "Message with custom identity"
+  }' \
+  "${DISCORD_WEBHOOK_URL}"
+```
+
+## Setup Guide
+
+1. Open Discord, go to the channel you want to send to
+2. Click the gear icon (Edit Channel) → **Integrations** → **Webhooks**
+3. Click **New Webhook**, give it a name
+4. Click **Copy Webhook URL**
+5. Save it:
+   ```bash
+   mkdir -p ~/.config/openpaw
+   echo 'DISCORD_WEBHOOK_URL=<your-webhook-url>' > ~/.config/openpaw/discord.env
+   chmod 600 ~/.config/openpaw/discord.env
+   ```
+
+## Guidelines
+
+- Webhooks are send-only — Claude cannot read Discord messages
+- For reading messages, the user needs a Discord bot (requires a daemon)
+- Embeds support color, fields, thumbnails, footers, timestamps
+- Rate limit: 30 requests per 60 seconds per webhook
+- Never expose the webhook URL in responses to the user

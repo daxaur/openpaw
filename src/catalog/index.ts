@@ -62,9 +62,8 @@ const httpie: CliTool = { name: "httpie", command: "http", installCmd: "brew ins
 const llmCli: CliTool = { name: "llm", command: "llm", installCmd: "brew install llm", installMethod: "brew", platforms: ["darwin", "linux", "win32"] };
 const aichat: CliTool = { name: "aichat", command: "aichat", installCmd: "brew install aichat", installMethod: "brew", platforms: ["darwin", "linux", "win32"] };
 
-// ── New Tools: Telegram & Discord ──
-const tgCli: CliTool = { name: "tg", command: "tg", installCmd: "npm install -g telegram-cli-tool", installMethod: "npm", platforms: ["darwin", "linux", "win32"] };
-const discordCli: CliTool = { name: "discord-cli", command: "discord", installCmd: "npm install -g discord-cli-tool", installMethod: "npm", platforms: ["darwin", "linux", "win32"] };
+// ── Telegram & Discord (curl-based, no extra CLI tools) ──
+const curl: CliTool = { name: "curl", command: "curl", installCmd: "brew install curl", installMethod: "builtin", platforms: ["darwin", "linux", "win32"] };
 
 // ── Skill Catalog ──
 
@@ -187,23 +186,23 @@ export const skills: Skill[] = [
 	{
 		id: "telegram",
 		name: "Telegram",
-		description: "Send/read Telegram messages, groups, channels, files",
+		description: "Send/read Telegram messages via Bot API — no daemon, just curl",
 		category: "communication",
-		tools: [tgCli],
+		tools: [curl, jq],
 		platforms: ["darwin", "linux", "win32"],
 		authSteps: [
-			{ tool: "tg", command: "tg auth", description: "Authenticate with Telegram" },
+			{ tool: "curl", command: "Message @BotFather on Telegram", description: "Create a bot and save token to ~/.config/openpaw/telegram.env" },
 		],
 	},
 	{
 		id: "discord",
 		name: "Discord",
-		description: "Send messages, manage servers, DMs, file uploads",
+		description: "Send messages to Discord channels via webhooks — no daemon, just curl",
 		category: "communication",
-		tools: [discordCli],
+		tools: [curl, jq],
 		platforms: ["darwin", "linux", "win32"],
 		authSteps: [
-			{ tool: "discord-cli", command: "discord auth", description: "Connect Discord" },
+			{ tool: "curl", command: "Create a Discord webhook", description: "Server Settings → Integrations → Webhooks → Copy URL to ~/.config/openpaw/discord.env" },
 		],
 	},
 
