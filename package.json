@@ -1,0 +1,59 @@
+{
+  "name": "openpaw",
+  "version": "0.1.0",
+  "description": "Open-source Personal Assistant Wizard for Claude Code. Turn Claude Code into your PA with CLI tools and skills.",
+  "type": "module",
+  "bin": {
+    "openpaw": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "skills"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "personal-assistant",
+    "ai",
+    "skills",
+    "cli",
+    "wizard",
+    "openpaw",
+    "openclaw"
+  ],
+  "author": "daxaur",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/daxaur/openpaw.git"
+  },
+  "homepage": "https://github.com/daxaur/openpaw",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.10.0",
+    "chalk": "^5.4.1",
+    "commander": "^14.0.0",
+    "figlet": "^1.9.0",
+    "gradient-string": "^3.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "@types/figlet": "^1.7.0",
+    "@types/gradient-string": "^1.1.6",
+    "@types/node": "^22.0.0",
+    "tsdown": "^0.11.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
