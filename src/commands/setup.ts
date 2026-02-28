@@ -1,13 +1,28 @@
 import * as p from "@clack/prompts";
 import chalk from "chalk";
+import { execSync } from "node:child_process";
 import { skills, categoryLabels, getSkillsByCategory, getPresetSkills, presets, getAllTaps } from "../catalog/index.js";
 import { detectPlatform } from "../core/platform.js";
-import { showBanner, pawStep, accent, subtle, dim, bold } from "../core/branding.js";
+import { showBanner, pawStep, pawPulse, accent, subtle, dim, bold } from "../core/branding.js";
 import { installTaps, getMissingTools, installTool } from "../core/installer.js";
 import { installSkill, getDefaultSkillsDir } from "../core/skills.js";
 import { addPermissions } from "../core/permissions.js";
 import { installSafetyHooks } from "../core/hooks.js";
+import { soulQuestionnaire, writeSoul, showSoulSummary, soulExists } from "../core/soul.js";
+import { setupMemory } from "../core/memory.js";
 import type { CliTool, Skill } from "../types.js";
+
+// Category icons for the wizard
+const CATEGORY_ICONS: Record<string, string> = {
+	productivity: "📝",
+	communication: "💬",
+	media: "🎵",
+	"smart-home": "🏠",
+	research: "🔍",
+	developer: "⚡",
+	automation: "🤖",
+	system: "⚙️",
+};
 
 export interface SetupOptions {
 	preset?: string;
@@ -30,11 +45,35 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		p.log.warn("Homebrew is required for most tools → https://brew.sh");
 	}
 
-	// ── Step 2: Skill Selection (preset or custom) ──
+	// ── Step 2: Personality (SOUL.md) ──
+	if (!opts.yes && !soulExists()) {
+		await pawPulse("think", "Let's personalize your assistant...");
+
+		const wantSoul = await p.confirm({
+			message: "Set up a personality for Claude? (name, tone, preferences)",
+			initialValue: true,
+		});
+
+		if (!p.isCancel(wantSoul) && wantSoul) {
+			const soul = await soulQuestionnaire();
+			if (soul) {
+				writeSoul(soul);
+				setupMemory(soul.name);
+				showSoulSummary(soul);
+				p.log.success("Personality saved to ~/.claude/SOUL.md");
+			}
+		} else {
+			// Still set up memory without a name
+			setupMemory();
+		}
+	} else if (opts.yes) {
+		setupMemory();
+	}
+
+	// ── Step 3: Skill Selection (preset or custom) ──
 	let selectedSkills: Skill[];
 
 	if (opts.preset) {
-		// Non-interactive preset from CLI flag
 		selectedSkills = getPresetSkills(opts.preset, platform.os);
 		if (selectedSkills.length === 0) {
 			p.log.error(`Unknown preset: ${opts.preset}`);
@@ -52,15 +91,10 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		return;
 	}
 
-	await pawStep("happy", `${selectedSkills.length} skill${selectedSkills.length > 1 ? "s" : ""} selected!`);
+	await pawPulse("happy", `${selectedSkills.length} skill${selectedSkills.length > 1 ? "s" : ""} selected`);
 
-	// ── Step 3: Sub-Choices ──
+	// ── Step 4: Sub-Choices ──
 	if (!opts.yes) {
-		const skillsWithChoices = selectedSkills.filter((s) => s.subChoices);
-		if (skillsWithChoices.length > 0) {
-			await pawStep("think", "A few more choices...");
-		}
-
 		for (const skill of selectedSkills) {
 			if (skill.subChoices) {
 				const choice = await p.select({
@@ -83,7 +117,6 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 			}
 		}
 	} else {
-		// --yes mode: pick first sub-choice option automatically
 		for (const skill of selectedSkills) {
 			if (skill.subChoices && skill.tools.length === 0) {
 				skill.tools = skill.subChoices.options[0].tools;
@@ -100,7 +133,7 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	const taps = getAllTaps(selectedSkills);
 	const missing = getMissingTools(uniqueTools);
 
-	// ── Step 4: Install Location ──
+	// ── Step 5: Install Location ──
 	let targetDir: string;
 	if (opts.yes) {
 		targetDir = getDefaultSkillsDir();
@@ -108,7 +141,7 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		targetDir = await selectInstallLocation();
 	}
 
-	// ── Step 5: Confirmation ──
+	// ── Step 6: Confirmation ──
 	const summary = buildSummary(selectedSkills, uniqueTools, missing, taps);
 	p.note(summary, "Installation summary");
 
@@ -124,33 +157,33 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		}
 	}
 
-	// ── Step 6: Dry Run ──
+	// ── Step 7: Dry Run ──
 	if (opts.dryRun) {
 		p.log.info(dim("Dry run — no changes made."));
 		p.outro(accent("openpaw dry run complete"));
 		return;
 	}
 
-	// ── Step 7: Installation ──
-	await pawStep("work", "Installing everything...");
+	// ── Step 8: Installation ──
+	await pawStep("work", "Installing...");
 
 	const s = p.spinner();
 
 	if (taps.size > 0) {
-		s.start("Adding Homebrew taps");
+		s.start("🐾 Adding Homebrew taps...");
 		const tapResults = installTaps(taps);
 		const failed = [...tapResults].filter(([, ok]) => !ok);
 		if (failed.length > 0) {
 			s.stop(`Taps: ${taps.size - failed.length} added, ${failed.length} failed`);
 		} else {
-			s.stop(`${taps.size} tap${taps.size > 1 ? "s" : ""} ready`);
+			s.stop(`🐾 ${taps.size} tap${taps.size > 1 ? "s" : ""} ready`);
 		}
 	}
 
 	if (missing.length > 0) {
 		for (let i = 0; i < missing.length; i++) {
 			const tool = missing[i];
-			s.start(`[${i + 1}/${missing.length}] Installing ${tool.name}`);
+			s.start(`🐾 [${i + 1}/${missing.length}] Installing ${tool.name}...`);
 			const result = installTool(tool);
 			if (result.success) {
 				s.stop(`${chalk.green("✓")} ${tool.name}`);
@@ -162,36 +195,36 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		p.log.success("All tools already installed");
 	}
 
-	s.start("Creating skills");
+	s.start("🐾 Creating skills...");
 	installSkill("core", targetDir);
-	const installed: string[] = ["c-core"];
+	installSkill("memory", targetDir);
+	const installed: string[] = ["c-core", "c-memory"];
 	for (const skill of selectedSkills) {
 		if (installSkill(skill.id, targetDir)) installed.push(`c-${skill.id}`);
 	}
-	s.stop(`${installed.length} skills created`);
+	s.stop(`🐾 ${installed.length} skills created`);
 
-	s.start("Configuring permissions");
+	s.start("🐾 Configuring permissions...");
 	const added = addPermissions(uniqueTools);
-	s.stop(added.length > 0 ? `${added.length} permission${added.length > 1 ? "s" : ""} added` : "Permissions up to date");
+	s.stop(added.length > 0 ? `🐾 ${added.length} permission${added.length > 1 ? "s" : ""} added` : "🐾 Permissions up to date");
 
-	s.start("Installing safety hooks");
+	s.start("🐾 Installing safety hooks...");
 	const hooksOk = installSafetyHooks();
-	s.stop(hooksOk ? "Safety hooks active" : "Safety hooks failed (non-critical)");
+	s.stop(hooksOk ? "🐾 Safety hooks active" : "🐾 Safety hooks failed (non-critical)");
 
-	// ── Step 8: Auth Reminders ──
+	// ── Step 9: Auth Reminders ──
 	const authSteps = selectedSkills
 		.flatMap((skill) => skill.authSteps ?? [])
 		.filter((step, i, arr) => arr.findIndex((s) => s.command === step.command) === i);
 
 	if (authSteps.length > 0) {
-		await pawStep("warn", "Some tools need one-time auth");
 		const authList = authSteps
 			.map((st) => `${chalk.yellow("→")} ${chalk.bold(st.command)}  ${dim(st.description)}`)
 			.join("\n");
-		p.note(authList, "Auth steps");
+		p.note(authList, "One-time auth needed");
 	}
 
-	// ── Done ──
+	// ── Step 10: Done + Launch ──
 	await pawStep("done", "Setup complete!");
 
 	console.log("");
@@ -201,19 +234,35 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	console.log(`  ${subtle('"Go to hacker news and summarize the top posts"')}`);
 	console.log("");
 
-	p.outro(accent("openpaw setup complete"));
+	// Offer to launch Claude Code
+	if (!opts.yes) {
+		const launch = await p.confirm({
+			message: "Launch Claude Code now?",
+			initialValue: true,
+		});
+
+		if (!p.isCancel(launch) && launch) {
+			p.outro(accent("Starting Claude Code..."));
+			try {
+				execSync("claude", { stdio: "inherit" });
+			} catch {
+				p.log.warn("Could not launch Claude Code. Make sure it's installed: https://claude.ai/code");
+			}
+			return;
+		}
+	}
+
+	p.outro(accent("openpaw setup complete 🐾"));
 }
 
 // ── Skill Selection ──
 
 async function selectSkills(os: string): Promise<Skill[]> {
-	await pawStep("wave", "How would you like to set up?");
-
 	const mode = await p.select({
-		message: "Setup mode",
+		message: "How would you like to set up?",
 		options: [
-			{ value: "preset", label: "Quick Setup", hint: "pick a preset, get going fast" },
-			{ value: "custom", label: "Custom", hint: "choose individual skills" },
+			{ value: "preset", label: "⚡ Quick Setup", hint: "pick a preset, get going fast" },
+			{ value: "custom", label: "🎯 Custom", hint: "choose skills category by category" },
 		],
 	});
 
@@ -244,8 +293,6 @@ async function selectFromPreset(os: string): Promise<Skill[]> {
 	}
 
 	const presetSkills = getPresetSkills(presetChoice as string, os);
-
-	// Show what's included
 	const skillNames = presetSkills.map((s) => s.name).join(", ");
 	p.log.info(`${dim("Includes:")} ${skillNames}`);
 
@@ -254,35 +301,40 @@ async function selectFromPreset(os: string): Promise<Skill[]> {
 
 async function selectCustom(os: string): Promise<Skill[]> {
 	const grouped = getSkillsByCategory(os);
-	const groupedOptions: Record<string, { value: string; label: string; hint?: string }[]> = {};
+	const allSelected: Skill[] = [];
 
+	// Walk through each category one at a time
 	for (const [category, categorySkills] of grouped) {
 		const label = categoryLabels[category] ?? category;
-		groupedOptions[label] = categorySkills.map((skill) => ({
-			value: skill.id,
-			label: skill.name,
-			hint: skill.description,
-		}));
+		const icon = CATEGORY_ICONS[category] ?? "📦";
+
+		const selected = await p.multiselect({
+			message: `${icon} ${label}`,
+			options: categorySkills.map((skill) => ({
+				value: skill.id,
+				label: skill.name,
+				hint: skill.description,
+			})),
+			required: false,
+		});
+
+		if (p.isCancel(selected)) {
+			p.cancel("Setup cancelled.");
+			process.exit(0);
+		}
+
+		const ids = selected as string[];
+		for (const id of ids) {
+			const skill = skills.find((s) => s.id === id);
+			if (skill) allSelected.push(skill);
+		}
+
+		if (ids.length > 0) {
+			p.log.step(`${ids.length} selected from ${label}`);
+		}
 	}
 
-	const selected = await p.groupMultiselect({
-		message: "Pick your skills",
-		options: groupedOptions,
-		required: false,
-	});
-
-	if (p.isCancel(selected)) {
-		p.cancel("Setup cancelled.");
-		process.exit(0);
-	}
-
-	const selectedIds = (selected as string[]).filter((id) => {
-		return skills.some((s) => s.id === id);
-	});
-
-	return selectedIds
-		.map((id) => skills.find((s) => s.id === id))
-		.filter((s): s is Skill => s !== undefined);
+	return allSelected;
 }
 
 // ── Install Location ──
@@ -329,10 +381,12 @@ function buildSummary(
 	taps: Set<string>,
 ): string {
 	const lines: string[] = [];
-	lines.push(`${bold("Skills:")}  ${selectedSkills.map((s) => s.name).join(", ")}`);
-	lines.push(`${bold("Tools:")}  ${uniqueTools.length} total, ${missing.length} to install`);
+	lines.push(`${bold("Skills:")}    ${selectedSkills.map((s) => s.name).join(", ")}`);
+	lines.push(`${bold("Tools:")}     ${uniqueTools.length} total, ${missing.length} to install`);
 	if (taps.size > 0) {
-		lines.push(`${bold("Taps:")}   ${[...taps].join(", ")}`);
+		lines.push(`${bold("Taps:")}      ${[...taps].join(", ")}`);
 	}
+	lines.push(`${bold("Memory:")}    ~/.claude/memory/`);
+	lines.push(`${bold("Soul:")}      ~/.claude/SOUL.md`);
 	return lines.join("\n");
 }
