@@ -8,6 +8,7 @@ import { installTaps, getMissingTools, installTool } from "../core/installer.js"
 import { installSkill, getDefaultSkillsDir } from "../core/skills.js";
 import { addPermissions } from "../core/permissions.js";
 import { installSafetyHooks } from "../core/hooks.js";
+import { mcpServers, installMcpServer, type McpServer } from "../core/mcp.js";
 import { soulQuestionnaire, writeSoul, showSoulSummary, soulExists } from "../core/soul.js";
 import { setupMemory } from "../core/memory.js";
 import type { CliTool, Skill } from "../types.js";
@@ -219,6 +220,56 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	s.start("🐾 Installing safety hooks...");
 	const hooksOk = installSafetyHooks();
 	s.stop(hooksOk ? "🐾 Safety hooks active" : "🐾 Safety hooks failed (non-critical)");
+
+	// ── Step 8b: MCP Servers ──
+	if (!opts.yes) {
+		const wantMcp = await p.confirm({
+			message: "Set up MCP servers? (optional — adds AI tools like search, memory, browser)",
+			initialValue: false,
+		});
+
+		if (!p.isCancel(wantMcp) && wantMcp) {
+			const mcpChoices = await p.multiselect({
+				message: "🔌 MCP Servers",
+				options: mcpServers.map((srv) => ({
+					value: srv.id,
+					label: srv.name,
+					hint: srv.description,
+				})),
+				required: false,
+			});
+
+			if (!p.isCancel(mcpChoices)) {
+				const chosen = mcpChoices as string[];
+				if (chosen.length > 0) {
+					s.start("🐾 Configuring MCP servers...");
+					let mcpCount = 0;
+					for (const id of chosen) {
+						const srv = mcpServers.find((m) => m.id === id);
+						if (srv && installMcpServer(srv)) mcpCount++;
+					}
+					s.stop(`🐾 ${mcpCount} MCP server${mcpCount > 1 ? "s" : ""} configured`);
+
+					// Show env vars that need filling in
+					const needsEnv = chosen
+						.map((id) => mcpServers.find((m) => m.id === id))
+						.filter((srv): srv is McpServer => !!srv?.envPlaceholders);
+
+					if (needsEnv.length > 0) {
+						const envList = needsEnv
+							.flatMap((srv) =>
+								Object.entries(srv.envPlaceholders!).map(
+									([key, placeholder]) =>
+										`${chalk.yellow("→")} ${bold(srv.name)}: Set ${dim(key)} in ~/.claude/settings.json`,
+								),
+							)
+							.join("\n");
+						p.note(envList, "MCP servers need API keys");
+					}
+				}
+			}
+		}
+	}
 
 	// ── Step 9: Auth Reminders ──
 	const authSteps = selectedSkills

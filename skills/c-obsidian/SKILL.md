@@ -1,49 +1,63 @@
 ---
 name: c-obsidian
-description: Interact with an Obsidian vault from the CLI using obsidian-cli. Open notes, search vault content, create and edit notes, manage tags, and navigate the knowledge graph.
-tags: [obsidian, notes, knowledge-base, obsidian-cli, markdown]
+description: Obsidian vault as persistent memory — daily notes, session logs, knowledge capture, and search across your entire vault.
+tags: [obsidian, notes, knowledge-base, memory, daily-notes]
 ---
 
-This skill manages an Obsidian vault using the `obsidian-cli` tool.
+# Obsidian — Knowledge Base & Memory
 
-## Common Commands
+Manage your Obsidian vault as a persistent memory layer. Use it for daily notes, session logs, knowledge capture, and searching your second brain.
+
+## CLI Commands
 
 ```bash
-# Opening and viewing
-obsidian-cli open "Note Title"           # Open a note in Obsidian
-obsidian-cli open --path "folder/note"   # Open by relative vault path
+# Search before creating (avoid duplicates)
+obsidian-cli search "query"
+obsidian-cli search --tag "project" --folder "Work"
 
-# Searching
-obsidian-cli search "query"              # Full-text search across vault
-obsidian-cli search --tag "project"      # Search by tag
-obsidian-cli search --folder "Work"      # Search within a folder
-
-# Creating and editing
+# Create and edit
 obsidian-cli create "Title" --content "Body"
 obsidian-cli create "Title" --template "Daily Note"
 obsidian-cli append "Note Title" "Additional content"
-obsidian-cli prepend "Note Title" "Prepend this"
 
-# Listing
-obsidian-cli list                        # List all notes
-obsidian-cli list --folder "Projects"    # List notes in folder
-obsidian-cli list --tag "inbox"          # List notes with tag
-obsidian-cli tags                        # List all tags in vault
-
-# Vault info
-obsidian-cli vault                       # Show current vault info
-obsidian-cli vault --list                # List all known vaults
-obsidian-cli vault --switch "Work Vault" # Switch active vault
+# Open, list, vault
+obsidian-cli open "Note Title"
+obsidian-cli list --folder "Projects"
+obsidian-cli tags
+obsidian-cli vault --list
 ```
 
-## Usage Guidelines
+## Daily Notes Integration
 
-- Prefer `obsidian-cli search` before creating to avoid duplicate notes.
-- Frontmatter tags use `#tag` syntax or YAML `tags: [tag]` in markdown.
-- The vault path is configured via `obsidian-cli` settings or `~/.obsidian-cli/config`.
-- If the tool is missing, suggest installing the OpenPaw c-obsidian skill.
+When the user starts a session, check for today's daily note:
 
-## Notes
+```bash
+obsidian-cli search --folder "Daily Notes" "$(date +%Y-%m-%d)"
+```
 
-- Obsidian app does not need to be open for CLI operations.
-- File paths are relative to vault root.
+If none exists, create one:
+
+```bash
+obsidian-cli create "$(date +%Y-%m-%d)" --folder "Daily Notes" --content "# $(date +%Y-%m-%d)\n\n## Tasks\n\n## Notes\n\n## Session Log\n"
+```
+
+Append a session log entry at the end of each session:
+
+```bash
+obsidian-cli append "$(date +%Y-%m-%d)" "### Session $(date +%H:%M)\n- [summary of what was done]\n"
+```
+
+## Memory Sync
+
+If both c-memory and c-obsidian are installed, keep them in sync:
+- Key facts in `~/.claude/memory/MEMORY.md` should also appear in an Obsidian note (e.g., `AI/Memory.md`)
+- When the user says "remember this", save to both systems
+- Obsidian is the long-term archive; `~/.claude/memory/` is the quick-access cache
+
+## Guidelines
+
+- Always search before creating to avoid duplicate notes
+- Use frontmatter tags: `tags: [project, active]`
+- File paths are relative to vault root
+- Obsidian app does not need to be running
+- Keep daily notes in a consistent folder (default: `Daily Notes/`)
