@@ -15,6 +15,7 @@ import { telegramQuestionnaire, writeTelegramConfig, telegramConfigExists } from
 import { isTmuxAvailable, isInTmux, launchInTmux, launchInBackground } from "../core/tmux.js";
 import { readConfig as readDashboardConfig, writeConfig as writeDashboardConfig } from "../core/dashboard-server.js";
 import { writeClaudeMd } from "../core/claude-md.js";
+import { readScheduleConfig, writeScheduleConfig, addJob, installSystemJob, parseHumanSchedule } from "../core/scheduler.js";
 import type { CliTool, DashboardTheme, InterfaceMode, Skill, TelegramConfig } from "../types.js";
 
 // Category icons for the wizard
@@ -250,6 +251,111 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		}
 	}
 
+	// ── Smart Scheduling ──
+	let wantScheduling = false;
+	let schedulingCap = 5.0;
+	let schedulingJobCount = 0;
+
+	if (!opts.yes) {
+		const schedChoice = await p.confirm({
+			message: "Enable smart scheduling? (automate recurring tasks with cost control)",
+			initialValue: false,
+		});
+
+		if (!p.isCancel(schedChoice) && schedChoice) {
+			wantScheduling = true;
+
+			const capInput = await p.text({
+				message: "Daily cost cap in USD",
+				placeholder: "5.00",
+				initialValue: "5.00",
+				validate: (v) => {
+					const n = Number.parseFloat(v);
+					return Number.isNaN(n) || n <= 0 ? "Enter a valid dollar amount" : undefined;
+				},
+			});
+
+			if (!p.isCancel(capInput)) {
+				schedulingCap = Number.parseFloat(capInput as string);
+			}
+
+			writeScheduleConfig({
+				jobs: [],
+				dailyCostCapUsd: schedulingCap,
+				defaultModel: "sonnet",
+			});
+
+			const addJobNow = await p.confirm({
+				message: "Want to add a recurring job now?",
+				initialValue: false,
+			});
+
+			if (!p.isCancel(addJobNow) && addJobNow) {
+				const jobPrompt = await p.text({
+					message: "What should Claude do?",
+					placeholder: "check email and summarize anything urgent",
+				});
+
+				if (!p.isCancel(jobPrompt)) {
+					const jobSchedule = await p.text({
+						message: "When? (e.g. \"weekdays 8am\", \"daily 6pm\", \"every 30 minutes\")",
+						placeholder: "weekdays 8am",
+					});
+
+					if (!p.isCancel(jobSchedule)) {
+						const jobModel = await p.select({
+							message: "Model for this job",
+							options: [
+								{ value: "sonnet", label: "Sonnet", hint: "fast + capable (recommended)" },
+								{ value: "haiku", label: "Haiku", hint: "cheapest" },
+								{ value: "opus", label: "Opus", hint: "most capable" },
+							],
+						});
+
+						const jobBudget = await p.text({
+							message: "Per-run budget in USD",
+							placeholder: "1.00",
+							initialValue: "1.00",
+						});
+
+						const deliveryOpts = [
+							{ value: "file" as const, label: "File", hint: "save to ~/.config/openpaw/schedule-results/" },
+							{ value: "notify" as const, label: "Notification", hint: "macOS notification" },
+						];
+						if (interfaceMode === "telegram" || interfaceMode === "both") {
+							deliveryOpts.unshift({ value: "telegram" as const, label: "Telegram", hint: "send to your bot" });
+						}
+
+						const jobDelivery = await p.select({
+							message: "Where should results go?",
+							options: deliveryOpts,
+						});
+
+						if (!p.isCancel(jobModel) && !p.isCancel(jobBudget) && !p.isCancel(jobDelivery)) {
+							try {
+								const parsed = parseHumanSchedule(jobSchedule as string);
+								const job = addJob({
+									name: (jobPrompt as string).slice(0, 40),
+									prompt: jobPrompt as string,
+									schedule: parsed.cron,
+									scheduleHuman: parsed.human,
+									model: jobModel as string,
+									maxBudgetUsd: Number.parseFloat(jobBudget as string) || 1.0,
+									delivery: { type: jobDelivery as "file" | "telegram" | "notify" },
+								});
+								installSystemJob(job);
+								schedulingJobCount = 1;
+								p.log.success(`Scheduled: "${parsed.human}" — ${jobModel}`);
+							} catch (e) {
+								p.log.warn(`Couldn't parse schedule — run ${bold("openpaw schedule add")} later`);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// ── Working Directory (default home) ──
 	const projectDir = os.homedir();
 
@@ -477,6 +583,9 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	}
 	if (wantDashboard) {
 		summaryLines.push(`${bold("Dashboard:")}   ${dashboardTheme} theme on :3141`);
+	}
+	if (wantScheduling) {
+		summaryLines.push(`${bold("Scheduling:")}  $${schedulingCap}/day cap` + (schedulingJobCount > 0 ? `, ${schedulingJobCount} job` : ""));
 	}
 	summaryLines.push(`${bold("CLAUDE.md:")}   ${botName} is self-aware`);
 	summaryLines.push(`${bold("Memory:")}      ~/.claude/memory/`);

@@ -4,6 +4,7 @@ import * as os from "node:os";
 import { skills as catalog } from "../catalog/index.js";
 import { listInstalledSkills } from "./skills.js";
 import { readConfig as readDashboardConfig } from "./dashboard-server.js";
+import { readScheduleConfig } from "./scheduler.js";
 import type { Skill } from "../types.js";
 
 const START_MARKER = "<!-- OPENPAW:START -->";
@@ -69,6 +70,21 @@ function generateSection(
 		lines.push("You can tell users about it when they ask about task management.");
 		lines.push("");
 	}
+
+	// Check for scheduling
+	try {
+		const schedConfig = readScheduleConfig();
+		if (schedConfig.jobs.length > 0 || schedConfig.dailyCostCapUsd > 0) {
+			lines.push("## Smart Scheduling");
+			lines.push("");
+			lines.push(`Scheduling is enabled with a $${schedConfig.dailyCostCapUsd}/day cost cap.`);
+			if (schedConfig.jobs.length > 0) {
+				lines.push(`${schedConfig.jobs.filter((j) => j.enabled).length} active job(s).`);
+			}
+			lines.push("Run `openpaw schedule list` to see jobs, `openpaw schedule costs` to check spending.");
+			lines.push("");
+		}
+	} catch {}
 
 	lines.push("## How to Use Skills");
 	lines.push("");
