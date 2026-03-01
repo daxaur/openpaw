@@ -44,7 +44,7 @@
 </p>
 
 <h1 align="center">OpenPaw</h1>
-<p align="center"><b>Personal Assistant Wizard for Claude Code</b></p>
+<p align="center"><b>Turn Claude Code into a personal assistant.</b></p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/pawmode"><img src="https://img.shields.io/npm/v/pawmode?color=b4783c&label=npm&style=flat-square" alt="npm"></a>
@@ -55,16 +55,32 @@
 
 ---
 
+## What is OpenPaw?
+
+OpenPaw is a setup wizard that gives [Claude Code](https://docs.anthropic.com/en/docs/claude-code) real-world skills — email, calendar, Spotify, smart home, file sync, and 30+ more. One command installs the CLI tools, writes the skill files Claude needs, and configures permissions. After setup, Claude can do things like:
+
+```
+"Check my email and summarize anything urgent"
+"Play lo-fi beats on Spotify"
+"Turn the bedroom lights to 20%"
+"What's on my calendar tomorrow?"
+"Track my Amazon package"
+```
+
+It works by writing `SKILL.md` files into `~/.claude/skills/` — the directory Claude Code auto-discovers at session start. Each skill teaches Claude how to use a specific CLI tool. OpenPaw also installs the tools themselves via Homebrew/npm, sets up permissions so Claude can run them, and adds safety hooks to block dangerous patterns.
+
+**No daemon, no cloud, no subscriptions.** OpenPaw runs once, writes config, and gets out of the way. Everything runs locally through your existing Claude Code subscription.
+
 ## Quick Start
 
 ```bash
 npx pawmode
 ```
 
-Pick skills, choose your interface (terminal, Telegram, or both), and you're done. No daemon, no subscriptions — runs once and gets out of the way.
+The wizard walks you through picking skills, choosing your interface (terminal, Telegram, or both), and optionally setting up a task dashboard. Or skip the wizard entirely:
 
 ```bash
-npx pawmode --preset essentials       # skip the wizard
+npx pawmode --preset essentials       # common skills, no prompts
 npx pawmode --preset developer --yes  # fully non-interactive
 ```
 
