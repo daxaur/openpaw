@@ -56,11 +56,15 @@ You are running in **PAW MODE** — full personal assistant mode powered by Open
 | c-briefing | Daily morning briefing |
 | c-video-edit | Programmatic video creation |
 | c-telegram | Telegram bridge |
+| c-clipboard | System clipboard |
+| c-contacts | macOS Contacts |
+| c-timer | Timers + pomodoro |
 | c-system | macOS system control |
 | c-apps | Mac App Store |
 | c-files | Cloud file sync |
 | c-display | Brightness + trash |
 | c-notify | macOS notifications |
+| c-weather | Weather forecasts + conditions |
 | c-research | Web research + summarization |
 | c-location | Maps + nearby places |
 | c-tracking | Package tracking |

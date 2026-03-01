@@ -9,7 +9,6 @@ import { installTaps, getMissingTools, installTool } from "../core/installer.js"
 import { installSkill, getDefaultSkillsDir } from "../core/skills.js";
 import { addPermissions } from "../core/permissions.js";
 import { installSafetyHooks } from "../core/hooks.js";
-import { mcpServers, installMcpServer, type McpServer } from "../core/mcp.js";
 import { soulQuestionnaire, writeSoul, showSoulSummary, soulExists } from "../core/soul.js";
 import { setupMemory } from "../core/memory.js";
 import { telegramQuestionnaire, writeTelegramConfig, telegramConfigExists } from "../core/telegram.js";
@@ -40,7 +39,7 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	const platform = detectPlatform();
 	p.intro(accent(" openpaw setup "));
 
-	// ── Step 1: Platform ──
+	// ── Platform ──
 	const brewStatus = platform.hasBrew ? chalk.green("✓ brew") : chalk.red("✗ brew");
 	const npmStatus = platform.hasNpm ? chalk.green("✓ npm") : chalk.red("✗ npm");
 	p.log.info(`${chalk.bold(platform.osName)} ${platform.osVersion}  ${brewStatus}  ${npmStatus}`);
@@ -49,7 +48,8 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		p.log.warn("Homebrew is required for most tools → https://brew.sh");
 	}
 
-	// ── Step 2: Personality (SOUL.md) ──
+	// ── Personality (SOUL.md) ──
+	let botName = "Paw";
 	if (!opts.yes && !soulExists()) {
 		await pawPulse("think", "Let's get to know you...");
 
@@ -61,6 +61,7 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		if (!p.isCancel(wantSoul) && wantSoul) {
 			const soul = await soulQuestionnaire();
 			if (soul) {
+				botName = soul.botName;
 				writeSoul(soul);
 				setupMemory(soul.name);
 				showSoulSummary(soul);
@@ -73,7 +74,7 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		setupMemory();
 	}
 
-	// ── Step 3: Skill Selection (preset or custom) ──
+	// ── Skills ──
 	let selectedSkills: Skill[];
 
 	if (opts.preset) {
@@ -104,7 +105,7 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 
 	await pawPulse("happy", `${selectedSkills.length} skill${selectedSkills.length > 1 ? "s" : ""} selected — good taste!`);
 
-	// ── Step 4: Sub-Choices ──
+	// ── Sub-Choices ──
 	if (!opts.yes) {
 		for (const skill of selectedSkills) {
 			if (skill.subChoices) {
@@ -135,7 +136,7 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		}
 	}
 
-	// ── Step 5: Interface Mode ──
+	// ── Interface Mode ──
 	let interfaceMode: InterfaceMode = "native";
 	let telegramConfig: TelegramConfig | null = null;
 
@@ -176,38 +177,8 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		}
 	}
 
-	// ── Step 6: Working Directory ──
-	let projectDir = os.homedir();
-
-	if (!opts.yes) {
-		const workChoice = await p.select({
-			message: "Where should Claude work? 🐾",
-			options: [
-				{ value: "home", label: `Home directory ${dim("~")}`, hint: "recommended for general assistant" },
-				{ value: "custom", label: "Pick a project directory", hint: "for project-focused work" },
-			],
-		});
-
-		if (p.isCancel(workChoice)) {
-			p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
-			process.exit(0);
-		}
-
-		if (workChoice === "custom") {
-			const customDir = await p.text({
-				message: "Project directory path:",
-				placeholder: "~/projects/my-app",
-				validate: (v) => (v.length === 0 ? "Path cannot be empty" : undefined),
-			});
-
-			if (p.isCancel(customDir)) {
-				p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
-				process.exit(0);
-			}
-
-			projectDir = (customDir as string).replace(/^~/, os.homedir());
-		}
-	}
+	// ── Working Directory (default home) ──
+	const projectDir = os.homedir();
 
 	// ── Collect tools ──
 	const allTools: CliTool[] = [];
@@ -218,15 +189,42 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	const taps = getAllTaps(selectedSkills);
 	const missing = getMissingTools(uniqueTools);
 
-	// ── Step 7: Install Location ──
+	// ── Skills Location ──
 	let targetDir: string;
 	if (opts.yes) {
 		targetDir = getDefaultSkillsDir();
 	} else {
-		targetDir = await selectInstallLocation();
+		const defaultDir = getDefaultSkillsDir();
+		const skillsDir = await p.select({
+			message: "Where should skills live?",
+			options: [
+				{ value: defaultDir, label: `Global ${dim("~/.claude/skills/")}`, hint: "recommended" },
+				{ value: ".claude/skills", label: `Project ${dim(".claude/skills/")}` },
+				{ value: "custom", label: "Custom path" },
+			],
+		});
+
+		if (p.isCancel(skillsDir)) {
+			p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
+			process.exit(0);
+		}
+
+		targetDir = skillsDir as string;
+		if (targetDir === "custom") {
+			const customDir = await p.text({
+				message: "Skills directory path:",
+				placeholder: "~/.claude/skills",
+				validate: (v) => (v.length === 0 ? "Path cannot be empty" : undefined),
+			});
+			if (p.isCancel(customDir)) {
+				p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
+				process.exit(0);
+			}
+			targetDir = (customDir as string).replace(/^~/, os.homedir());
+		}
 	}
 
-	// ── Step 8: Confirmation ──
+	// ── Confirmation ──
 	const summary = buildSummary(selectedSkills, uniqueTools, missing, taps, interfaceMode, projectDir);
 	p.note(summary, "Here's what we're fetching");
 
@@ -242,14 +240,14 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		}
 	}
 
-	// ── Step 9: Dry Run ──
+	// ── Dry Run ──
 	if (opts.dryRun) {
 		p.log.info(dim("Dry run — no changes made. Just sniffing around."));
 		p.outro(accent("openpaw dry run complete 🐾"));
 		return;
 	}
 
-	// ── Step 10: Installation ──
+	// ── Installation ──
 	await pawStep("work", "Fetching your goodies...");
 
 	const s = p.spinner();
@@ -297,7 +295,7 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	const hooksOk = installSafetyHooks();
 	s.stop(hooksOk ? "🐾 Safety gate installed" : "🐾 Safety gate failed (non-critical)");
 
-	// ── Step 10b: Telegram Config ──
+	// ── Telegram Config ──
 	if (telegramConfig) {
 		telegramConfig.workspaceDir = projectDir;
 		telegramConfig.skills = selectedSkills.map((sk) => sk.id);
@@ -305,56 +303,9 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		p.log.success("Telegram bridge configured");
 	}
 
-	// ── Step 10c: MCP Servers ──
-	if (!opts.yes) {
-		const wantMcp = await p.confirm({
-			message: "Sniff out some MCP servers? (optional — search, memory, browser tools)",
-			initialValue: false,
-		});
+	// MCP servers can be configured separately via `openpaw mcp`
 
-		if (!p.isCancel(wantMcp) && wantMcp) {
-			const mcpChoices = await p.multiselect({
-				message: "🔌 MCP Servers",
-				options: mcpServers.map((srv) => ({
-					value: srv.id,
-					label: srv.name,
-					hint: srv.description,
-				})),
-				required: false,
-			});
-
-			if (!p.isCancel(mcpChoices)) {
-				const chosen = mcpChoices as string[];
-				if (chosen.length > 0) {
-					s.start("🐾 Configuring MCP servers...");
-					let mcpCount = 0;
-					for (const id of chosen) {
-						const srv = mcpServers.find((m) => m.id === id);
-						if (srv && installMcpServer(srv)) mcpCount++;
-					}
-					s.stop(`🐾 ${mcpCount} MCP server${mcpCount > 1 ? "s" : ""} configured`);
-
-					const needsEnv = chosen
-						.map((id) => mcpServers.find((m) => m.id === id))
-						.filter((srv): srv is McpServer => !!srv?.envPlaceholders);
-
-					if (needsEnv.length > 0) {
-						const envList = needsEnv
-							.flatMap((srv) =>
-								Object.entries(srv.envPlaceholders!).map(
-									([key, _placeholder]) =>
-										`${chalk.yellow("→")} ${bold(srv.name)}: Set ${dim(key)} in ~/.claude/settings.json`,
-								),
-							)
-							.join("\n");
-						p.note(envList, "MCP servers need API keys");
-					}
-				}
-			}
-		}
-	}
-
-	// ── Step 11: Auth Reminders ──
+	// ── Auth Reminders ──
 	const authSteps = selectedSkills
 		.flatMap((skill) => skill.authSteps ?? [])
 		.filter((step, i, arr) => arr.findIndex((s) => s.command === step.command) === i);
@@ -366,11 +317,11 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		p.note(authList, "One-time auth needed");
 	}
 
-	// ── Step 12: Done + Launch ──
+	// ── Done + Launch ──
 	await pawStep("done", "All done! *tail wag intensifies*");
 
 	console.log("");
-	console.log(dim("  Your pup is ready to play! Try saying:"));
+	console.log(dim(`  ${botName} is ready to play! Try saying:`));
 	console.log(`  ${subtle('"What are my latest emails?"')}`);
 	console.log(`  ${subtle('"Play some jazz on Spotify"')}`);
 	console.log(`  ${subtle('"Go to hacker news and summarize the top posts"')}`);
@@ -510,75 +461,36 @@ async function selectFromPreset(os: string): Promise<Skill[]> {
 
 async function selectCustom(os: string): Promise<Skill[]> {
 	const grouped = getSkillsByCategory(os);
-	const allSelected: Skill[] = [];
 
+	// Build grouped options: Record<string, Option[]>
+	const groupedOptions: Record<string, { value: string; label: string; hint?: string }[]> = {};
 	for (const [category, categorySkills] of grouped) {
 		const label = categoryLabels[category] ?? category;
 		const icon = CATEGORY_ICONS[category] ?? "📦";
-
-		const selected = await p.multiselect({
-			message: `${icon} ${label}`,
-			options: categorySkills.map((skill) => ({
-				value: skill.id,
-				label: skill.name,
-				hint: skill.description,
-			})),
-			required: false,
-		});
-
-		if (p.isCancel(selected)) {
-			p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
-			process.exit(0);
-		}
-
-		const ids = selected as string[];
-		for (const id of ids) {
-			const skill = skills.find((s) => s.id === id);
-			if (skill) allSelected.push(skill);
-		}
-
-		if (ids.length > 0) {
-			p.log.step(`${ids.length} selected from ${label}`);
-		}
+		groupedOptions[`${icon} ${label}`] = categorySkills.map((skill) => ({
+			value: skill.id,
+			label: skill.name,
+			hint: skill.description,
+		}));
 	}
 
-	return allSelected;
-}
-
-// ── Install Location ──
-
-async function selectInstallLocation(): Promise<string> {
-	const defaultDir = getDefaultSkillsDir();
-	const skillsDir = await p.select({
-		message: "Where should skills live?",
-		options: [
-			{ value: defaultDir, label: `Global ${dim("~/.claude/skills/")}`, hint: "recommended" },
-			{ value: ".claude/skills", label: `Project ${dim(".claude/skills/")}` },
-			{ value: "custom", label: "Custom path" },
-		],
+	const selected = await p.groupMultiselect({
+		message: "Pick your skills (space to select, enter to confirm)",
+		options: groupedOptions,
+		required: false,
 	});
 
-	if (p.isCancel(skillsDir)) {
+	if (p.isCancel(selected)) {
 		p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
 		process.exit(0);
 	}
 
-	let targetDir = skillsDir as string;
-	if (targetDir === "custom") {
-		const customDir = await p.text({
-			message: "Skills directory path:",
-			placeholder: "~/.claude/skills",
-			validate: (v) => (v.length === 0 ? "Path cannot be empty" : undefined),
-		});
-		if (p.isCancel(customDir)) {
-			p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
-			process.exit(0);
-		}
-		targetDir = customDir as string;
-	}
-
-	return targetDir;
+	const ids = selected as string[];
+	return ids
+		.map((id) => skills.find((s) => s.id === id))
+		.filter((s): s is Skill => !!s);
 }
+
 
 // ── Summary ──
 

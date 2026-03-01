@@ -42,7 +42,7 @@ npx pawmode --preset developer --yes
 
 ## What is OpenPaw?
 
-OpenPaw turns **Claude Code** into a full personal assistant. One command, 32 skills, and a really good boy who fetches your emails, plays your music, and controls your smart home.
+OpenPaw turns **Claude Code** into a full personal assistant. One command, 39 skills, and a really good boy who fetches your emails, plays your music, and controls your smart home.
 
 ```
 npx pawmode
@@ -147,7 +147,7 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 
 | Preset | Skills |
 |---|---|
-| **Everything** | All 32 skills for your platform |
+| **Everything** | All 39 skills for your platform |
 | **Essentials** | Email, calendar, notes, music, browser, system, notifications |
 | **Productivity** | Notes, Obsidian, tasks, email, calendar, Slack, cloud files |
 | **Developer** | GitHub, Linear, Jira, browser, network, AI, cron |
@@ -210,6 +210,9 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 
 | Skill | Description | Tools |
 |---|---|---|
+| `c-clipboard` | Copy, paste, transform clipboard content | built-in |
+| `c-contacts` | Search macOS Contacts / Address Book | built-in |
+| `c-timer` | Countdown timers, alarms, pomodoro | `terminal-notifier` |
 | `c-system` | macOS Swiss Army Knife — volume, wifi, battery, dock | `m` |
 | `c-apps` | Mac App Store from CLI | `mas` |
 | `c-files` | Cloud sync — Google Drive, S3, Dropbox, 70+ providers | `rclone` |
@@ -220,6 +223,7 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 
 | Skill | Description | Tools |
 |---|---|---|
+| `c-weather` | Weather forecasts and conditions | built-in |
 | `c-research` | Summarize URLs, PDFs, videos | `summarize` |
 | `c-location` | Apple Maps + nearby places | `goplaces` |
 | `c-tracking` | Package tracking (UPS, FedEx, etc.) | `ordercli` |
@@ -294,7 +298,7 @@ OpenPaw doesn't run in the background (except the optional Telegram bridge). Her
 - **No attack surface** — no open ports, no cloud dependencies
 - **5-minute setup** — from zero to personal assistant
 - **Telegram built-in** — talk to Claude from your phone
-- **32 skills** — email, music, smart home, GitHub, scheduling, video editing, and more
+- **39 skills** — email, music, smart home, GitHub, scheduling, video editing, and more
 - **Cost-controlled scheduling** — automate tasks without runaway bills
 - **Open source** — MIT license, community-driven
 

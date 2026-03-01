@@ -260,6 +260,14 @@ export const skills: Skill[] = [
 
 	// ── Research & Utilities ──
 	{
+		id: "weather",
+		name: "Weather",
+		description: "Forecasts and conditions — current, hourly, multi-day via wttr.in",
+		category: "research",
+		tools: [curl],
+		platforms: ["darwin", "linux", "win32"],
+	},
+	{
 		id: "research",
 		name: "Web Research",
 		description: "Summarize URLs, PDFs, YouTube videos",
@@ -385,6 +393,30 @@ export const skills: Skill[] = [
 
 	// ── System ──
 	{
+		id: "clipboard",
+		name: "Clipboard",
+		description: "Copy, paste, and transform clipboard content",
+		category: "system",
+		tools: [],
+		platforms: ["darwin", "linux"],
+	},
+	{
+		id: "contacts",
+		name: "Contacts",
+		description: "Search and look up contacts from macOS Address Book",
+		category: "system",
+		tools: [],
+		platforms: ["darwin"],
+	},
+	{
+		id: "timer",
+		name: "Timer & Pomodoro",
+		description: "Countdown timers, alarms, and pomodoro with native notifications",
+		category: "system",
+		tools: [terminalNotifier],
+		platforms: ["darwin"],
+	},
+	{
 		id: "system",
 		name: "System Control",
 		description: "macOS Swiss Army Knife — volume, wifi, battery, dock, trash",
@@ -484,8 +516,8 @@ export const presets: Preset[] = [
 	{
 		id: "essentials",
 		name: "Essentials",
-		description: "Email, calendar, notes, music, browser, system",
-		skillIds: ["email", "calendar", "notes", "music", "browser", "system", "notify"],
+		description: "Email, calendar, notes, music, weather, clipboard, browser, system",
+		skillIds: ["email", "calendar", "notes", "music", "weather", "clipboard", "contacts", "timer", "browser", "system", "notify"],
 	},
 	{
 		id: "productivity",

@@ -98,34 +98,10 @@ function renderPaw(color: ChalkInstance): string {
 // ── Public API ──
 
 /**
- * Animated banner: fade in paw → pulse → title box.
+ * Banner: brown paw + title box.
  */
 export async function showBanner(): Promise<void> {
-	process.stdout.write("\x1B[?25l"); // hide cursor
-
-	// Fade in: dim → mid → full
-	process.stdout.write(renderPaw(chalk.hex("#3d2810")) + "\n");
-	await sleep(60);
-
-	process.stdout.write(`\x1B[${PAW_ROWS}A\x1B[J`);
-	process.stdout.write(renderPaw(chalk.hex("#7a501e")) + "\n");
-	await sleep(60);
-
-	process.stdout.write(`\x1B[${PAW_ROWS}A\x1B[J`);
-	process.stdout.write(renderPaw(pawClr) + "\n");
-	await sleep(60);
-
-	// Pulse: bright → settle
-	process.stdout.write(`\x1B[${PAW_ROWS}A\x1B[J`);
-	process.stdout.write(renderPaw(chalk.hex("#d4984c")) + "\n");
-	await sleep(80);
-
-	process.stdout.write(`\x1B[${PAW_ROWS}A\x1B[J`);
-	process.stdout.write(renderPaw(pawClr) + "\n");
-
-	process.stdout.write("\x1B[?25h"); // show cursor
-
-	// Title box
+	console.log(renderPaw(pawClr));
 	console.log("");
 	console.log(renderBox("O P E N P A W", "Personal Assistant Wizard for Claude Code"));
 	console.log("");

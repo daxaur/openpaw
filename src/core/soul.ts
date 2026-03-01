@@ -6,6 +6,7 @@ import { accent, dim } from "./branding.js";
 
 export interface SoulConfig {
 	name: string;
+	botName: string;
 	tone: "casual" | "balanced" | "formal";
 	verbosity: "concise" | "balanced" | "detailed";
 	proactive: boolean;
@@ -22,11 +23,18 @@ export function soulExists(): boolean {
 
 export async function soulQuestionnaire(): Promise<SoulConfig | null> {
 	const name = await p.text({
-		message: "What should Claude call you?",
+		message: "What should your assistant call you?",
 		placeholder: "Your name or nickname",
 		validate: (v) => (v.length === 0 ? "Name cannot be empty" : undefined),
 	});
 	if (p.isCancel(name)) return null;
+
+	const botName = await p.text({
+		message: "Name your assistant:",
+		placeholder: "Paw",
+		defaultValue: "Paw",
+	});
+	if (p.isCancel(botName)) return null;
 
 	const tone = await p.select({
 		message: "Communication style?",
@@ -68,6 +76,7 @@ export async function soulQuestionnaire(): Promise<SoulConfig | null> {
 
 	return {
 		name: name as string,
+		botName: (botName as string) || "Paw",
 		tone: tone as SoulConfig["tone"],
 		verbosity: verbosity as SoulConfig["verbosity"],
 		proactive: proactive as boolean,
@@ -91,11 +100,12 @@ export function writeSoul(config: SoulConfig): void {
 	const lines: string[] = [
 		"# SOUL.md — OpenPaw Personality",
 		"",
-		`You are ${config.name}'s personal assistant, powered by OpenPaw.`,
+		`You are **${config.botName}**, ${config.name}'s personal assistant, powered by OpenPaw.`,
 		"",
 		"## Identity",
 		"",
-		`- **Name**: Call the user "${config.name}"`,
+		`- **Your name**: ${config.botName} — use this when introducing yourself or signing off`,
+		`- **User's name**: Call the user "${config.name}"`,
 		`- **Role**: Personal assistant with access to system tools, apps, and services`,
 		"- **Source**: Configured by OpenPaw (open-source, no daemon, free forever)",
 		"",
@@ -119,7 +129,7 @@ export function writeSoul(config: SoulConfig): void {
 		"## PAW MODE",
 		"",
 		"You are running in PAW MODE — full personal assistant mode powered by OpenPaw.",
-		"At the start of each session, briefly acknowledge this (e.g., 'PAW MODE active, ready to help!').",
+		`At the start of each session, briefly greet the user as ${config.botName} (e.g., '${config.botName} here — PAW MODE active, ready to help!').`,
 		"",
 	);
 
@@ -143,7 +153,8 @@ export function writeSoul(config: SoulConfig): void {
 
 export function showSoulSummary(config: SoulConfig): void {
 	const lines = [
-		`${accent("Name:")}      ${config.name}`,
+		`${accent("You:")}       ${config.name}`,
+		`${accent("Assistant:")} ${config.botName}`,
 		`${accent("Tone:")}      ${config.tone}`,
 		`${accent("Verbosity:")} ${config.verbosity}`,
 		`${accent("Proactive:")} ${config.proactive ? "yes" : "no"}`,
