@@ -8,6 +8,10 @@
   <img src="https://img.shields.io/node/v/pawmode?color=8a5a2a&style=flat-square" alt="node">
 </p>
 
+<p align="center">
+  <img src="docs/demo.gif" alt="OpenPaw Setup Demo" width="700">
+</p>
+
 ---
 
 ## What is OpenPaw?
@@ -51,10 +55,6 @@ The wizard walks you through picking skills, choosing your interface (terminal, 
 npx pawmode --preset essentials       # common skills, no prompts
 npx pawmode --preset developer --yes  # fully non-interactive
 ```
-
-<p align="center">
-  <img src="docs/demo.gif" alt="OpenPaw Setup Demo" width="700">
-</p>
 
 ---
 
@@ -160,6 +160,10 @@ npx pawmode --preset developer --yes  # fully non-interactive
 **Telegram Bridge** — Talk to Claude from your phone. Set up with `openpaw telegram setup`, start with `openpaw telegram`.
 
 **Task Dashboard** — Local kanban board with 3 themes (Paw, Midnight, Neon). Run `openpaw dashboard`.
+
+<p align="center">
+  <img src="docs/dashboard.png" alt="OpenPaw Task Dashboard" width="700">
+</p>
 
 **Scheduling** — Recurring tasks with per-run and daily cost caps. `openpaw schedule add "weekdays 8am" --run "check email"`.
 
