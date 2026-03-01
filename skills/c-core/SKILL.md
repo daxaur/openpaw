@@ -43,7 +43,6 @@ You are running in **PAW MODE** — full personal assistant mode powered by Open
 | c-calendar | Google Cal / Apple Calendar |
 | c-messaging | iMessage / WhatsApp |
 | c-slack | Slack channels + DMs |
-| c-social | Twitter/X |
 | c-music | Spotify playback |
 | c-video | YouTube + video tools |
 | c-screen | Screenshots + OCR |
@@ -52,7 +51,11 @@ You are running in **PAW MODE** — full personal assistant mode powered by Open
 | c-speakers | Sonos speakers |
 | c-bluetooth | Bluetooth devices |
 | c-browser | Headless browser |
+| c-schedule | Smart scheduling with cost control |
 | c-cron | Scheduled jobs |
+| c-briefing | Daily morning briefing |
+| c-video-edit | Programmatic video creation |
+| c-telegram | Telegram bridge |
 | c-system | macOS system control |
 | c-apps | Mac App Store |
 | c-files | Cloud file sync |

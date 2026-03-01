@@ -10,13 +10,22 @@ import { listCommand } from "./commands/list.js";
 import { soulCommand } from "./commands/soul.js";
 import { exportCommand, importCommand } from "./commands/export.js";
 import { telegramCommand, telegramSetupCommand } from "./commands/telegram.js";
+import {
+	scheduleAddCommand,
+	scheduleListCommand,
+	scheduleRemoveCommand,
+	scheduleRunCommand,
+	scheduleToggleCommand,
+	scheduleCostsCommand,
+	scheduleSetCapCommand,
+} from "./commands/schedule.js";
 
 const program = new Command();
 
 program
 	.name("openpaw")
 	.description("Personal Assistant Wizard for Claude Code")
-	.version("1.0.0");
+	.version("1.1.0");
 
 program
 	.command("setup", { isDefault: true })
@@ -89,5 +98,57 @@ tg.action(telegramCommand);
 tg.command("setup")
 	.description("Set up or reconfigure the Telegram bot")
 	.action(telegramSetupCommand);
+
+// ── Schedule ──
+
+const sched = program
+	.command("schedule")
+	.description("Manage scheduled jobs — automate recurring tasks with cost control");
+
+sched
+	.command("add [schedule]")
+	.description("Add a scheduled job")
+	.option("--run <prompt>", "What Claude should do")
+	.option("--model <model>", "Model to use (sonnet/opus/haiku)", "sonnet")
+	.option("--budget <usd>", "Per-run budget cap in USD", "1.00")
+	.option("--delivery <type>", "Delivery method (telegram/file/notify)", "file")
+	.action((schedule, opts) => scheduleAddCommand(schedule, opts));
+
+sched
+	.command("list")
+	.alias("ls")
+	.description("List all scheduled jobs")
+	.action(() => scheduleListCommand());
+
+sched
+	.command("remove <id>")
+	.alias("rm")
+	.description("Remove a scheduled job")
+	.action((id) => scheduleRemoveCommand(id));
+
+sched
+	.command("run <id>")
+	.description("Manually trigger a scheduled job")
+	.action((id) => scheduleRunCommand(id));
+
+sched
+	.command("enable <id>")
+	.description("Enable a scheduled job")
+	.action((id) => scheduleToggleCommand(id, true));
+
+sched
+	.command("disable <id>")
+	.description("Disable a scheduled job")
+	.action((id) => scheduleToggleCommand(id, false));
+
+sched
+	.command("costs")
+	.description("Show today's cost usage and daily cap")
+	.action(() => scheduleCostsCommand());
+
+sched
+	.command("set-cap <usd>")
+	.description("Set the daily cost cap in USD")
+	.action((usd) => scheduleSetCapCommand(usd));
 
 program.parse();

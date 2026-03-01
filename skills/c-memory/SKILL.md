@@ -84,3 +84,35 @@ echo "## $(date +%Y-%m-%d)" >> ~/.claude/memory/journal.md
 - Always ask before overwriting existing memory entries
 - If memory files don't exist, create them on first write
 - Keep MEMORY.md focused — move details to topic-specific files
+
+## Obsidian Sync (Auto)
+
+If `c-obsidian` is also installed (check `ls ~/.claude/skills/c-obsidian/`), automatically sync memory to Obsidian:
+
+### On Memory Write
+When saving to any memory file, also mirror to Obsidian in an `AI/` folder:
+```bash
+obsidian-cli create "AI/Memory" --content "$(cat ~/.claude/memory/MEMORY.md)"
+obsidian-cli create "AI/People" --content "$(cat ~/.claude/memory/people.md)"
+obsidian-cli create "AI/Preferences" --content "$(cat ~/.claude/memory/preferences.md)"
+obsidian-cli create "AI/Projects" --content "$(cat ~/.claude/memory/projects.md)"
+```
+
+### Journal → Daily Note
+Append session logs to both `journal.md` and Obsidian's daily note:
+```bash
+obsidian-cli append "$(date +%Y-%m-%d)" "### Claude Session $(date +%H:%M)\n- [summary]"
+echo "## $(date +%Y-%m-%d %H:%M)\n- [summary]" >> ~/.claude/memory/journal.md
+```
+
+### On Session Start
+After reading `~/.claude/memory/MEMORY.md`, check Obsidian for newer content:
+```bash
+obsidian-cli search --folder "AI" "Memory"
+```
+If the Obsidian version has additional facts, merge them into `~/.claude/memory/MEMORY.md`.
+
+### Conflict Resolution
+- `~/.claude/memory/` is the authoritative quick-access cache
+- Obsidian is the long-term archive and rich knowledge base
+- When in doubt, prefer the most recently modified version

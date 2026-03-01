@@ -75,6 +75,47 @@ export interface TelegramConfig {
 	skills: string[];
 }
 
+// ── Scheduling ──
+
+export interface ScheduledJob {
+	id: string;
+	name: string;
+	prompt: string;
+	schedule: string;
+	scheduleHuman: string;
+	enabled: boolean;
+	model: string;
+	maxBudgetUsd: number;
+	delivery: JobDelivery;
+	createdAt: string;
+	lastRunAt?: string;
+	lastRunCostUsd?: number;
+	lastRunResult?: "success" | "error" | "budget_exceeded";
+}
+
+export type JobDelivery =
+	| { type: "telegram" }
+	| { type: "file"; path?: string }
+	| { type: "notify" };
+
+export interface ScheduleConfig {
+	jobs: ScheduledJob[];
+	dailyCostCapUsd: number;
+	defaultModel: string;
+}
+
+export interface CostEntry {
+	date: string;
+	jobId: string;
+	costUsd: number;
+	timestamp: string;
+}
+
+export interface CostTracker {
+	entries: CostEntry[];
+	dailyTotals: Record<string, number>;
+}
+
 export interface SettingsJson {
 	permissions?: {
 		allow?: string[];

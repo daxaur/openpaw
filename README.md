@@ -42,7 +42,7 @@ npx pawmode --preset developer --yes
 
 ## What is OpenPaw?
 
-OpenPaw turns **Claude Code** into a full personal assistant. One command, 30 skills, and a really good boy who fetches your emails, plays your music, and controls your smart home.
+OpenPaw turns **Claude Code** into a full personal assistant. One command, 32 skills, and a really good boy who fetches your emails, plays your music, and controls your smart home.
 
 ```
 npx pawmode
@@ -105,6 +105,31 @@ Or just send a regular message. Claude figures out which skill to use.
 
 ---
 
+## Smart Scheduling
+
+Automate recurring tasks with built-in cost control. No runaway bills.
+
+```bash
+# Morning briefing to Telegram
+openpaw schedule add "weekdays 8am" --run "check email and summarize" --delivery telegram
+
+# Evening project summary
+openpaw schedule add "daily 6pm" --run "summarize today's git commits" --delivery file
+
+# Urgent email monitor (cheap with Haiku)
+openpaw schedule add "every 30 minutes" --run "check for urgent emails" --model haiku --budget 0.25
+```
+
+**Cost control built in:**
+- Daily cap: $5/day by default (configurable)
+- Per-run budget: $1.00 default
+- Jobs auto-skip if cap would be exceeded
+- Track spending: `openpaw schedule costs`
+
+Jobs run via launchd (macOS) or cron (Linux) — they keep running even when your terminal is closed.
+
+---
+
 ## PAW MODE
 
 When you launch Claude through OpenPaw, it runs in **PAW MODE** — full personal assistant mode. Claude knows your name, your preferences, what skills are installed, and greets you at session start.
@@ -122,7 +147,7 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 
 | Preset | Skills |
 |---|---|
-| **Everything** | All 30 skills for your platform |
+| **Everything** | All 32 skills for your platform |
 | **Essentials** | Email, calendar, notes, music, browser, system, notifications |
 | **Productivity** | Notes, Obsidian, tasks, email, calendar, Slack, cloud files |
 | **Developer** | GitHub, Linear, Jira, browser, network, AI, cron |
@@ -133,7 +158,7 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 
 ## Skills
 
-30 capabilities across 8 categories. Install only what you need.
+32 capabilities across 8 categories. Install only what you need.
 
 ### Productivity
 
@@ -160,6 +185,7 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 |---|---|---|
 | `c-music` | Spotify playback + search | `spogo` |
 | `c-video` | YouTube download + convert | `yt-dlp` `ffmpeg` |
+| `c-video-edit` | Programmatic video creation | `remotion` `editly` |
 | `c-screen` | Screenshots, OCR, webcam | `peekaboo` `camsnap` |
 | `c-voice` | Speech-to-text + TTS | `sag` `say` |
 
@@ -175,6 +201,8 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 
 | Skill | Description | Tools |
 |---|---|---|
+| `c-schedule` | Smart scheduling with cost control | built-in |
+| `c-briefing` | Daily morning briefing | depends on email + calendar |
 | `c-browser` | Headless browser — navigate, click, scrape | `agent-browser` / `playwright` |
 | `c-cron` | Cron jobs + launchctl services | `lunchy-go` |
 
@@ -219,6 +247,9 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 | `openpaw --dry-run` | Preview what would be installed |
 | `openpaw telegram` | Start the Telegram bridge |
 | `openpaw telegram setup` | Configure Telegram bot |
+| `openpaw schedule add` | Add a scheduled job |
+| `openpaw schedule list` | List scheduled jobs |
+| `openpaw schedule costs` | View cost usage and daily cap |
 | `openpaw list` | Show all available skills |
 | `openpaw add <skills>` | Add skills — `openpaw add notes music email` |
 | `openpaw remove <skills>` | Remove skills |
@@ -263,7 +294,8 @@ OpenPaw doesn't run in the background (except the optional Telegram bridge). Her
 - **No attack surface** — no open ports, no cloud dependencies
 - **5-minute setup** — from zero to personal assistant
 - **Telegram built-in** — talk to Claude from your phone
-- **30 skills** — email, music, smart home, GitHub, browser, and more
+- **32 skills** — email, music, smart home, GitHub, scheduling, video editing, and more
+- **Cost-controlled scheduling** — automate tasks without runaway bills
 - **Open source** — MIT license, community-driven
 
 ---

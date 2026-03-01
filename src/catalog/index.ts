@@ -34,6 +34,10 @@ const jq: CliTool = { name: "jq", command: "jq", installCmd: "brew install jq", 
 const linearCli: CliTool = { name: "linear-cli", command: "linear", installCmd: "npm install -g @linear/cli", installMethod: "npm", platforms: ["darwin", "linux", "win32"] };
 const jiraCli: CliTool = { name: "jira-cli", command: "jira", installCmd: "brew install jira-cli", installMethod: "brew", platforms: ["darwin", "linux"] };
 
+// ── New Tools: Video Editing ──
+const remotion: CliTool = { name: "remotion", command: "remotion", installCmd: "npm install -g remotion @remotion/cli", installMethod: "npm", platforms: ["darwin", "linux", "win32"] };
+const editly: CliTool = { name: "editly", command: "editly", installCmd: "npm install -g editly", installMethod: "npm", platforms: ["darwin", "linux"] };
+
 // ── New Tools: Browser ──
 const agentBrowser: CliTool = { name: "agent-browser", command: "agent-browser", installCmd: "npm install -g agent-browser", installMethod: "npm", platforms: ["darwin", "linux", "win32"] };
 const playwrightCli: CliTool = { name: "playwright-cli", command: "playwright-cli", installCmd: "npm install -g @playwright/cli@latest", installMethod: "npm", platforms: ["darwin", "linux", "win32"] };
@@ -201,6 +205,14 @@ export const skills: Skill[] = [
 		platforms: ["darwin", "linux", "win32"],
 	},
 	{
+		id: "video-edit",
+		name: "Video Editing",
+		description: "Programmatic video creation — Remotion (React) and Editly (JSON-based)",
+		category: "media",
+		tools: [remotion, editly, ffmpeg],
+		platforms: ["darwin", "linux"],
+	},
+	{
 		id: "screen",
 		name: "Screen & Vision",
 		description: "Screenshots, OCR, screen analysis, webcam capture",
@@ -327,6 +339,14 @@ export const skills: Skill[] = [
 	},
 
 	// ── Automation ──
+	{
+		id: "schedule",
+		name: "Smart Scheduling",
+		description: "Automate recurring Claude tasks with built-in cost control and Telegram delivery",
+		category: "automation",
+		tools: [],
+		platforms: ["darwin", "linux"],
+	},
 	{
 		id: "briefing",
 		name: "Daily Briefing",

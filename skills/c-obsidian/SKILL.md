@@ -47,12 +47,31 @@ Append a session log entry at the end of each session:
 obsidian-cli append "$(date +%Y-%m-%d)" "### Session $(date +%H:%M)\n- [summary of what was done]\n"
 ```
 
-## Memory Sync
+## Memory Sync (Auto)
 
-If both c-memory and c-obsidian are installed, keep them in sync:
-- Key facts in `~/.claude/memory/MEMORY.md` should also appear in an Obsidian note (e.g., `AI/Memory.md`)
+If both c-memory and c-obsidian are installed (check `ls ~/.claude/skills/c-memory/`), keep them in sync automatically:
+
+### Bidirectional Sync
+- `~/.claude/memory/` → Obsidian `AI/` folder (on every memory write)
+- Obsidian `AI/` → `~/.claude/memory/` (on session start, if Obsidian has newer content)
+
+### Sync Commands
+```bash
+# Push memory to Obsidian
+obsidian-cli create "AI/Memory" --content "$(cat ~/.claude/memory/MEMORY.md)"
+obsidian-cli create "AI/People" --content "$(cat ~/.claude/memory/people.md)"
+
+# Pull from Obsidian to check for updates
+obsidian-cli search --folder "AI" "Memory"
+
+# Append session log to daily note
+obsidian-cli append "$(date +%Y-%m-%d)" "### Claude Session $(date +%H:%M)\n- [summary]"
+```
+
+### Rules
 - When the user says "remember this", save to both systems
 - Obsidian is the long-term archive; `~/.claude/memory/` is the quick-access cache
+- MEMORY.md is authoritative for quick facts; Obsidian is richer context
 
 ## Guidelines
 
