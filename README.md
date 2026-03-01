@@ -57,17 +57,30 @@
 
 ## What is OpenPaw?
 
-OpenPaw is a setup wizard that gives [Claude Code](https://docs.anthropic.com/en/docs/claude-code) real-world skills — email, calendar, Spotify, smart home, file sync, and 30+ more. One command installs the CLI tools, writes the skill files Claude needs, and configures permissions. After setup, Claude can do things like:
+[Claude Code](https://docs.anthropic.com/en/docs/claude-code) is powerful, but out of the box it only knows how to code. OpenPaw turns it into a full personal assistant — one that reads your email, plays your music, controls your lights, manages your calendar, tracks your packages, and remembers what you told it last week.
+
+Run one command and OpenPaw:
+
+- **Installs 38 skills** across email, calendar, Spotify, smart home, Slack, GitHub, Obsidian, and more
+- **Sets up the CLI tools** each skill needs (via Homebrew, npm, or pip) and walks you through auth
+- **Gives Claude an identity** — a name, personality, and persistent memory across sessions
+- **Configures permissions and safety hooks** so Claude can act autonomously without doing anything dangerous
+- **Adds a Telegram bridge** so you can talk to Claude from your phone
+- **Includes a task dashboard** — a local kanban board with drag-and-drop and 3 themes
+- **Enables smart scheduling** — recurring tasks with per-run and daily cost caps so nothing runs away
+
+After setup, you just talk to Claude:
 
 ```
 "Check my email and summarize anything urgent"
 "Play lo-fi beats on Spotify"
 "Turn the bedroom lights to 20%"
 "What's on my calendar tomorrow?"
-"Track my Amazon package"
+"Add milk to my reminders"
+"Go to Hacker News and summarize the top 5 posts"
 ```
 
-It works by writing `SKILL.md` files into `~/.claude/skills/` — the directory Claude Code auto-discovers at session start. Each skill teaches Claude how to use a specific CLI tool. OpenPaw also installs the tools themselves via Homebrew/npm, sets up permissions so Claude can run them, and adds safety hooks to block dangerous patterns.
+Claude figures out which skill to use. No special syntax needed.
 
 **No daemon, no cloud, no subscriptions.** OpenPaw runs once, writes config, and gets out of the way. Everything runs locally through your existing Claude Code subscription.
 
@@ -77,7 +90,7 @@ It works by writing `SKILL.md` files into `~/.claude/skills/` — the directory 
 npx pawmode
 ```
 
-The wizard walks you through picking skills, choosing your interface (terminal, Telegram, or both), and optionally setting up a task dashboard. Or skip the wizard entirely:
+The wizard walks you through picking skills, choosing your interface (terminal, Telegram, or both), setting up a task dashboard, and authenticating with services. Or skip the wizard entirely:
 
 ```bash
 npx pawmode --preset essentials       # common skills, no prompts
