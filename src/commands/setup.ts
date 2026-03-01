@@ -42,10 +42,32 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	// ── Platform ──
 	const brewStatus = platform.hasBrew ? chalk.green("✓ brew") : chalk.red("✗ brew");
 	const npmStatus = platform.hasNpm ? chalk.green("✓ npm") : chalk.red("✗ npm");
-	p.log.info(`${chalk.bold(platform.osName)} ${platform.osVersion}  ${brewStatus}  ${npmStatus}`);
+	const pipStatus = platform.hasPip ? chalk.green("✓ pip") : chalk.dim("○ pip");
+	p.log.info(`${chalk.bold(platform.osName)} ${platform.osVersion}  ${brewStatus}  ${npmStatus}  ${pipStatus}`);
 
+	// ── Prerequisites ──
+	const missingPrereqs: string[] = [];
 	if (!platform.hasBrew && platform.os === "darwin") {
-		p.log.warn("Homebrew is required for most tools → https://brew.sh");
+		missingPrereqs.push(`${chalk.bold("Homebrew")} — most tools need it\n    ${dim('Install:')} /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"\n    ${dim('or visit')} https://brew.sh`);
+	}
+	if (!platform.hasNpm) {
+		missingPrereqs.push(`${chalk.bold("Node.js + npm")} — needed for some tools\n    ${dim('Install:')} brew install node\n    ${dim('or visit')} https://nodejs.org`);
+	}
+
+	if (missingPrereqs.length > 0) {
+		p.note(missingPrereqs.join("\n\n"), "Missing prerequisites");
+
+		if (!opts.yes) {
+			const cont = await p.confirm({
+				message: "Continue anyway? (some tool installs may fail)",
+				initialValue: true,
+			});
+
+			if (p.isCancel(cont) || !cont) {
+				p.outro(dim("Install the prerequisites above and run openpaw again!"));
+				process.exit(0);
+			}
+		}
 	}
 
 	// ── Personality (SOUL.md) ──
