@@ -87,8 +87,8 @@ npx pawmode --preset developer --yes  # fully non-interactive
 
 | Skill | What it does | Tools |
 |---|---|---|
-| `c-email` | Gmail or IMAP — read, send, search | [`gog`](https://github.com/steipete/gog), [`himalaya`](https://github.com/pimalaya/himalaya) |
-| `c-calendar` | Google Calendar + Apple Calendar | [`gog`](https://github.com/steipete/gog), [`icalBuddy`](https://hasseg.org/icalBuddy/) |
+| `c-email` | Gmail or IMAP — read, send, search | `gog`, [`himalaya`](https://github.com/pimalaya/himalaya) |
+| `c-calendar` | Google Calendar + Apple Calendar | `gog`, [`icalBuddy`](https://hasseg.org/icalBuddy/) |
 | `c-messaging` | iMessage + WhatsApp | [`imsg`](https://github.com/steipete/imsg), `wacli` |
 | `c-slack` | Slack channels + DMs | [`slack-cli`](https://github.com/rockymadden/slack-cli) |
 | `c-telegram` | Telegram bridge (built-in) | — |
