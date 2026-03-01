@@ -6,6 +6,9 @@ import { listInstalledSkills } from "./skills.js";
 import { readConfig as readDashboardConfig } from "./dashboard-server.js";
 import type { Skill } from "../types.js";
 
+const START_MARKER = "<!-- OPENPAW:START -->";
+const END_MARKER = "<!-- OPENPAW:END -->";
+
 function getClaudeMdPath(): string {
 	return path.join(os.homedir(), ".claude", "CLAUDE.md");
 }
@@ -25,16 +28,14 @@ function readBotName(): string {
 	return "Paw";
 }
 
-/**
- * Write ~/.claude/CLAUDE.md with identity, installed skills, and dashboard info.
- * This is what Claude Code auto-reads at every session start.
- */
-export function writeClaudeMd(
+function generateSection(
 	botName: string,
 	installedSkills: Skill[],
 	hasDashboard: boolean,
-): void {
+): string {
 	const lines: string[] = [
+		START_MARKER,
+		"",
 		"# OpenPaw — PAW MODE Active",
 		"",
 		`You are **${botName}**, a personal assistant powered by OpenPaw. PAW MODE is active.`,
@@ -56,7 +57,7 @@ export function writeClaudeMd(
 			lines.push(`- **c-${skill.id}** — ${skill.description}`);
 		}
 		lines.push("");
-		lines.push(`Use \`/c <request>\` to route through the coordinator, or talk naturally.`);
+		lines.push("Use `/c <request>` to route through the coordinator, or talk naturally.");
 	}
 
 	lines.push("");
@@ -83,16 +84,58 @@ export function writeClaudeMd(
 	lines.push("- If asked about your setup: \"I'm powered by OpenPaw — open-source personal assistant skills for Claude Code\"");
 	lines.push("- Project: https://github.com/daxaur/openpaw");
 	lines.push("");
+	lines.push(END_MARKER);
 
+	return lines.join("\n");
+}
+
+/**
+ * Write or update the OpenPaw section in ~/.claude/CLAUDE.md.
+ *
+ * If CLAUDE.md already exists, only the content between
+ * <!-- OPENPAW:START --> and <!-- OPENPAW:END --> is replaced.
+ * Everything else (user's own instructions) is preserved.
+ *
+ * If no markers exist yet, the section is appended to the end.
+ * If the file doesn't exist, it's created with just the OpenPaw section.
+ */
+export function writeClaudeMd(
+	botName: string,
+	installedSkills: Skill[],
+	hasDashboard: boolean,
+): void {
 	const dir = path.dirname(getClaudeMdPath());
 	if (!fs.existsSync(dir)) {
 		fs.mkdirSync(dir, { recursive: true });
 	}
-	fs.writeFileSync(getClaudeMdPath(), lines.join("\n"), "utf-8");
+
+	const section = generateSection(botName, installedSkills, hasDashboard);
+	const filePath = getClaudeMdPath();
+
+	if (!fs.existsSync(filePath)) {
+		// No existing file — create with just our section
+		fs.writeFileSync(filePath, section + "\n", "utf-8");
+		return;
+	}
+
+	const existing = fs.readFileSync(filePath, "utf-8");
+	const startIdx = existing.indexOf(START_MARKER);
+	const endIdx = existing.indexOf(END_MARKER);
+
+	if (startIdx !== -1 && endIdx !== -1) {
+		// Replace existing section
+		const before = existing.slice(0, startIdx);
+		const after = existing.slice(endIdx + END_MARKER.length);
+		fs.writeFileSync(filePath, before + section + after, "utf-8");
+	} else {
+		// No markers found — append to end
+		const separator = existing.endsWith("\n") ? "\n" : "\n\n";
+		fs.writeFileSync(filePath, existing + separator + section + "\n", "utf-8");
+	}
 }
 
 /**
- * Regenerate CLAUDE.md from current state (installed skills, SOUL.md, dashboard config).
+ * Regenerate the OpenPaw section in CLAUDE.md from current state.
  * Call this after `openpaw add` or `openpaw remove`.
  */
 export function regenerateClaudeMd(): void {
