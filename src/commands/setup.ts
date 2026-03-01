@@ -13,7 +13,8 @@ import { soulQuestionnaire, writeSoul, showSoulSummary, soulExists } from "../co
 import { setupMemory } from "../core/memory.js";
 import { telegramQuestionnaire, writeTelegramConfig, telegramConfigExists } from "../core/telegram.js";
 import { isTmuxAvailable, isInTmux, launchInTmux, launchInBackground } from "../core/tmux.js";
-import type { CliTool, InterfaceMode, Skill, TelegramConfig } from "../types.js";
+import { readConfig as readDashboardConfig, writeConfig as writeDashboardConfig } from "../core/dashboard-server.js";
+import type { CliTool, DashboardTheme, InterfaceMode, Skill, TelegramConfig } from "../types.js";
 
 // Category icons for the wizard
 const CATEGORY_ICONS: Record<string, string> = {
@@ -220,6 +221,34 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		}
 	}
 
+	// ── Dashboard ──
+	let wantDashboard = false;
+	let dashboardTheme: DashboardTheme = "paw";
+
+	if (!opts.yes) {
+		const dashChoice = await p.confirm({
+			message: `Want a task dashboard for ${botName}?`,
+			initialValue: false,
+		});
+
+		if (!p.isCancel(dashChoice) && dashChoice) {
+			wantDashboard = true;
+
+			const themeChoice = await p.select({
+				message: "Pick a dashboard theme",
+				options: [
+					{ value: "paw", label: "Paw", hint: "warm brown" },
+					{ value: "midnight", label: "Midnight", hint: "cool dark blue" },
+					{ value: "neon", label: "Neon", hint: "cyber green" },
+				],
+			});
+
+			if (!p.isCancel(themeChoice)) {
+				dashboardTheme = themeChoice as DashboardTheme;
+			}
+		}
+	}
+
 	// ── Working Directory (default home) ──
 	const projectDir = os.homedir();
 
@@ -365,6 +394,15 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		p.log.success("Telegram bridge configured");
 	}
 
+	// ── Dashboard Config ──
+	if (wantDashboard) {
+		const dashConfig = readDashboardConfig();
+		dashConfig.theme = dashboardTheme;
+		dashConfig.botName = botName;
+		writeDashboardConfig(dashConfig);
+		p.log.success(`Dashboard configured (theme: ${dashboardTheme})`);
+	}
+
 	// MCP servers can be configured separately via `openpaw mcp`
 
 	// ── Auth Reminders ──
@@ -388,6 +426,13 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	console.log(`  ${subtle('"Play some jazz on Spotify"')}`);
 	console.log(`  ${subtle('"Go to hacker news and summarize the top posts"')}`);
 	console.log("");
+
+	// ── Launch Dashboard ──
+	if (wantDashboard) {
+		const { startDashboard } = await import("../core/dashboard-server.js");
+		startDashboard({ theme: dashboardTheme, botName });
+		p.log.success("Dashboard launched in your browser");
+	}
 
 	if (opts.yes) {
 		p.outro(accent("openpaw setup complete 🐾"));

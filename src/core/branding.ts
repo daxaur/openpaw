@@ -62,7 +62,7 @@ const TITLE_3D = [
 	"█▀▀█░█▀▀▄░█▀▀▀░█▄ █░█▀▀▄░▄▀▀▄░█   █░",
 	"█  █░█▀▀ ░█▀▀ ░█ ▀█░█▀▀ ░█▀▀█░█ █ █░",
 	"▀▀▀▀░▀   ░▀▀▀▀░▀  ▀░▀   ░▀  ▀░ ▀ ▀ ░",
-	" ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░",
+	"░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░",
 ];
 
 const TITLE_MARGIN = "                                ";
@@ -92,7 +92,8 @@ function renderTitle(): string {
 		}
 		flush();
 
-		return TITLE_MARGIN + result;
+		const margin = artLine === TITLE_3D[TITLE_3D.length - 1] ? TITLE_MARGIN.slice(1) : TITLE_MARGIN;
+		return margin + result;
 	});
 
 	const sub = dim("                              Personal Assistant Wizard for Claude Code");

@@ -116,6 +116,27 @@ export interface CostTracker {
 	dailyTotals: Record<string, number>;
 }
 
+// ── Dashboard ──
+
+export type DashboardTheme = "paw" | "midnight" | "neon";
+
+export interface DashboardTask {
+	id: string;
+	title: string;
+	description?: string;
+	status: "todo" | "in-progress" | "done";
+	priority: "high" | "normal" | "low";
+	order: number;
+	createdAt: string;
+}
+
+export interface DashboardConfig {
+	theme: DashboardTheme;
+	botName: string;
+	port: number;
+	tasks: DashboardTask[];
+}
+
 export interface SettingsJson {
 	permissions?: {
 		allow?: string[];

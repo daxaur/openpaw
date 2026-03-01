@@ -20,6 +20,7 @@
   <a href="https://www.npmjs.com/package/pawmode"><img src="https://img.shields.io/npm/v/pawmode?color=b4783c&label=npm&style=flat-square" alt="npm"></a>
   <a href="https://github.com/daxaur/openpaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/daxaur/openpaw?color=c88a48&style=flat-square" alt="license"></a>
   <a href="https://github.com/daxaur/openpaw"><img src="https://img.shields.io/github/stars/daxaur/openpaw?color=dca03c&style=flat-square" alt="stars"></a>
+  <img src="https://img.shields.io/node/v/pawmode?color=8a5a2a&style=flat-square" alt="node">
 </p>
 
 ---
@@ -55,8 +56,7 @@ npx pawmode
 
   How do you want to talk to Claude? 🐾
   > 🖥  Terminal only
-  > 📱 Telegram
-  > 🖥📱 Both
+  > 🖥📱 Terminal + Telegram
 
   ✔ Sniffed out Homebrew taps
   ✔ Taught Claude new tricks
@@ -76,7 +76,40 @@ Then just talk to Claude — from your terminal or your phone:
 > "Go to hacker news and summarize the top 5 posts"
 ```
 
-**No daemon.** OpenPaw runs once, writes config, gets out of the way. No subscriptions. No extra cost. Just a wizard that sets things up and takes a nap. 🐾
+**No daemon.** OpenPaw runs once, writes config, gets out of the way. No subscriptions. No extra cost. Just a wizard that sets things up and takes a nap.
+
+<!-- ![OpenPaw Setup Demo](docs/demo.gif) -->
+
+---
+
+## What's New in v1.2.0
+
+- **Task Dashboard** — local kanban board with 3 themes (Paw, Midnight, Neon), drag-and-drop, runs on `localhost:3141`
+- **3D ASCII Title** — extruded block-character title with depth effect
+- **Overwrite Protection** — existing SOUL.md and skills are preserved unless you choose to update them
+- **4 New Skills** — Weather, Clipboard, Contacts, Timer
+- **Dependency Resolution** — skills that need other skills auto-install them
+
+---
+
+## Task Dashboard
+
+A local kanban board for your assistant. No accounts, no cloud — just a tiny server on your machine.
+
+```bash
+openpaw dashboard                    # Start + open browser
+openpaw dashboard --theme midnight   # Switch theme
+openpaw dashboard --port 8080        # Custom port
+```
+
+**3 themes:**
+- **Paw** — warm brown tones (`#b4783c`)
+- **Midnight** — cool dark blue (`#6688cc`)
+- **Neon** — cyber green on black (`#00ff88`)
+
+Features: drag-and-drop kanban, inline editing, priority dots, persistent JSON storage. The wizard asks if you want a dashboard during setup.
+
+<!-- ![Dashboard](docs/dashboard.png) -->
 
 ---
 
@@ -148,8 +181,8 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 | Preset | Skills |
 |---|---|
 | **Everything** | All 39 skills for your platform |
-| **Essentials** | Email, calendar, notes, music, browser, system, notifications |
-| **Productivity** | Notes, Obsidian, tasks, email, calendar, Slack, cloud files |
+| **Essentials** | Email, calendar, notes, music, weather, clipboard, browser, system, notifications |
+| **Productivity** | Notes, Obsidian, tasks, email, calendar, Slack, cloud files, notifications |
 | **Developer** | GitHub, Linear, Jira, browser, network, AI, cron |
 | **Creative & Media** | Music, video, screen, voice, browser, research |
 | **Smart Home** | Lights, speakers, Bluetooth, system, display, notifications |
@@ -158,44 +191,44 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 
 ## Skills
 
-32 capabilities across 8 categories. Install only what you need.
+39 capabilities across 8 categories. Install only what you need.
 
 ### Productivity
 
 | Skill | Description | Tools |
 |---|---|---|
-| `c-notes` | Apple Notes + Reminders | `memo` `remindctl` |
-| `c-obsidian` | Obsidian vault management | `obsidian-cli` |
-| `c-notion` | Notion pages + databases | `notion-cli` |
-| `c-tasks` | Todoist / Things 3 / Taskwarrior | choose during setup |
+| `c-notes` | Apple Notes + Reminders | [`memo`](https://github.com/antoniorodr/memo) [`remindctl`](https://github.com/nicklama/remindctl) |
+| `c-obsidian` | Obsidian vault management | [`obsidian-cli`](https://github.com/yakitrak/obsidian-cli) |
+| `c-notion` | Notion pages + databases | [`notion-cli`](https://github.com/litencatt/notion-cli) |
+| `c-tasks` | Todoist / Things 3 / Taskwarrior | [`todoist-cli`](https://github.com/sachaos/todoist) [`things-cli`](https://github.com/thingsapi/things-cli) [`taskwarrior`](https://github.com/GothenburgBitFactory/taskwarrior) |
 
 ### Communication
 
 | Skill | Description | Tools |
 |---|---|---|
-| `c-email` | Read, send, search email (Gmail or IMAP) | `gog` `himalaya` |
-| `c-calendar` | Events + scheduling (Google or Apple) | `gog` `icalBuddy` |
-| `c-messaging` | iMessage + WhatsApp | `imsg` `wacli` |
-| `c-slack` | Slack channels + DMs | `slack` |
+| `c-email` | Read, send, search email (Gmail or IMAP) | [`gog`](https://github.com/steipete/gog) [`himalaya`](https://github.com/pimalaya/himalaya) |
+| `c-calendar` | Events + scheduling (Google or Apple) | [`gog`](https://github.com/steipete/gog) [`icalBuddy`](https://hasseg.org/icalBuddy/) |
+| `c-messaging` | iMessage + WhatsApp | [`imsg`](https://github.com/steipete/imsg) [`wacli`](https://github.com/nicklama/wacli) |
+| `c-slack` | Slack channels + DMs | [`slack-cli`](https://github.com/rockymadden/slack-cli) |
 | `c-telegram` | Telegram bridge (built-in) | — |
 
 ### Media
 
 | Skill | Description | Tools |
 |---|---|---|
-| `c-music` | Spotify playback + search | `spogo` |
-| `c-video` | YouTube download + convert | `yt-dlp` `ffmpeg` |
-| `c-video-edit` | Programmatic video creation | `remotion` `editly` |
-| `c-screen` | Screenshots, OCR, webcam | `peekaboo` `camsnap` |
-| `c-voice` | Speech-to-text + TTS | `sag` `say` |
+| `c-music` | Spotify playback + search | [`spogo`](https://github.com/steipete/spogo) |
+| `c-video` | YouTube download + convert | [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) [`ffmpeg`](https://ffmpeg.org/) |
+| `c-video-edit` | Programmatic video creation | [`remotion`](https://github.com/remotion-dev/remotion) [`editly`](https://github.com/mifi/editly) |
+| `c-screen` | Screenshots, OCR, webcam | [`peekaboo`](https://github.com/steipete/peekaboo) [`camsnap`](https://github.com/nicklama/camsnap) |
+| `c-voice` | Speech-to-text + TTS | [`sag`](https://github.com/steipete/sag) |
 
 ### Smart Home
 
 | Skill | Description | Tools |
 |---|---|---|
-| `c-lights` | Philips Hue control | `openhue` |
-| `c-speakers` | Sonos speakers | `sonos` |
-| `c-bluetooth` | Bluetooth devices | `blu` |
+| `c-lights` | Philips Hue control | [`openhue-cli`](https://github.com/openhue/openhue-cli) |
+| `c-speakers` | Sonos speakers | [`sonoscli`](https://github.com/steipete/sonoscli) |
+| `c-bluetooth` | Bluetooth devices | [`blucli`](https://github.com/nicklama/blucli) |
 
 ### Browser & Automation
 
@@ -203,8 +236,8 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 |---|---|---|
 | `c-schedule` | Smart scheduling with cost control | built-in |
 | `c-briefing` | Daily morning briefing | depends on email + calendar |
-| `c-browser` | Headless browser — navigate, click, scrape | `agent-browser` / `playwright` |
-| `c-cron` | Cron jobs + launchctl services | `lunchy-go` |
+| `c-browser` | Headless browser — navigate, click, scrape | [`agent-browser`](https://github.com/nicklama/agent-browser) [`playwright`](https://github.com/nicklama/playwright-cli) |
+| `c-cron` | Cron jobs + launchctl services | [`lunchy-go`](https://github.com/nicklama/lunchy-go) |
 
 ### System & Files
 
@@ -212,32 +245,32 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 |---|---|---|
 | `c-clipboard` | Copy, paste, transform clipboard content | built-in |
 | `c-contacts` | Search macOS Contacts / Address Book | built-in |
-| `c-timer` | Countdown timers, alarms, pomodoro | `terminal-notifier` |
-| `c-system` | macOS Swiss Army Knife — volume, wifi, battery, dock | `m` |
-| `c-apps` | Mac App Store from CLI | `mas` |
-| `c-files` | Cloud sync — Google Drive, S3, Dropbox, 70+ providers | `rclone` |
-| `c-display` | Display brightness + safe trash | `brightness` `trash` |
-| `c-notify` | Native macOS notifications | `terminal-notifier` |
+| `c-timer` | Countdown timers, alarms, pomodoro | [`terminal-notifier`](https://github.com/julienXX/terminal-notifier) |
+| `c-system` | macOS Swiss Army Knife — volume, wifi, battery, dock | [`m-cli`](https://github.com/rgcr/m-cli) |
+| `c-apps` | Mac App Store from CLI | [`mas`](https://github.com/mas-cli/mas) |
+| `c-files` | Cloud sync — Google Drive, S3, Dropbox, 70+ providers | [`rclone`](https://github.com/rclone/rclone) |
+| `c-display` | Display brightness + safe trash | [`brightness`](https://github.com/nriley/brightness) [`macos-trash`](https://github.com/sindresorhus/macos-trash) |
+| `c-notify` | Native macOS notifications | [`terminal-notifier`](https://github.com/julienXX/terminal-notifier) |
 
 ### Research & Utilities
 
 | Skill | Description | Tools |
 |---|---|---|
-| `c-weather` | Weather forecasts and conditions | built-in |
-| `c-research` | Summarize URLs, PDFs, videos | `summarize` |
-| `c-location` | Apple Maps + nearby places | `goplaces` |
-| `c-tracking` | Package tracking (UPS, FedEx, etc.) | `ordercli` |
-| `c-secrets` | 1Password / Bitwarden | `op` `bw` |
-| `c-network` | DNS lookups + HTTP client | `doggo` `http` |
-| `c-ai` | Query LLMs — pipe text, chat, summarize | `llm` `aichat` |
+| `c-weather` | Weather forecasts and conditions | built-in (curl + [wttr.in](https://wttr.in)) |
+| `c-research` | Summarize URLs, PDFs, videos | [`summarize`](https://github.com/steipete/summarize) |
+| `c-location` | Apple Maps + nearby places | [`goplaces`](https://github.com/steipete/goplaces) |
+| `c-tracking` | Package tracking (UPS, FedEx, etc.) | [`ordercli`](https://github.com/steipete/ordercli) |
+| `c-secrets` | 1Password / Bitwarden | [`op`](https://developer.1password.com/docs/cli/) [`bw`](https://github.com/bitwarden/clients) |
+| `c-network` | DNS lookups + HTTP client | [`doggo`](https://github.com/mr-karan/doggo) [`httpie`](https://github.com/httpie/cli) |
+| `c-ai` | Query LLMs — pipe text, chat, summarize | [`llm`](https://github.com/simonw/llm) [`aichat`](https://github.com/sigoden/aichat) |
 
 ### Developer
 
 | Skill | Description | Tools |
 |---|---|---|
-| `c-github` | PRs, issues, repos, actions | `gh` `jq` |
-| `c-linear` | Linear issues + projects | `linear` |
-| `c-jira` | Jira issues + sprints | `jira` |
+| `c-github` | PRs, issues, repos, actions | [`gh`](https://github.com/cli/cli) [`jq`](https://github.com/jqlang/jq) |
+| `c-linear` | Linear issues + projects | [`linear-cli`](https://github.com/linear/linear-cli) |
+| `c-jira` | Jira issues + sprints | [`jira-cli`](https://github.com/ankitpokhrel/jira-cli) |
 
 ---
 
@@ -249,11 +282,14 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 | `openpaw --preset <name>` | Quick setup with a preset |
 | `openpaw --preset <name> --yes` | Non-interactive setup |
 | `openpaw --dry-run` | Preview what would be installed |
+| `openpaw dashboard` | Start the task manager dashboard |
+| `openpaw dashboard --theme <name>` | Change dashboard theme (paw, midnight, neon) |
 | `openpaw telegram` | Start the Telegram bridge |
 | `openpaw telegram setup` | Configure Telegram bot |
 | `openpaw schedule add` | Add a scheduled job |
 | `openpaw schedule list` | List scheduled jobs |
 | `openpaw schedule costs` | View cost usage and daily cap |
+| `openpaw schedule set-cap <usd>` | Set daily cost cap |
 | `openpaw list` | Show all available skills |
 | `openpaw add <skills>` | Add skills — `openpaw add notes music email` |
 | `openpaw remove <skills>` | Remove skills |
@@ -274,11 +310,12 @@ OpenPaw doesn't run in the background (except the optional Telegram bridge). Her
 ```
 1. You pick a preset or choose individual skills
 2. Pick your interface: terminal, Telegram, or both
-3. CLI tools are installed via brew/npm/pip
-4. SKILL.md files are created in ~/.claude/skills/
-5. Permissions + safety hooks are configured
-6. Telegram bridge is set up (if selected)
-7. Claude launches in PAW MODE — ready to fetch! 🐾
+3. Optionally set up a task dashboard with your preferred theme
+4. CLI tools are installed via brew/npm/pip
+5. SKILL.md files are created in ~/.claude/skills/
+6. Permissions + safety hooks are configured
+7. Telegram bridge is set up (if selected)
+8. Claude launches in PAW MODE — ready to fetch!
 ```
 
 **Skills** are SKILL.md files that Claude auto-discovers. They teach Claude how to use each CLI tool.
@@ -288,19 +325,6 @@ OpenPaw doesn't run in the background (except the optional Telegram bridge). Her
 **Safety hooks** block dangerous patterns like mass-delete, mass-email, and credential exposure. Baby gate = installed.
 
 **`--dangerously-skip-permissions`** lets Claude actually be your assistant. The wizard explains this and asks before enabling. Safety hooks still protect you.
-
----
-
-## Why OpenPaw?
-
-- **Free forever** — uses your existing Claude subscription
-- **No daemon** — runs once, configures, takes a nap
-- **No attack surface** — no open ports, no cloud dependencies
-- **5-minute setup** — from zero to personal assistant
-- **Telegram built-in** — talk to Claude from your phone
-- **39 skills** — email, music, smart home, GitHub, scheduling, video editing, and more
-- **Cost-controlled scheduling** — automate tasks without runaway bills
-- **Open source** — MIT license, community-driven
 
 ---
 
@@ -327,6 +351,30 @@ tmux new-session -s openpaw 'openpaw telegram'
 ```
 
 In "both" mode, tmux splits into two panes — Claude Code on the left, Telegram bridge on the right.
+
+---
+
+## Architecture
+
+```
+~/.claude/
+├── SOUL.md                    # Personality (name, tone, proactivity)
+├── skills/
+│   ├── c-core/SKILL.md        # Coordinator brain
+│   ├── c-memory/SKILL.md      # Memory management
+│   ├── c-email/SKILL.md       # Email skill
+│   ├── c-music/SKILL.md       # Spotify skill
+│   └── ...                    # More skills
+├── memory/
+│   ├── MEMORY.md              # Persistent facts
+│   ├── journal.md             # Session logs
+│   ├── people.md              # Contact notes
+│   └── preferences.md         # User preferences
+└── settings.json              # Permissions + hooks
+
+~/.config/openpaw/
+└── dashboard.json             # Dashboard tasks + theme
+```
 
 ---
 
@@ -365,8 +413,51 @@ Instructions for Claude on how to use the CLI tool...
 
 ---
 
+## Why OpenPaw?
+
+- **Free forever** — uses your existing Claude subscription
+- **No daemon** — runs once, configures, takes a nap
+- **No attack surface** — no open ports, no cloud dependencies
+- **5-minute setup** — from zero to personal assistant
+- **Telegram built-in** — talk to Claude from your phone
+- **Task dashboard** — local kanban board with 3 themes
+- **39 skills** — email, music, smart home, GitHub, scheduling, video editing, and more
+- **Cost-controlled scheduling** — automate tasks without runaway bills
+- **Open source** — MIT license, community-driven
+
+---
+
+## Changelog
+
+### v1.2.0
+- Task manager dashboard with 3 themes (Paw, Midnight, Neon)
+- 3D ASCII title with extruded depth effect
+- Overwrite protection for existing SOUL.md and skills
+- 4 new skills: Weather, Clipboard, Contacts, Timer
+- Dependency resolution for skill prerequisites
+- Dashboard integrated into setup wizard
+
+### v1.1.0
+- Smart scheduling with cost control
+- Video editing skill (Remotion + Editly)
+- Obsidian memory integration
+- Daily briefing skill
+- Telegram + Discord curl-based bridge
+- MCP server setup
+- Soul export/import
+
+### v1.0.0
+- Initial release
+- 32 skills across 8 categories
+- Interactive setup wizard with presets
+- Telegram bridge
+- PAW MODE with SOUL.md personality
+- Safety hooks and permission management
+
+---
+
 ## License
 
 MIT — do whatever you want with it. Go fetch.
 
-Made with care (and tail wags) by [@daxaur](https://github.com/daxaur) 🐾
+Made with care (and tail wags) by [@daxaur](https://github.com/daxaur)

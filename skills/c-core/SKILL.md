@@ -75,6 +75,15 @@ You are running in **PAW MODE** — full personal assistant mode powered by Open
 | c-linear | Linear issues |
 | c-jira | Jira issues |
 
+## Dashboard
+
+OpenPaw includes a local task dashboard:
+- Start with `openpaw dashboard` — opens a kanban board in your browser
+- 3 themes: paw (warm brown), midnight (cool blue), neon (cyber green)
+- Drag-and-drop tasks between Todo, In Progress, and Done
+- Data stored locally at `~/.config/openpaw/dashboard.json`
+- Default port: 3141
+
 ## Routing
 
 - Match the user's intent to the most specific skill

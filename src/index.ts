@@ -10,6 +10,7 @@ import { listCommand } from "./commands/list.js";
 import { soulCommand } from "./commands/soul.js";
 import { exportCommand, importCommand } from "./commands/export.js";
 import { telegramCommand, telegramSetupCommand } from "./commands/telegram.js";
+import { dashboardCommand } from "./commands/dashboard.js";
 import {
 	scheduleAddCommand,
 	scheduleListCommand,
@@ -25,7 +26,7 @@ const program = new Command();
 program
 	.name("openpaw")
 	.description("Personal Assistant Wizard for Claude Code")
-	.version("1.1.0");
+	.version("1.2.0");
 
 program
 	.command("setup", { isDefault: true })
@@ -88,6 +89,13 @@ program
 	.description("Import skills, memory, and config from a file")
 	.argument("<file>", "Path to openpaw-export.json")
 	.action(importCommand);
+
+program
+	.command("dashboard")
+	.description("Start the task manager dashboard in your browser")
+	.option("-p, --port <port>", "Port to run on (default: 3141)")
+	.option("-t, --theme <theme>", "Theme: paw, midnight, or neon")
+	.action(dashboardCommand);
 
 const tg = program
 	.command("telegram")
