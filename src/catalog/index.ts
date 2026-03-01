@@ -107,7 +107,6 @@ export const skills: Skill[] = [
 			question: "Which task manager?",
 			options: [
 				{ label: "Todoist", value: "todoist", tools: [todoistCli] },
-				{ label: "Things 3 (macOS)", value: "things", tools: [thingsCli] },
 				{ label: "Taskwarrior (local)", value: "taskwarrior", tools: [taskwarrior] },
 			],
 		},
@@ -207,9 +206,9 @@ export const skills: Skill[] = [
 	{
 		id: "video-edit",
 		name: "Video Editing",
-		description: "Programmatic video creation — Remotion (React) and Editly (JSON-based)",
+		description: "Programmatic video creation with Remotion (React-based)",
 		category: "media",
-		tools: [remotion, editly, ffmpeg],
+		tools: [remotion, ffmpeg],
 		platforms: ["darwin", "linux"],
 	},
 	{
@@ -470,27 +469,6 @@ export const skills: Skill[] = [
 		platforms: ["darwin", "linux", "win32"],
 	},
 
-	// ── AI Tools ──
-	{
-		id: "ai",
-		name: "AI / LLM",
-		description: "Query LLMs from CLI — pipe text, chat, summarize with local or cloud models",
-		category: "research",
-		tools: [],
-		platforms: ["darwin", "linux", "win32"],
-		subChoices: {
-			question: "Which LLM CLI?",
-			options: [
-				{ label: "llm (Simon Willison — 100+ models)", value: "llm", tools: [llmCli] },
-				{ label: "aichat (Rust — fast, multi-provider)", value: "aichat", tools: [aichat] },
-				{ label: "Both", value: "both", tools: [llmCli, aichat] },
-			],
-		},
-		authSteps: [
-			{ tool: "llm", command: "llm keys set openai", description: "Set LLM API key" },
-			{ tool: "aichat", command: "aichat (follow setup prompts)", description: "Configure API key" },
-		],
-	},
 ];
 
 export const categoryLabels: Record<string, string> = {
@@ -529,7 +507,7 @@ export const presets: Preset[] = [
 		id: "developer",
 		name: "Developer",
 		description: "GitHub, Linear, Jira, browser, network, AI",
-		skillIds: ["github", "linear", "jira", "browser", "network", "ai", "cron"],
+		skillIds: ["github", "linear", "jira", "browser", "network", "cron"],
 	},
 	{
 		id: "creative",

@@ -74,7 +74,7 @@ npx pawmode --preset developer --yes
 
 ## What is OpenPaw?
 
-OpenPaw turns **Claude Code** into a full personal assistant. One command, 39 skills, and a really good boy who fetches your emails, plays your music, and controls your smart home.
+OpenPaw turns **Claude Code** into a full personal assistant. One command, 38 skills, and a really good boy who fetches your emails, plays your music, and controls your smart home.
 
 ```
 npx pawmode
@@ -211,10 +211,10 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 
 | Preset | Skills |
 |---|---|
-| **Everything** | All 39 skills for your platform |
+| **Everything** | All 38 skills for your platform |
 | **Essentials** | Email, calendar, notes, music, weather, clipboard, browser, system, notifications |
 | **Productivity** | Notes, Obsidian, tasks, email, calendar, Slack, cloud files, notifications |
-| **Developer** | GitHub, Linear, Jira, browser, network, AI, cron |
+| **Developer** | GitHub, Linear, Jira, browser, network, cron |
 | **Creative & Media** | Music, video, screen, voice, browser, research |
 | **Smart Home** | Lights, speakers, Bluetooth, system, display, notifications |
 
@@ -222,7 +222,7 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 
 ## Skills
 
-39 capabilities across 8 categories. Install only what you need.
+38 capabilities across 8 categories. Install only what you need.
 
 ### Productivity
 
@@ -231,7 +231,7 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 | `c-notes` | Apple Notes + Reminders | [`memo`](https://github.com/antoniorodr/memo) [`remindctl`](https://github.com/nicklama/remindctl) |
 | `c-obsidian` | Obsidian vault management | [`obsidian-cli`](https://github.com/yakitrak/obsidian-cli) |
 | `c-notion` | Notion pages + databases | [`notion-cli`](https://github.com/litencatt/notion-cli) |
-| `c-tasks` | Todoist / Things 3 / Taskwarrior | [`todoist-cli`](https://github.com/sachaos/todoist) [`things-cli`](https://github.com/thingsapi/things-cli) [`taskwarrior`](https://github.com/GothenburgBitFactory/taskwarrior) |
+| `c-tasks` | Todoist / Taskwarrior | [`todoist-cli`](https://github.com/sachaos/todoist) [`taskwarrior`](https://github.com/GothenburgBitFactory/taskwarrior) |
 
 ### Communication
 
@@ -249,7 +249,7 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 |---|---|---|
 | `c-music` | Spotify playback + search | [`spogo`](https://github.com/steipete/spogo) |
 | `c-video` | YouTube download + convert | [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) [`ffmpeg`](https://ffmpeg.org/) |
-| `c-video-edit` | Programmatic video creation | [`remotion`](https://github.com/remotion-dev/remotion) [`editly`](https://github.com/mifi/editly) |
+| `c-video-edit` | Programmatic video creation | [`remotion`](https://github.com/remotion-dev/remotion) |
 | `c-screen` | Screenshots, OCR, webcam | [`peekaboo`](https://github.com/steipete/peekaboo) [`camsnap`](https://github.com/nicklama/camsnap) |
 | `c-voice` | Speech-to-text + TTS | [`sag`](https://github.com/steipete/sag) |
 
@@ -293,7 +293,6 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 | `c-tracking` | Package tracking (UPS, FedEx, etc.) | [`ordercli`](https://github.com/steipete/ordercli) |
 | `c-secrets` | 1Password / Bitwarden | [`op`](https://developer.1password.com/docs/cli/) [`bw`](https://github.com/bitwarden/clients) |
 | `c-network` | DNS lookups + HTTP client | [`doggo`](https://github.com/mr-karan/doggo) [`httpie`](https://github.com/httpie/cli) |
-| `c-ai` | Query LLMs — pipe text, chat, summarize | [`llm`](https://github.com/simonw/llm) [`aichat`](https://github.com/sigoden/aichat) |
 
 ### Developer
 
@@ -453,7 +452,7 @@ Instructions for Claude on how to use the CLI tool...
 - **5-minute setup** — from zero to personal assistant
 - **Telegram built-in** — talk to Claude from your phone
 - **Task dashboard** — local kanban board with 3 themes
-- **39 skills** — email, music, smart home, GitHub, scheduling, video editing, and more
+- **38 skills** — email, music, smart home, GitHub, scheduling, video editing, and more
 - **Cost-controlled scheduling** — automate tasks without runaway bills
 - **Open source** — MIT license, community-driven
 
