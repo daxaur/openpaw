@@ -5,6 +5,7 @@ import { installTaps, installTool, getMissingTools } from "../core/installer.js"
 import { installSkill, isSkillInstalled } from "../core/skills.js";
 import { addPermissions } from "../core/permissions.js";
 import { showMini } from "../core/branding.js";
+import { regenerateClaudeMd } from "../core/claude-md.js";
 
 export async function addCommand(skillIds: string[]): Promise<void> {
 	showMini();
@@ -57,4 +58,7 @@ export async function addCommand(skillIds: string[]): Promise<void> {
 			}
 		}
 	}
+
+	// Update CLAUDE.md so Claude knows about new skills
+	regenerateClaudeMd();
 }

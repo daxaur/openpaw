@@ -4,6 +4,7 @@ import { getSkillById } from "../catalog/index.js";
 import { removeSkill, isSkillInstalled } from "../core/skills.js";
 import { removePermissions } from "../core/permissions.js";
 import { showMini } from "../core/branding.js";
+import { regenerateClaudeMd } from "../core/claude-md.js";
 
 export async function removeCommand(skillIds: string[]): Promise<void> {
 	showMini();
@@ -34,4 +35,7 @@ export async function removeCommand(skillIds: string[]): Promise<void> {
 
 		p.log.success(`${chalk.bold(`c-${id}`)} removed`);
 	}
+
+	// Update CLAUDE.md so Claude knows skills changed
+	regenerateClaudeMd();
 }

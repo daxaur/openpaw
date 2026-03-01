@@ -63,12 +63,15 @@ export function generateDashboardHTML(
 
 	const t = themes[theme];
 
+	// Escape botName for safe use in HTML/JS
+	const safeBotName = botName.replace(/[&<>"']/g, "");
+
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${botName} — Task Dashboard</title>
+<title>${safeBotName} — Task Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -128,168 +131,273 @@ header{display:flex;align-items:center;justify-content:space-between;padding:20p
 .form-actions .save{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
 .form-actions .save:hover{opacity:.9}
 .form-actions .cancel:hover{border-color:var(--text-dim)}
+.toast{position:fixed;bottom:20px;right:20px;padding:10px 16px;border-radius:8px;font-size:12px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:100}
+.toast.show{opacity:1}
+.toast.error{background:var(--high);color:#fff}
+.toast.success{background:var(--done);color:#fff}
 </style>
 </head>
 <body>
 <header>
-<div class="logo"><span>&#x1F43E;</span> ${botName}</div>
+<div class="logo"><span>&#x1F43E;</span> ${safeBotName}</div>
 <div class="theme-switcher">
 <div class="theme-dot${theme === "paw" ? " active" : ""}" data-theme="paw" title="Paw"></div>
 <div class="theme-dot${theme === "midnight" ? " active" : ""}" data-theme="midnight" title="Midnight"></div>
 <div class="theme-dot${theme === "neon" ? " active" : ""}" data-theme="neon" title="Neon"></div>
 </div>
 </header>
-<div class="board">
-<div class="column col-todo" data-status="todo">
-<div class="col-header"><span class="col-title">Todo</span><span class="col-count" id="count-todo">0</span></div>
-<div class="cards" id="cards-todo"></div>
-<button class="add-btn" onclick="showForm('todo')">+ Add task</button>
-<div class="add-form" id="form-todo">
-<input type="text" id="input-todo" placeholder="Task title..." onkeydown="if(event.key==='Enter')saveNew('todo')">
-<textarea id="desc-todo" placeholder="Description (optional)" rows="2"></textarea>
-<div class="form-actions">
-<button class="cancel" onclick="hideForm('todo')">Cancel</button>
-<button class="save" onclick="saveNew('todo')">Add</button>
-</div>
-</div>
-</div>
-<div class="column col-progress" data-status="in-progress">
-<div class="col-header"><span class="col-title">In Progress</span><span class="col-count" id="count-in-progress">0</span></div>
-<div class="cards" id="cards-in-progress"></div>
-<button class="add-btn" onclick="showForm('in-progress')">+ Add task</button>
-<div class="add-form" id="form-in-progress">
-<input type="text" id="input-in-progress" placeholder="Task title..." onkeydown="if(event.key==='Enter')saveNew('in-progress')">
-<textarea id="desc-in-progress" placeholder="Description (optional)" rows="2"></textarea>
-<div class="form-actions">
-<button class="cancel" onclick="hideForm('in-progress')">Cancel</button>
-<button class="save" onclick="saveNew('in-progress')">Add</button>
-</div>
-</div>
-</div>
-<div class="column col-done" data-status="done">
-<div class="col-header"><span class="col-title">Done</span><span class="col-count" id="count-done">0</span></div>
-<div class="cards" id="cards-done"></div>
-<button class="add-btn" onclick="showForm('done')">+ Add task</button>
-<div class="add-form" id="form-done">
-<input type="text" id="input-done" placeholder="Task title..." onkeydown="if(event.key==='Enter')saveNew('done')">
-<textarea id="desc-done" placeholder="Description (optional)" rows="2"></textarea>
-<div class="form-actions">
-<button class="cancel" onclick="hideForm('done')">Cancel</button>
-<button class="save" onclick="saveNew('done')">Add</button>
-</div>
-</div>
-</div>
-</div>
+<div class="board" id="board"></div>
+<div class="toast" id="toast"></div>
 <script>
-let tasks=[];
-let dragId=null;
+var BOTNAME = "${safeBotName}";
+var tasks = [];
+var dragId = null;
 
-async function api(path,opts){
-const r=await fetch('/api/'+path,{headers:{'Content-Type':'application/json'},...opts});
-return r.json();
+function toast(msg, type) {
+  var el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = "toast show " + (type || "success");
+  setTimeout(function() { el.className = "toast"; }, 2000);
 }
 
-async function load(){
-tasks=await api('tasks');
-render();
+function api(path, opts) {
+  return fetch("/api/" + path, Object.assign({ headers: {"Content-Type": "application/json"} }, opts || {}))
+    .then(function(r) {
+      if (!r.ok) throw new Error("Request failed: " + r.status);
+      return r.json();
+    })
+    .catch(function(err) {
+      toast(err.message, "error");
+      throw err;
+    });
 }
 
-function render(){
-for(const s of['todo','in-progress','done']){
-const container=document.getElementById('cards-'+s);
-const filtered=tasks.filter(t=>t.status===s).sort((a,b)=>a.order-b.order);
-document.getElementById('count-'+s).textContent=filtered.length;
-if(filtered.length===0){
-container.innerHTML='<div class="empty">No tasks here yet.<br>${botName} is waiting for work! &#x1F43E;</div>';
-}else{
-container.innerHTML=filtered.map(t=>\`
-<div class="card" draggable="true" data-id="\${t.id}" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)">
-<div class="card-title" contenteditable="true" onblur="updateTitle('\${t.id}',this.textContent)">\${esc(t.title)}</div>
-\${t.description?'<div class="card-desc" contenteditable="true" onblur="updateDesc(\\''+t.id+'\\',this.textContent)">'+esc(t.description)+'</div>':''}
-<div class="card-footer">
-<div class="priority">
-<div class="priority-dot high\${t.priority==='high'?' active':''}" onclick="setPriority('\${t.id}','high')" title="High"></div>
-<div class="priority-dot normal\${t.priority==='normal'?' active':''}" onclick="setPriority('\${t.id}','normal')" title="Normal"></div>
-<div class="priority-dot low\${t.priority==='low'?' active':''}" onclick="setPriority('\${t.id}','low')" title="Low"></div>
-</div>
-<span class="card-delete" onclick="del('\${t.id}')">&#x2715;</span>
-</div>
-</div>
-\`).join('');
-}
-}
+function load() {
+  api("tasks").then(function(data) {
+    tasks = data;
+    render();
+  });
 }
 
-function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
-
-function showForm(s){document.getElementById('form-'+s).classList.add('show');document.getElementById('input-'+s).focus()}
-function hideForm(s){document.getElementById('form-'+s).classList.remove('show');document.getElementById('input-'+s).value='';document.getElementById('desc-'+s).value=''}
-
-async function saveNew(status){
-const title=document.getElementById('input-'+status).value.trim();
-if(!title)return;
-const desc=document.getElementById('desc-'+status).value.trim();
-const task=await api('tasks',{method:'POST',body:JSON.stringify({title,description:desc||undefined,status,priority:'normal'})});
-tasks.push(task);
-render();
-hideForm(status);
+function esc(s) {
+  var d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
 }
 
-async function updateTitle(id,title){
-title=title.trim();if(!title)return;
-await api('tasks/'+id,{method:'PUT',body:JSON.stringify({title})});
-const t=tasks.find(x=>x.id===id);if(t)t.title=title;
+function render() {
+  var statuses = ["todo", "in-progress", "done"];
+  var labels = { "todo": "Todo", "in-progress": "In Progress", "done": "Done" };
+  var colClass = { "todo": "col-todo", "in-progress": "col-progress", "done": "col-done" };
+  var board = document.getElementById("board");
+  board.innerHTML = "";
+
+  statuses.forEach(function(status) {
+    var filtered = tasks.filter(function(t) { return t.status === status; }).sort(function(a, b) { return a.order - b.order; });
+
+    var col = document.createElement("div");
+    col.className = "column " + colClass[status];
+    col.setAttribute("data-status", status);
+
+    // Header
+    var header = document.createElement("div");
+    header.className = "col-header";
+    header.innerHTML = '<span class="col-title">' + labels[status] + '</span><span class="col-count">' + filtered.length + '</span>';
+    col.appendChild(header);
+
+    // Cards container
+    var cardsDiv = document.createElement("div");
+    cardsDiv.className = "cards";
+
+    if (filtered.length === 0) {
+      cardsDiv.innerHTML = '<div class="empty">No tasks here yet.<br>' + BOTNAME + ' is waiting for work! &#x1F43E;</div>';
+    } else {
+      filtered.forEach(function(task) {
+        var card = document.createElement("div");
+        card.className = "card";
+        card.draggable = true;
+        card.setAttribute("data-id", task.id);
+
+        var titleDiv = document.createElement("div");
+        titleDiv.className = "card-title";
+        titleDiv.contentEditable = "true";
+        titleDiv.textContent = task.title;
+        titleDiv.addEventListener("blur", function() {
+          var newTitle = this.textContent.trim();
+          if (newTitle && newTitle !== task.title) {
+            api("tasks/" + task.id, { method: "PUT", body: JSON.stringify({ title: newTitle }) });
+            task.title = newTitle;
+          }
+        });
+        card.appendChild(titleDiv);
+
+        if (task.description) {
+          var descDiv = document.createElement("div");
+          descDiv.className = "card-desc";
+          descDiv.contentEditable = "true";
+          descDiv.textContent = task.description;
+          descDiv.addEventListener("blur", function() {
+            var newDesc = this.textContent.trim();
+            api("tasks/" + task.id, { method: "PUT", body: JSON.stringify({ description: newDesc || undefined }) });
+            task.description = newDesc || undefined;
+          });
+          card.appendChild(descDiv);
+        }
+
+        var footer = document.createElement("div");
+        footer.className = "card-footer";
+
+        var priorityDiv = document.createElement("div");
+        priorityDiv.className = "priority";
+        ["high", "normal", "low"].forEach(function(p) {
+          var dot = document.createElement("div");
+          dot.className = "priority-dot " + p + (task.priority === p ? " active" : "");
+          dot.title = p.charAt(0).toUpperCase() + p.slice(1);
+          dot.addEventListener("click", function(e) {
+            e.stopPropagation();
+            api("tasks/" + task.id, { method: "PUT", body: JSON.stringify({ priority: p }) }).then(function() {
+              task.priority = p;
+              render();
+            });
+          });
+          priorityDiv.appendChild(dot);
+        });
+        footer.appendChild(priorityDiv);
+
+        var delBtn = document.createElement("span");
+        delBtn.className = "card-delete";
+        delBtn.innerHTML = "&#x2715;";
+        delBtn.addEventListener("click", function(e) {
+          e.stopPropagation();
+          api("tasks/" + task.id, { method: "DELETE" }).then(function() {
+            tasks = tasks.filter(function(t) { return t.id !== task.id; });
+            render();
+          });
+        });
+        footer.appendChild(delBtn);
+        card.appendChild(footer);
+
+        // Drag events
+        card.addEventListener("dragstart", function(e) {
+          dragId = task.id;
+          this.classList.add("dragging");
+          e.dataTransfer.effectAllowed = "move";
+        });
+        card.addEventListener("dragend", function() {
+          this.classList.remove("dragging");
+          dragId = null;
+          document.querySelectorAll(".column").forEach(function(c) { c.classList.remove("drag-over"); });
+        });
+
+        cardsDiv.appendChild(card);
+      });
+    }
+    col.appendChild(cardsDiv);
+
+    // Add button
+    var addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "add-btn";
+    addBtn.textContent = "+ Add task";
+    addBtn.addEventListener("click", function() {
+      formDiv.classList.add("show");
+      titleInput.focus();
+    });
+    col.appendChild(addBtn);
+
+    // Add form
+    var formDiv = document.createElement("div");
+    formDiv.className = "add-form";
+
+    var titleInput = document.createElement("input");
+    titleInput.type = "text";
+    titleInput.placeholder = "Task title...";
+    titleInput.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") doSave();
+    });
+    formDiv.appendChild(titleInput);
+
+    var descInput = document.createElement("textarea");
+    descInput.placeholder = "Description (optional)";
+    descInput.rows = 2;
+    formDiv.appendChild(descInput);
+
+    var actions = document.createElement("div");
+    actions.className = "form-actions";
+
+    var cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.className = "cancel";
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.addEventListener("click", function() {
+      formDiv.classList.remove("show");
+      titleInput.value = "";
+      descInput.value = "";
+    });
+    actions.appendChild(cancelBtn);
+
+    var saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.className = "save";
+    saveBtn.textContent = "Add";
+
+    function doSave() {
+      var title = titleInput.value.trim();
+      if (!title) return;
+      var desc = descInput.value.trim();
+      saveBtn.disabled = true;
+      saveBtn.textContent = "...";
+      var body = { title: title, status: status, priority: "normal" };
+      if (desc) body.description = desc;
+      api("tasks", { method: "POST", body: JSON.stringify(body) })
+        .then(function(task) {
+          tasks.push(task);
+          render();
+          toast("Task added!");
+        })
+        .catch(function() {
+          saveBtn.disabled = false;
+          saveBtn.textContent = "Add";
+        });
+    }
+
+    saveBtn.addEventListener("click", doSave);
+    actions.appendChild(saveBtn);
+    formDiv.appendChild(actions);
+    col.appendChild(formDiv);
+
+    // Drop events on column
+    col.addEventListener("dragover", function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      this.classList.add("drag-over");
+    });
+    col.addEventListener("dragleave", function() {
+      this.classList.remove("drag-over");
+    });
+    col.addEventListener("drop", function(e) {
+      e.preventDefault();
+      this.classList.remove("drag-over");
+      if (!dragId) return;
+      var newStatus = this.getAttribute("data-status");
+      var order = tasks.filter(function(t) { return t.status === newStatus; }).length;
+      api("tasks/" + dragId, { method: "PUT", body: JSON.stringify({ status: newStatus, order: order }) })
+        .then(function() {
+          var task = tasks.find(function(t) { return t.id === dragId; });
+          if (task) { task.status = newStatus; task.order = order; }
+          render();
+        });
+    });
+
+    board.appendChild(col);
+  });
 }
 
-async function updateDesc(id,desc){
-desc=desc.trim();
-await api('tasks/'+id,{method:'PUT',body:JSON.stringify({description:desc||undefined})});
-const t=tasks.find(x=>x.id===id);if(t)t.description=desc||undefined;
-}
-
-async function setPriority(id,priority){
-await api('tasks/'+id,{method:'PUT',body:JSON.stringify({priority})});
-const t=tasks.find(x=>x.id===id);if(t)t.priority=priority;
-render();
-}
-
-async function del(id){
-await api('tasks/'+id,{method:'DELETE'});
-tasks=tasks.filter(t=>t.id!==id);
-render();
-}
-
-function onDragStart(e){
-dragId=e.target.dataset.id;
-e.target.classList.add('dragging');
-e.dataTransfer.effectAllowed='move';
-}
-
-function onDragEnd(e){
-e.target.classList.remove('dragging');
-dragId=null;
-document.querySelectorAll('.column').forEach(c=>c.classList.remove('drag-over'));
-}
-
-document.querySelectorAll('.column').forEach(col=>{
-col.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';col.classList.add('drag-over')});
-col.addEventListener('dragleave',()=>col.classList.remove('drag-over'));
-col.addEventListener('drop',async e=>{
-e.preventDefault();col.classList.remove('drag-over');
-if(!dragId)return;
-const status=col.dataset.status;
-const order=tasks.filter(t=>t.status===status).length;
-await api('tasks/'+dragId,{method:'PUT',body:JSON.stringify({status,order})});
-const t=tasks.find(x=>x.id===dragId);
-if(t){t.status=status;t.order=order}
-render();
-});
-});
-
-document.querySelectorAll('.theme-dot').forEach(dot=>{
-dot.addEventListener('click',()=>{
-window.location.href='/?theme='+dot.dataset.theme;
-});
+// Theme switcher
+document.querySelectorAll(".theme-dot").forEach(function(dot) {
+  dot.addEventListener("click", function() {
+    window.location.href = "/?theme=" + this.getAttribute("data-theme");
+  });
 });
 
 load();

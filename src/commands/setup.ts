@@ -14,6 +14,7 @@ import { setupMemory } from "../core/memory.js";
 import { telegramQuestionnaire, writeTelegramConfig, telegramConfigExists } from "../core/telegram.js";
 import { isTmuxAvailable, isInTmux, launchInTmux, launchInBackground } from "../core/tmux.js";
 import { readConfig as readDashboardConfig, writeConfig as writeDashboardConfig } from "../core/dashboard-server.js";
+import { writeClaudeMd } from "../core/claude-md.js";
 import type { CliTool, DashboardTheme, InterfaceMode, Skill, TelegramConfig } from "../types.js";
 
 // Category icons for the wizard
@@ -335,15 +336,19 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		}
 	}
 
+	const failedTools: string[] = [];
+	const installedTools: string[] = [];
 	if (missing.length > 0) {
 		for (let i = 0; i < missing.length; i++) {
 			const tool = missing[i];
-			s.start(`🐾 [${i + 1}/${missing.length}] Teaching Claude a new trick: ${tool.name}...`);
+			s.start(`🐾 [${i + 1}/${missing.length}] Teaching Claude a new trick: ${bold(tool.name)}...`);
 			const result = installTool(tool);
 			if (result.success) {
 				s.stop(`${chalk.green("✓")} ${tool.name}`);
+				installedTools.push(tool.name);
 			} else {
-				s.stop(`${chalk.red("✗")} ${tool.name} — ${result.error?.slice(0, 50)}`);
+				s.stop(`${chalk.red("✗")} ${tool.name}`);
+				failedTools.push(tool.name);
 			}
 		}
 	} else if (uniqueTools.length > 0) {
@@ -365,18 +370,23 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		}
 	}
 
-	s.start("🐾 Burying treats in ~/.claude/skills/...");
 	installSkill("core", targetDir);
 	installSkill("memory", targetDir);
 	const installed: string[] = ["c-core", "c-memory"];
 	for (const skill of selectedSkills) {
+		s.start(`🐾 Installing ${bold("c-" + skill.id)}...`);
 		if (!updateExisting && existingSkills.includes(skill.id)) {
 			installed.push(`c-${skill.id}`);
+			s.stop(`${chalk.green("✓")} c-${skill.id} ${dim("(kept existing)")}`);
 			continue;
 		}
-		if (installSkill(skill.id, targetDir)) installed.push(`c-${skill.id}`);
+		if (installSkill(skill.id, targetDir)) {
+			installed.push(`c-${skill.id}`);
+			s.stop(`${chalk.green("✓")} c-${skill.id}`);
+		} else {
+			s.stop(`${chalk.red("✗")} c-${skill.id}`);
+		}
 	}
-	s.stop(`🐾 ${installed.length} skills buried`);
 
 	s.start("🐾 Setting up the doggy door...");
 	const added = addPermissions(uniqueTools);
@@ -403,6 +413,11 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		p.log.success(`Dashboard configured (theme: ${dashboardTheme})`);
 	}
 
+	// ── CLAUDE.md ──
+	s.start("🐾 Writing CLAUDE.md...");
+	writeClaudeMd(botName, selectedSkills, wantDashboard);
+	s.stop(`${chalk.green("✓")} CLAUDE.md — ${botName} knows who they are now`);
+
 	// MCP servers can be configured separately via `openpaw mcp`
 
 	// ── Auth Reminders ──
@@ -416,6 +431,21 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 			.join("\n");
 		p.note(authList, "One-time auth needed");
 	}
+
+	// ── Summary ──
+	const summaryLines: string[] = [
+		`${bold("Skills:")}      ${installed.length} installed`,
+		`${bold("Tools:")}       ${uniqueTools.length - missing.length} ready` + (installedTools.length > 0 ? `, ${installedTools.length} newly installed` : ""),
+	];
+	if (failedTools.length > 0) {
+		summaryLines.push(`${bold("Failed:")}      ${chalk.red(failedTools.join(", "))}`);
+	}
+	if (wantDashboard) {
+		summaryLines.push(`${bold("Dashboard:")}   ${dashboardTheme} theme on :3141`);
+	}
+	summaryLines.push(`${bold("CLAUDE.md:")}   ${botName} is self-aware`);
+	summaryLines.push(`${bold("Memory:")}      ~/.claude/memory/`);
+	p.note(summaryLines.join("\n"), "Setup Complete");
 
 	// ── Done + Launch ──
 	await pawStep("done", "All done! *tail wag intensifies*");
