@@ -1,10 +1,11 @@
 import * as p from "@clack/prompts";
 import chalk from "chalk";
+import { execSync } from "node:child_process";
 import { getSkillById, getAllTaps } from "../catalog/index.js";
 import { installTaps, installTool, getMissingTools } from "../core/installer.js";
 import { installSkill, isSkillInstalled } from "../core/skills.js";
 import { addPermissions } from "../core/permissions.js";
-import { showMini } from "../core/branding.js";
+import { showMini, accent, dim } from "../core/branding.js";
 import { regenerateClaudeMd } from "../core/claude-md.js";
 
 export async function addCommand(skillIds: string[]): Promise<void> {
@@ -51,10 +52,25 @@ export async function addCommand(skillIds: string[]): Promise<void> {
 		addPermissions(skill.tools);
 		p.log.success(`c-${id} installed`);
 
-		// Auth reminders
+		// Interactive auth
 		if (skill.authSteps?.length) {
 			for (const step of skill.authSteps) {
-				console.log(`  ${chalk.yellow("→")} ${step.command} — ${step.description}`);
+				const runThis = await p.confirm({
+					message: `Run ${chalk.bold(step.command)}? ${dim(step.description)}`,
+					initialValue: true,
+				});
+				if (p.isCancel(runThis)) break;
+				if (!runThis) {
+					p.log.info(dim(`Skipped ${step.command} — run it later`));
+					continue;
+				}
+				p.log.info(`Running ${accent(step.command)}...`);
+				try {
+					execSync(step.command, { stdio: "inherit" });
+					p.log.success(`${step.command} — signed in`);
+				} catch {
+					p.log.warn(`${step.command} — failed or cancelled (run it later)`);
+				}
 			}
 		}
 	}

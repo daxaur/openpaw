@@ -420,16 +420,51 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 
 	// MCP servers can be configured separately via `openpaw mcp`
 
-	// ── Auth Reminders ──
+	// ── Auth Steps ──
 	const authSteps = selectedSkills
 		.flatMap((skill) => skill.authSteps ?? [])
 		.filter((step, i, arr) => arr.findIndex((s) => s.command === step.command) === i);
 
-	if (authSteps.length > 0) {
+	if (authSteps.length > 0 && !opts.yes) {
 		const authList = authSteps
 			.map((st) => `${chalk.yellow("→")} ${chalk.bold(st.command)}  ${dim(st.description)}`)
 			.join("\n");
 		p.note(authList, "One-time auth needed");
+
+		const runAuth = await p.confirm({
+			message: "Want to sign in to these now?",
+			initialValue: true,
+		});
+
+		if (!p.isCancel(runAuth) && runAuth) {
+			for (const step of authSteps) {
+				const runThis = await p.confirm({
+					message: `Run ${bold(step.command)}? ${dim(step.description)}`,
+					initialValue: true,
+				});
+
+				if (p.isCancel(runThis)) break;
+				if (!runThis) {
+					p.log.info(dim(`Skipped ${step.command} — run it later when you need it`));
+					continue;
+				}
+
+				p.log.info(`Running ${accent(step.command)}...`);
+				try {
+					execSync(step.command, { stdio: "inherit" });
+					p.log.success(`${step.command} — signed in`);
+				} catch {
+					p.log.warn(`${step.command} — failed or cancelled (you can run it later)`);
+				}
+			}
+		} else {
+			p.log.info(dim("No problem — run these commands when you need each skill"));
+		}
+	} else if (authSteps.length > 0) {
+		const authList = authSteps
+			.map((st) => `${chalk.yellow("→")} ${chalk.bold(st.command)}  ${dim(st.description)}`)
+			.join("\n");
+		p.note(authList, "One-time auth needed (run these later)");
 	}
 
 	// ── Summary ──
