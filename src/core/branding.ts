@@ -54,25 +54,18 @@ function sleep(ms: number): Promise<void> {
 	return new Promise((r) => setTimeout(r, ms));
 }
 
-// ── Box renderer ──
+// ── Title Art ──
 
-function renderBox(title: string, subtitle: string): string {
-	const boxW = 48;
-	const center = (s: string, w: number) => {
-		const pad = w - s.length;
-		const left = Math.floor(pad / 2);
-		return " ".repeat(left) + s + " ".repeat(pad - left);
-	};
-	const margin = "               ";
-	const lines = [
-		pawClr(margin + "┌" + "─".repeat(boxW) + "┐"),
-		pawClr(margin + "│" + " ".repeat(boxW) + "│"),
-		pawClr(margin + "│" + center(title, boxW) + "│"),
-		dim(margin + "│" + center(subtitle, boxW) + "│"),
-		pawClr(margin + "│" + " ".repeat(boxW) + "│"),
-		pawClr(margin + "└" + "─".repeat(boxW) + "┘"),
-	];
-	return lines.join("\n");
+const TITLE_ART = [
+	"                      █▀▀█ █▀▀▄ █▀▀▀ █▄ █ █▀▀▄ ▄▀▀▄ █   █",
+	"                      █  █ █▀▀  █▀▀  █ ▀█ █▀▀  █▀▀█ █ █ █",
+	"                      ▀▀▀▀ ▀    ▀▀▀▀ ▀  ▀ ▀    ▀  ▀  ▀ ▀ ",
+];
+
+function renderTitle(): string {
+	const title = TITLE_ART.map((line) => pawClr(line)).join("\n");
+	const sub = dim("                  Personal Assistant Wizard for Claude Code");
+	return `${title}\n${sub}`;
 }
 
 // ── Moods ──
@@ -98,12 +91,12 @@ function renderPaw(color: ChalkInstance): string {
 // ── Public API ──
 
 /**
- * Banner: brown paw + title box.
+ * Banner: brown paw + ASCII title.
  */
 export async function showBanner(): Promise<void> {
 	console.log(renderPaw(pawClr));
 	console.log("");
-	console.log(renderBox("O P E N P A W", "Personal Assistant Wizard for Claude Code"));
+	console.log(renderTitle());
 	console.log("");
 }
 
@@ -148,7 +141,7 @@ export async function pawPulse(
 export function showBannerStatic(): void {
 	console.log(renderPaw(pawClr));
 	console.log("");
-	console.log(renderBox("O P E N P A W", "Personal Assistant Wizard for Claude Code"));
+	console.log(renderTitle());
 	console.log("");
 }
 

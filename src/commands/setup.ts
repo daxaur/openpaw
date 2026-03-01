@@ -484,16 +484,23 @@ async function selectFromPreset(os: string): Promise<Skill[]> {
 async function selectCustom(os: string): Promise<Skill[]> {
 	const grouped = getSkillsByCategory(os);
 
-	// Flat list with category icons for visual grouping
+	// Flat list with category labels in hints
 	const options: { value: string; label: string; hint?: string }[] = [];
 	for (const [category, catSkills] of grouped) {
 		const icon = CATEGORY_ICONS[category] ?? "📦";
+		const catLabel = categoryLabels[category] ?? category;
+		let isFirst = true;
+
 		for (const skill of catSkills) {
+			// Telegram is handled by interface mode — skip here
+			if (skill.id === "telegram") continue;
+
 			options.push({
 				value: skill.id,
 				label: `${icon} ${skill.name}`,
-				hint: skill.description,
+				hint: isFirst ? `── ${catLabel} ── ${skill.description}` : skill.description,
 			});
+			isFirst = false;
 		}
 	}
 
