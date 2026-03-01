@@ -484,61 +484,31 @@ async function selectFromPreset(os: string): Promise<Skill[]> {
 async function selectCustom(os: string): Promise<Skill[]> {
 	const grouped = getSkillsByCategory(os);
 
-	// Step 1: Pick categories
-	const categoryOptions = [...grouped.entries()].map(([category, catSkills]) => {
-		const label = categoryLabels[category] ?? category;
+	// Flat list with category icons for visual grouping
+	const options: { value: string; label: string; hint?: string }[] = [];
+	for (const [category, catSkills] of grouped) {
 		const icon = CATEGORY_ICONS[category] ?? "📦";
-		return {
-			value: category,
-			label: `${icon} ${label}`,
-			hint: `${catSkills.length} skills`,
-		};
-	});
-
-	const selectedCategories = await p.multiselect({
-		message: "What do you need? (select categories, then pick skills)",
-		options: categoryOptions,
-		required: false,
-	});
-
-	if (p.isCancel(selectedCategories)) {
-		p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
-		process.exit(0);
-	}
-
-	const cats = selectedCategories as string[];
-	if (cats.length === 0) return [];
-
-	// Step 2: Pick skills from selected categories
-	const skillOptions: { value: string; label: string; hint?: string }[] = [];
-	for (const cat of cats) {
-		const catSkills = grouped.get(cat) ?? [];
-		const label = categoryLabels[cat] ?? cat;
-		const icon = CATEGORY_ICONS[cat] ?? "📦";
-
-		// Add category header as a visual separator via hint
-		for (let i = 0; i < catSkills.length; i++) {
-			const skill = catSkills[i];
-			skillOptions.push({
+		for (const skill of catSkills) {
+			options.push({
 				value: skill.id,
-				label: i === 0 ? `${icon} ${skill.name}` : `  ${skill.name}`,
-				hint: i === 0 ? `${label} — ${skill.description}` : skill.description,
+				label: `${icon} ${skill.name}`,
+				hint: skill.description,
 			});
 		}
 	}
 
-	const selectedSkills = await p.multiselect({
+	const selected = await p.multiselect({
 		message: "Pick your skills (space to select, enter to confirm)",
-		options: skillOptions,
+		options,
 		required: false,
 	});
 
-	if (p.isCancel(selectedSkills)) {
+	if (p.isCancel(selected)) {
 		p.cancel("Ok, I'll be here when you're ready *sad puppy eyes*");
 		process.exit(0);
 	}
 
-	const ids = selectedSkills as string[];
+	const ids = selected as string[];
 	return ids
 		.map((id) => skills.find((s) => s.id === id))
 		.filter((s): s is Skill => !!s);
