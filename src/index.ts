@@ -27,7 +27,7 @@ const program = new Command();
 program
 	.name("openpaw")
 	.description("Personal Assistant Wizard for Claude Code")
-	.version("1.2.0");
+	.version("1.4.0");
 
 program
 	.command("setup", { isDefault: true })

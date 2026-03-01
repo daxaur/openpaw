@@ -1,6 +1,6 @@
 {
   "name": "pawmode",
-  "version": "1.2.0",
+  "version": "1.4.0",
   "description": "Open-source Personal Assistant Wizard for Claude Code. Turn Claude Code into your PA with CLI tools and skills.",
   "type": "module",
   "bin": {
