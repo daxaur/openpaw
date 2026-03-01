@@ -6,7 +6,7 @@ import { skills, categoryLabels, getSkillsByCategory, getPresetSkills, presets, 
 import { detectPlatform } from "../core/platform.js";
 import { showBanner, pawStep, pawPulse, showPuppyDisclaimer, accent, subtle, dim, bold } from "../core/branding.js";
 import { installTaps, getMissingTools, installTool } from "../core/installer.js";
-import { installSkill, getDefaultSkillsDir } from "../core/skills.js";
+import { installSkill, getDefaultSkillsDir, listInstalledSkills } from "../core/skills.js";
 import { addPermissions } from "../core/permissions.js";
 import { installSafetyHooks } from "../core/hooks.js";
 import { soulQuestionnaire, writeSoul, showSoulSummary, soulExists } from "../core/soul.js";
@@ -72,27 +72,49 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 
 	// ── Personality (SOUL.md) ──
 	let botName = "Paw";
-	if (!opts.yes && !soulExists()) {
-		await pawPulse("think", "Let's get to know you...");
+	if (!opts.yes) {
+		if (soulExists()) {
+			// Existing personality found — ask before overwriting
+			const updateSoul = await p.confirm({
+				message: "Existing personality found (~/.claude/SOUL.md). Update it?",
+				initialValue: false,
+			});
 
-		const wantSoul = await p.confirm({
-			message: "Teach me your name and preferences? (makes me a better pup)",
-			initialValue: true,
-		});
-
-		if (!p.isCancel(wantSoul) && wantSoul) {
-			const soul = await soulQuestionnaire();
-			if (soul) {
-				botName = soul.botName;
-				writeSoul(soul);
-				setupMemory(soul.name);
-				showSoulSummary(soul);
-				p.log.success("Personality saved to ~/.claude/SOUL.md");
+			if (!p.isCancel(updateSoul) && updateSoul) {
+				await pawPulse("think", "Let's get to know you again...");
+				const soul = await soulQuestionnaire();
+				if (soul) {
+					botName = soul.botName;
+					writeSoul(soul);
+					setupMemory(soul.name);
+					showSoulSummary(soul);
+					p.log.success("Personality updated");
+				}
+			} else {
+				setupMemory();
 			}
 		} else {
-			setupMemory();
+			await pawPulse("think", "Let's get to know you...");
+
+			const wantSoul = await p.confirm({
+				message: "Teach me your name and preferences? (makes me a better pup)",
+				initialValue: true,
+			});
+
+			if (!p.isCancel(wantSoul) && wantSoul) {
+				const soul = await soulQuestionnaire();
+				if (soul) {
+					botName = soul.botName;
+					writeSoul(soul);
+					setupMemory(soul.name);
+					showSoulSummary(soul);
+					p.log.success("Personality saved to ~/.claude/SOUL.md");
+				}
+			} else {
+				setupMemory();
+			}
 		}
-	} else if (opts.yes) {
+	} else {
 		setupMemory();
 	}
 
@@ -167,8 +189,7 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 			message: "How do you want to talk to Claude? 🐾",
 			options: [
 				{ value: "native", label: "🖥  Terminal only", hint: "Claude Code in your terminal" },
-				{ value: "telegram", label: "📱 Telegram", hint: "talk to Claude from your phone" },
-				{ value: "both", label: "🖥📱 Both", hint: "terminal + Telegram" },
+				{ value: "both", label: "🖥📱 Terminal + Telegram", hint: "terminal + talk from your phone" },
 			],
 		});
 
@@ -300,11 +321,30 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		p.log.success("All tools already installed — clever pup!");
 	}
 
+	// Check for existing skills before installing
+	const existingSkills = listInstalledSkills(targetDir);
+	const overlapping = selectedSkills.filter((sk) => existingSkills.includes(sk.id));
+	let updateExisting = true;
+
+	if (overlapping.length > 0 && !opts.yes) {
+		const updateChoice = await p.confirm({
+			message: `${overlapping.length} skill${overlapping.length > 1 ? "s" : ""} already installed. Update their templates?`,
+			initialValue: true,
+		});
+		if (!p.isCancel(updateChoice)) {
+			updateExisting = updateChoice as boolean;
+		}
+	}
+
 	s.start("🐾 Burying treats in ~/.claude/skills/...");
 	installSkill("core", targetDir);
 	installSkill("memory", targetDir);
 	const installed: string[] = ["c-core", "c-memory"];
 	for (const skill of selectedSkills) {
+		if (!updateExisting && existingSkills.includes(skill.id)) {
+			installed.push(`c-${skill.id}`);
+			continue;
+		}
 		if (installSkill(skill.id, targetDir)) installed.push(`c-${skill.id}`);
 	}
 	s.stop(`🐾 ${installed.length} skills buried`);
@@ -370,7 +410,7 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 
 	// ── Dangerous Mode Disclaimer ──
 	let useDangerousMode = false;
-	if (interfaceMode === "native" || interfaceMode === "both") {
+	{
 		showPuppyDisclaimer();
 
 		const acceptDanger = await p.confirm({
@@ -406,8 +446,8 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	if (useTmux) {
 		p.outro(accent("Launching in tmux... 🐾"));
 		launchInTmux({
-			nativeCmd: interfaceMode === "native" || interfaceMode === "both" ? nativeCmd : undefined,
-			telegramCmd: interfaceMode === "telegram" || interfaceMode === "both" ? telegramCmd : undefined,
+			nativeCmd,
+			telegramCmd: interfaceMode === "both" ? telegramCmd : undefined,
 			workDir: projectDir,
 		});
 	} else if (interfaceMode === "native") {
@@ -416,13 +456,6 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 			execSync(nativeCmd, { stdio: "inherit", cwd: projectDir });
 		} catch {
 			p.log.warn("Could not launch Claude Code. Make sure it's installed: https://claude.ai/code");
-		}
-	} else if (interfaceMode === "telegram") {
-		p.outro(accent("Starting Telegram bridge... 🐾"));
-		try {
-			execSync(telegramCmd, { stdio: "inherit" });
-		} catch {
-			p.log.warn("Telegram bridge failed to start.");
 		}
 	} else {
 		// Both without tmux: telegram in background, native in foreground
@@ -538,7 +571,7 @@ function buildSummary(
 	if (taps.size > 0) {
 		lines.push(`${bold("Taps:")}       ${[...taps].join(", ")}`);
 	}
-	const modeLabel = interfaceMode === "native" ? "Terminal" : interfaceMode === "telegram" ? "Telegram" : "Terminal + Telegram";
+	const modeLabel = interfaceMode === "native" ? "Terminal" : "Terminal + Telegram";
 	lines.push(`${bold("Interface:")}  ${modeLabel}`);
 	lines.push(`${bold("Workspace:")}  ${projectDir.replace(os.homedir(), "~")}`);
 	lines.push(`${bold("Memory:")}     ~/.claude/memory/`);

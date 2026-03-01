@@ -55,17 +55,33 @@ function sleep(ms: number): Promise<void> {
 }
 
 // ── Title Art ──
+// Base glyphs — no margin. Margin added during render.
 
 const TITLE_ART = [
-	"                      █▀▀█ █▀▀▄ █▀▀▀ █▄ █ █▀▀▄ ▄▀▀▄ █   █",
-	"                      █  █ █▀▀  █▀▀  █ ▀█ █▀▀  █▀▀█ █ █ █",
-	"                      ▀▀▀▀ ▀    ▀▀▀▀ ▀  ▀ ▀    ▀  ▀  ▀ ▀ ",
+	"█▀▀█ █▀▀▄ █▀▀▀ █▄ █ █▀▀▄ ▄▀▀▄ █   █",
+	"█  █ █▀▀  █▀▀  █ ▀█ █▀▀  █▀▀█ █ █ █",
+	"▀▀▀▀ ▀    ▀▀▀▀ ▀  ▀ ▀    ▀  ▀  ▀ ▀ ",
 ];
 
+const TITLE_MARGIN = "                          ";
+
 function renderTitle(): string {
-	const title = TITLE_ART.map((line) => pawClr(line)).join("\n");
-	const sub = dim("                  Personal Assistant Wizard for Claude Code");
-	return `${title}\n${sub}`;
+	// Main text lines in bright brown
+	const mainLines = TITLE_ART.map((line) => TITLE_MARGIN + pawClr(line));
+
+	// Bottom shadow — silhouette of all rows, offset right by 1
+	const maxCols = Math.max(...TITLE_ART.map((l) => l.length));
+	let shadow = " "; // 1-char right offset for 3D direction
+	for (let c = 0; c < maxCols; c++) {
+		const filled = TITLE_ART.some(
+			(line) => c < line.length && line[c] !== " ",
+		);
+		shadow += filled ? "░" : " ";
+	}
+	mainLines.push(TITLE_MARGIN + subtle(shadow));
+
+	const sub = dim("                     Personal Assistant Wizard for Claude Code");
+	return mainLines.join("\n") + "\n" + sub;
 }
 
 // ── Moods ──
