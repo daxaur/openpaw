@@ -97,6 +97,10 @@ npx pawmode --preset essentials       # common skills, no prompts
 npx pawmode --preset developer --yes  # fully non-interactive
 ```
 
+<p align="center">
+  <img src="docs/demo.gif" alt="OpenPaw Setup Demo" width="700">
+</p>
+
 ---
 
 ## Skills
