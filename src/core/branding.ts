@@ -54,34 +54,49 @@ function sleep(ms: number): Promise<void> {
 	return new Promise((r) => setTimeout(r, ms));
 }
 
-// ── Title Art ──
-// Base glyphs — no margin. Margin added during render.
+// ── Title Art (3D) ──
+// Block chars (█▀▄ etc) = letter face, ░ = depth/shadow.
+// Depth ░ replaces inter-letter gaps and adds right edge + bottom.
 
-const TITLE_ART = [
-	"█▀▀█ █▀▀▄ █▀▀▀ █▄ █ █▀▀▄ ▄▀▀▄ █   █",
-	"█  █ █▀▀  █▀▀  █ ▀█ █▀▀  █▀▀█ █ █ █",
-	"▀▀▀▀ ▀    ▀▀▀▀ ▀  ▀ ▀    ▀  ▀  ▀ ▀ ",
+const TITLE_3D = [
+	"█▀▀█░█▀▀▄░█▀▀▀░█▄ █░█▀▀▄░▄▀▀▄░█   █░",
+	"█  █░█▀▀ ░█▀▀ ░█ ▀█░█▀▀ ░█▀▀█░█ █ █░",
+	"▀▀▀▀░▀   ░▀▀▀▀░▀  ▀░▀   ░▀  ▀░ ▀ ▀ ░",
+	" ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░",
 ];
 
-const TITLE_MARGIN = "                          ";
+const TITLE_MARGIN = "                                ";
 
 function renderTitle(): string {
-	// Main text lines in bright brown
-	const mainLines = TITLE_ART.map((line) => TITLE_MARGIN + pawClr(line));
+	const lines = TITLE_3D.map((artLine) => {
+		let result = "";
+		let buf = "";
+		let bufType: "main" | "depth" | "space" = "space";
 
-	// Bottom shadow — silhouette of all rows, offset right by 1
-	const maxCols = Math.max(...TITLE_ART.map((l) => l.length));
-	let shadow = " "; // 1-char right offset for 3D direction
-	for (let c = 0; c < maxCols; c++) {
-		const filled = TITLE_ART.some(
-			(line) => c < line.length && line[c] !== " ",
-		);
-		shadow += filled ? "░" : " ";
-	}
-	mainLines.push(TITLE_MARGIN + subtle(shadow));
+		const flush = () => {
+			if (!buf) return;
+			if (bufType === "main") result += pawClr(buf);
+			else if (bufType === "depth") result += subtle(buf);
+			else result += buf;
+			buf = "";
+		};
 
-	const sub = dim("                     Personal Assistant Wizard for Claude Code");
-	return mainLines.join("\n") + "\n" + sub;
+		for (const ch of artLine) {
+			const type: "main" | "depth" | "space" =
+				ch === "░" ? "depth" : ch === " " ? "space" : "main";
+			if (type !== bufType) {
+				flush();
+				bufType = type;
+			}
+			buf += ch;
+		}
+		flush();
+
+		return TITLE_MARGIN + result;
+	});
+
+	const sub = dim("                              Personal Assistant Wizard for Claude Code");
+	return lines.join("\n") + "\n" + sub;
 }
 
 // ── Moods ──
