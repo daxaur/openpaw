@@ -321,6 +321,7 @@ Get started fast with a preset, or choose `Custom` to sniff through skills one b
 | `openpaw schedule list` | List scheduled jobs |
 | `openpaw schedule costs` | View cost usage and daily cap |
 | `openpaw schedule set-cap <usd>` | Set daily cost cap |
+| `openpaw configure` | Configure your setup — add skills, personality, dashboard |
 | `openpaw list` | Show all available skills |
 | `openpaw add <skills>` | Add skills — `openpaw add notes music email` |
 | `openpaw remove <skills>` | Remove skills |

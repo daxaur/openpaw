@@ -11,6 +11,7 @@ import { soulCommand } from "./commands/soul.js";
 import { exportCommand, importCommand } from "./commands/export.js";
 import { telegramCommand, telegramSetupCommand } from "./commands/telegram.js";
 import { dashboardCommand } from "./commands/dashboard.js";
+import { configureCommand } from "./commands/configure.js";
 import {
 	scheduleAddCommand,
 	scheduleListCommand,
@@ -96,6 +97,12 @@ program
 	.option("-p, --port <port>", "Port to run on (default: 3141)")
 	.option("-t, --theme <theme>", "Theme: paw, midnight, or neon")
 	.action(dashboardCommand);
+
+program
+	.command("configure")
+	.alias("config")
+	.description("Configure your setup — add skills, change personality, manage dashboard")
+	.action(configureCommand);
 
 const tg = program
 	.command("telegram")
