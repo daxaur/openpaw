@@ -369,7 +369,6 @@ export function logToObsidian(duration: number, stats: { commits: number; linesA
 
 // Common distracting sites
 export const COMMON_BLOCKED_SITES = [
-	"twitter.com",
 	"x.com",
 	"reddit.com",
 	"instagram.com",

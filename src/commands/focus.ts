@@ -305,39 +305,36 @@ export async function focusSetupCommand(): Promise<void> {
 	});
 
 	if (!p.isCancel(wantSites) && wantSites) {
-		const alwaysBlock = await p.multiselect({
-			message: "Always block these sites (no questions asked)",
-			options: COMMON_BLOCKED_SITES.map((s) => ({
-				value: s,
-				label: s,
-				hint: ["twitter.com", "x.com", "reddit.com", "instagram.com"].includes(s) ? "recommended" : undefined,
-			})),
+		// Step 1: Pick which sites to block
+		const selectedSites = await p.multiselect({
+			message: "Which sites?",
+			options: COMMON_BLOCKED_SITES.map((s) => ({ value: s, label: s })),
 			required: false,
 		});
 
-		const alwaysList = p.isCancel(alwaysBlock) ? [] : (alwaysBlock as string[]);
-		const remaining = COMMON_BLOCKED_SITES.filter((s) => !alwaysList.includes(s));
+		const siteList = p.isCancel(selectedSites) ? [] : (selectedSites as string[]);
 
-		let askList: string[] = [];
-		if (remaining.length > 0) {
-			const askBlock = await p.multiselect({
-				message: "Ask about these each session (sometimes you need them)",
-				options: remaining.map((s) => ({ value: s, label: s })),
-				required: false,
-			});
-			if (!p.isCancel(askBlock)) askList = askBlock as string[];
-		}
-
+		// Step 2: Add custom sites
 		const customSites = await p.text({
-			message: "Any other sites to always block? (comma-separated, or skip)",
-			placeholder: "example.com, another.com",
+			message: "Any others? (comma-separated, or skip)",
+			placeholder: "news.ycombinator.com, example.com",
 		});
 		if (!p.isCancel(customSites) && (customSites as string).trim()) {
-			const extras = (customSites as string).split(",").map((s) => s.trim()).filter(Boolean);
-			alwaysList.push(...extras);
+			siteList.push(...(customSites as string).split(",").map((s) => s.trim()).filter(Boolean));
 		}
 
-		config.blockedSites = { always: alwaysList, askEachTime: askList };
+		// Step 3: Which of those should ask each time?
+		if (siteList.length > 0) {
+			const askEach = await p.multiselect({
+				message: "Any of these you sometimes need? (they'll ask each session)",
+				options: siteList.map((s) => ({ value: s, label: s })),
+				required: false,
+			});
+
+			const askList = p.isCancel(askEach) ? [] : (askEach as string[]);
+			const alwaysList = siteList.filter((s) => !askList.includes(s));
+			config.blockedSites = { always: alwaysList, askEachTime: askList };
+		}
 	}
 
 	// ── App Quitting ──
@@ -347,11 +344,11 @@ export async function focusSetupCommand(): Promise<void> {
 	});
 
 	if (!p.isCancel(wantApps) && wantApps) {
-		// Show detected running apps + common list
 		const appOptions = [...new Set([...COMMON_QUIT_APPS, ...caps.runningApps.filter((a) => !["Finder", "loginwindow", "SystemUIServer", "Dock", "WindowServer"].includes(a))])];
 
-		const alwaysQuit = await p.multiselect({
-			message: "Always quit these apps",
+		// Step 1: Pick which apps to quit
+		const selectedApps = await p.multiselect({
+			message: "Which apps?",
 			options: appOptions.slice(0, 15).map((a) => ({
 				value: a,
 				label: a,
@@ -360,24 +357,20 @@ export async function focusSetupCommand(): Promise<void> {
 			required: false,
 		});
 
-		const alwaysList = p.isCancel(alwaysQuit) ? [] : (alwaysQuit as string[]);
-		const remaining = appOptions.filter((a) => !alwaysList.includes(a));
+		const appList = p.isCancel(selectedApps) ? [] : (selectedApps as string[]);
 
-		let askList: string[] = [];
-		if (remaining.length > 0) {
-			const askQuit = await p.multiselect({
-				message: "Ask about these each session",
-				options: remaining.slice(0, 10).map((a) => ({
-					value: a,
-					label: a,
-					hint: caps.runningApps.includes(a) ? "running" : undefined,
-				})),
+		// Step 2: Which of those should ask each time?
+		if (appList.length > 0) {
+			const askEach = await p.multiselect({
+				message: "Any of these you sometimes need?",
+				options: appList.map((a) => ({ value: a, label: a })),
 				required: false,
 			});
-			if (!p.isCancel(askQuit)) askList = askQuit as string[];
-		}
 
-		config.quitApps = { always: alwaysList, askEachTime: askList };
+			const askList = p.isCancel(askEach) ? [] : (askEach as string[]);
+			const alwaysList = appList.filter((a) => !askList.includes(a));
+			config.quitApps = { always: alwaysList, askEachTime: askList };
+		}
 	}
 
 	// ── Bluetooth ──
