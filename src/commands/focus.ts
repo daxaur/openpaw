@@ -251,20 +251,8 @@ export async function focusSetupCommand(): Promise<void> {
 	showMini();
 	console.log("");
 
-	p.intro(accent("Focus Mode Setup"));
-
-	if (focusConfigExists()) {
-		const existing = readFocusConfig()!;
-		p.log.info("You already have a focus config. This will update it.");
-		printConfig(existing);
-		console.log("");
-	}
-
-	// Auto-detect
-	const spinner = p.spinner();
-	spinner.start("Detecting what's on your machine...");
+	// Auto-detect BEFORE entering clack prompts (execSync can mess with terminal raw mode)
 	const caps = detectCapabilities();
-	spinner.stop("Detection complete.");
 
 	const detected: string[] = [];
 	if (caps.hasBluetooth) detected.push("Bluetooth");
@@ -276,8 +264,17 @@ export async function focusSetupCommand(): Promise<void> {
 	if (caps.hasObsidian) detected.push("Obsidian");
 	if (caps.hasTerminalNotifier) detected.push("Notifications");
 
+	p.intro(accent("Focus Mode Setup"));
+
+	if (focusConfigExists()) {
+		const existing = readFocusConfig()!;
+		p.log.info("You already have a focus config. This will update it.");
+		printConfig(existing);
+		console.log("");
+	}
+
 	if (detected.length > 0) {
-		p.log.info(`Found: ${detected.map((d) => accent(d)).join(", ")}`);
+		p.log.info(`Detected: ${detected.map((d) => accent(d)).join(", ")}`);
 	}
 
 	// ── Duration ──
