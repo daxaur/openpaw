@@ -376,7 +376,6 @@ export const COMMON_BLOCKED_SITES = [
 	"facebook.com",
 	"tiktok.com",
 	"youtube.com",
-	"news.ycombinator.com",
 	"linkedin.com",
 	"threads.net",
 	"bsky.app",
