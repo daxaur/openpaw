@@ -278,13 +278,16 @@ export function startMusic(config: { source: string; query: string }): void {
 					timeout: 10000,
 				});
 				break;
-			case "youtube":
-				// Play audio via yt-dlp + afplay in background
+			case "youtube": {
+				// If not a URL, use ytsearch to find it
+				const isUrl = config.query.startsWith("http://") || config.query.startsWith("https://");
+				const ytQuery = isUrl ? config.query : `ytsearch1:${config.query}`;
 				execSync(
-					`yt-dlp -x --audio-format mp3 -o "/tmp/openpaw-focus.%(ext)s" "${config.query}" 2>/dev/null && afplay /tmp/openpaw-focus.mp3 &`,
+					`yt-dlp -x --audio-format mp3 -o "/tmp/openpaw-focus.%(ext)s" "${ytQuery}" 2>/dev/null && afplay /tmp/openpaw-focus.mp3 &`,
 					{ stdio: "pipe", timeout: 30000 },
 				);
 				break;
+			}
 			case "url":
 				execSync(`open "${config.query}" 2>/dev/null`, { stdio: "pipe" });
 				break;
