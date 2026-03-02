@@ -316,8 +316,8 @@ export async function focusSetupCommand(): Promise<void> {
 
 		// Step 2: Add custom sites
 		const customSites = await p.text({
-			message: "Any others? (comma-separated, or skip)",
-			placeholder: "news.ycombinator.com, example.com",
+			message: "Any others? (comma-separated, enter to skip)",
+			defaultValue: "",
 		});
 		if (!p.isCancel(customSites) && (customSites as string).trim()) {
 			siteList.push(...(customSites as string).split(",").map((s) => s.trim()).filter(Boolean));
