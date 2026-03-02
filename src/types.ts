@@ -137,6 +137,44 @@ export interface DashboardConfig {
 	tasks: DashboardTask[];
 }
 
+// ── Focus Mode ──
+
+export type FocusMusicSource = "spotify" | "apple-music" | "sonos" | "youtube" | "url" | "local";
+
+export interface FocusMusicConfig {
+	source: FocusMusicSource;
+	query: string;
+}
+
+export interface FocusConfig {
+	duration: number;
+	bluetooth?: { device: string };
+	music?: FocusMusicConfig;
+	blockedSites?: {
+		always: string[];
+		askEachTime: string[];
+	};
+	quitApps?: {
+		always: string[];
+		askEachTime: string[];
+	};
+	lights?: { room: string; brightness: number; color?: string };
+	dnd: boolean;
+	slackDnd: boolean;
+	calendarBlock: boolean;
+	timer: boolean;
+	obsidianLog: boolean;
+	telegramNotify: boolean;
+}
+
+export interface FocusSession {
+	startedAt: string;
+	endsAt: string;
+	config: FocusConfig;
+	blockedSiteAttempts: number;
+	gitCommitsBefore: number;
+}
+
 export interface SettingsJson {
 	permissions?: {
 		allow?: string[];
