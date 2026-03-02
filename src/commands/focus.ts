@@ -305,22 +305,29 @@ export async function focusSetupCommand(): Promise<void> {
 	});
 
 	if (!p.isCancel(wantSites) && wantSites) {
-		// Step 1: Pick which sites to block
+		// Step 1: Pick sites + optional custom entry
 		const selectedSites = await p.multiselect({
 			message: "Which sites?",
-			options: COMMON_BLOCKED_SITES.map((s) => ({ value: s, label: s })),
+			options: [
+				...COMMON_BLOCKED_SITES.map((s) => ({ value: s, label: s })),
+				{ value: "_custom", label: "Custom...", hint: "type your own" },
+			],
 			required: false,
 		});
 
-		const siteList = p.isCancel(selectedSites) ? [] : (selectedSites as string[]);
+		const raw = p.isCancel(selectedSites) ? [] : (selectedSites as string[]);
+		const hasCustom = raw.includes("_custom");
+		const siteList = raw.filter((s) => s !== "_custom");
 
-		// Step 2: Add custom sites
-		const customSites = await p.text({
-			message: "Any others? (comma-separated, enter to skip)",
-			defaultValue: "",
-		});
-		if (!p.isCancel(customSites) && (customSites as string).trim()) {
-			siteList.push(...(customSites as string).split(",").map((s) => s.trim()).filter(Boolean));
+		// Step 2: Custom input only if they selected "Custom..."
+		if (hasCustom) {
+			const customSites = await p.text({
+				message: "Type sites to block (comma-separated)",
+				defaultValue: "",
+			});
+			if (!p.isCancel(customSites) && (customSites as string).trim()) {
+				siteList.push(...(customSites as string).split(",").map((s) => s.trim()).filter(Boolean));
+			}
 		}
 
 		// Step 3: Which of those should ask each time?
@@ -421,22 +428,66 @@ export async function focusSetupCommand(): Promise<void> {
 		});
 
 		if (!p.isCancel(source)) {
-			const placeholders: Record<string, string> = {
-				spotify: "lo-fi beats",
-				"apple-music": "Focus",
-				sonos: "playlist name",
-				youtube: "https://youtube.com/watch?v=...",
-				url: "https://...",
-				local: "/path/to/file.mp3",
+			const presets: Record<string, { value: string; label: string }[]> = {
+				spotify: [
+					{ value: "lo-fi beats", label: "Lo-fi beats" },
+					{ value: "deep focus", label: "Deep focus" },
+					{ value: "white noise", label: "White noise" },
+					{ value: "nature sounds", label: "Nature sounds" },
+					{ value: "classical focus", label: "Classical" },
+					{ value: "_custom", label: "Custom..." },
+				],
+				"apple-music": [
+					{ value: "Focus", label: "Focus" },
+					{ value: "Chill", label: "Chill" },
+					{ value: "Classical", label: "Classical" },
+					{ value: "_custom", label: "Custom..." },
+				],
+				sonos: [
+					{ value: "_custom", label: "Type a playlist or station..." },
+				],
+				youtube: [
+					{ value: "white noise 1 hour", label: "White noise" },
+					{ value: "nature sounds rain", label: "Rain sounds" },
+					{ value: "waterfall ambient", label: "Waterfall" },
+					{ value: "lo-fi hip hop radio", label: "Lo-fi hip hop" },
+					{ value: "brown noise focus", label: "Brown noise" },
+					{ value: "_custom", label: "Custom URL..." },
+				],
 			};
 
-			const query = await p.text({
-				message: source === "spotify" ? "Playlist or search query" : source === "apple-music" ? "Playlist name" : "URL or path",
-				placeholder: placeholders[source as string] ?? "",
-			});
+			const sourcePresets = presets[source as string] ?? [{ value: "_custom", label: "Custom..." }];
 
-			if (!p.isCancel(query)) {
-				config.music = { source: source as FocusMusicSource, query: query as string };
+			let query: string | undefined;
+
+			if (sourcePresets.length === 1 && sourcePresets[0].value === "_custom") {
+				// Only custom option — go straight to text input
+				const custom = await p.text({
+					message: "Playlist or station name",
+					defaultValue: "",
+				});
+				if (!p.isCancel(custom) && (custom as string).trim()) query = custom as string;
+			} else {
+				const picked = await p.select({
+					message: "What to play?",
+					options: sourcePresets,
+				});
+
+				if (!p.isCancel(picked)) {
+					if (picked === "_custom") {
+						const custom = await p.text({
+							message: source === "youtube" ? "YouTube search or URL" : "Playlist or search query",
+							defaultValue: "",
+						});
+						if (!p.isCancel(custom) && (custom as string).trim()) query = custom as string;
+					} else {
+						query = picked as string;
+					}
+				}
+			}
+
+			if (query) {
+				config.music = { source: source as FocusMusicSource, query };
 			}
 		}
 	}
