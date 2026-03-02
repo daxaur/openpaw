@@ -408,13 +408,11 @@ export async function focusSetupCommand(): Promise<void> {
 	if (caps.hasAppleMusic) musicSources.push({ value: "apple-music", label: "Apple Music" });
 	if (caps.hasSonos) musicSources.push({ value: "sonos", label: "Sonos" });
 	if (caps.hasYtDlp) musicSources.push({ value: "youtube", label: "YouTube (audio)", hint: "yt-dlp" });
-	musicSources.push({ value: "url", label: "Open a URL" });
-	musicSources.push({ value: "local", label: "Local file (afplay)" });
 
-	const wantMusic = await p.confirm({
+	const wantMusic = musicSources.length > 0 ? await p.confirm({
 		message: "Play music when focus starts?",
-		initialValue: caps.hasSpotify || caps.hasAppleMusic,
-	});
+		initialValue: true,
+	}) : false;
 
 	if (!p.isCancel(wantMusic) && wantMusic) {
 		const source = await p.select({
