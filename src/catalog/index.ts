@@ -363,6 +363,14 @@ export const skills: Skill[] = [
 		platforms: ["darwin", "linux", "win32"],
 		depends: ["email", "calendar"],
 	},
+	{
+		id: "focus",
+		name: "Focus Mode",
+		description: "One command to block distractions — sites, apps, DND, music, lights, timer",
+		category: "automation",
+		tools: [],
+		platforms: ["darwin"],
+	},
 
 	// ── Browser & Automation ──
 	{
