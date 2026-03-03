@@ -159,7 +159,6 @@ export interface LockInConfig {
 		askEachTime: string[];
 	};
 	lights?: { room: string; brightness: number; color?: string };
-	windows?: { ide?: string; terminal?: string; layout: "side-by-side" | "stacked" };
 	dnd: boolean;
 	slackDnd: boolean;
 	timer: boolean;

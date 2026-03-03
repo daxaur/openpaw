@@ -364,6 +364,18 @@ export function getGitDiffStats(since: number): { commits: number; linesAdded: n
 	}
 }
 
+export function getGitCommitMessages(since: number): string[] {
+	try {
+		const commits = Math.max(0, getGitCommitCount() - since);
+		if (commits === 0) return [];
+		return execSync(`git log --oneline -${commits} 2>/dev/null`, {
+			stdio: "pipe",
+		}).toString().trim().split("\n").filter(Boolean);
+	} catch {
+		return [];
+	}
+}
+
 export function sendNotification(title: string, message: string): void {
 	try {
 		if (cmdExists("terminal-notifier")) {
@@ -536,62 +548,33 @@ export function saveWindowPositions(): string {
 	return "[]";
 }
 
-export function arrangeWindows(config: { ide?: string; terminal?: string; layout: string }): void {
+export function getFrontmostApp(): string {
+	return tryExec(`osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`);
+}
+
+export function centerAndResizeApp(appName: string): void {
 	if (process.platform !== "darwin") return;
-	const screen = getScreenSize();
-	const menuBarHeight = 25;
-	const usableHeight = screen.height - menuBarHeight;
-
-	// Position IDE and terminal based on layout
-	if (config.ide) {
-		try {
-			if (config.layout === "side-by-side") {
-				const w = Math.floor(screen.width / 2);
-				execSync(
-					`osascript -e 'tell application "System Events" to tell process "${config.ide}" to set position of front window to {0, ${menuBarHeight}}' -e 'tell application "System Events" to tell process "${config.ide}" to set size of front window to {${w}, ${usableHeight}}' 2>/dev/null`,
-					{ stdio: "pipe", timeout: 5000 },
-				);
-			} else {
-				// stacked
-				const h = Math.floor(usableHeight * 0.6);
-				execSync(
-					`osascript -e 'tell application "System Events" to tell process "${config.ide}" to set position of front window to {0, ${menuBarHeight}}' -e 'tell application "System Events" to tell process "${config.ide}" to set size of front window to {${screen.width}, ${h}}' 2>/dev/null`,
-					{ stdio: "pipe", timeout: 5000 },
-				);
-			}
-		} catch {}
-	}
-
-	if (config.terminal) {
-		try {
-			if (config.layout === "side-by-side") {
-				const w = Math.floor(screen.width / 2);
-				execSync(
-					`osascript -e 'tell application "System Events" to tell process "${config.terminal}" to set position of front window to {${w}, ${menuBarHeight}}' -e 'tell application "System Events" to tell process "${config.terminal}" to set size of front window to {${w}, ${usableHeight}}' 2>/dev/null`,
-					{ stdio: "pipe", timeout: 5000 },
-				);
-			} else {
-				// stacked
-				const topH = Math.floor(usableHeight * 0.6);
-				const botH = usableHeight - topH;
-				execSync(
-					`osascript -e 'tell application "System Events" to tell process "${config.terminal}" to set position of front window to {0, ${menuBarHeight + topH}}' -e 'tell application "System Events" to tell process "${config.terminal}" to set size of front window to {${screen.width}, ${botH}}' 2>/dev/null`,
-					{ stdio: "pipe", timeout: 5000 },
-				);
-			}
-		} catch {}
-	}
-
-	// Minimize other visible windows
 	try {
-		const skip = [config.ide, config.terminal].filter(Boolean);
-		const skipList = skip.map((a) => `"${a}"`).join(", ");
+		const screen = getScreenSize();
+		const w = Math.floor(screen.width * 0.8);
+		const h = Math.floor(screen.height * 0.8);
+		const x = Math.floor((screen.width - w) / 2);
+		const y = Math.floor((screen.height - h) / 2) + 25;
+		execSync(
+			`osascript -e 'tell application "System Events" to tell process "${appName}" to set position of front window to {${x}, ${y}}' -e 'tell application "System Events" to tell process "${appName}" to set size of front window to {${w}, ${h}}' 2>/dev/null`,
+			{ stdio: "pipe", timeout: 5000 },
+		);
+	} catch {}
+}
+
+export function minimizeOtherWindows(keepApp: string): void {
+	if (process.platform !== "darwin") return;
+	try {
 		execSync(
 			`osascript -e '
 				tell application "System Events"
-					set skipApps to {${skipList}}
 					repeat with proc in (every process whose background only is false)
-						if name of proc is not in skipApps and name of proc is not "Finder" and name of proc is not "Dock" then
+						if name of proc is not "${keepApp}" and name of proc is not "Finder" and name of proc is not "Dock" then
 							try
 								click (first button of every window of proc whose role description is "minimize button")
 							end try
@@ -618,10 +601,6 @@ export function restoreWindows(saved: string): void {
 		}
 	} catch {}
 }
-
-// Known IDEs and terminals for auto-detection
-export const KNOWN_IDES = ["Code", "Cursor", "Xcode", "IntelliJ IDEA", "WebStorm", "PyCharm", "Android Studio", "Sublime Text", "Atom", "Nova", "Zed"];
-export const KNOWN_TERMINALS = ["Terminal", "iTerm2", "Warp", "Ghostty", "kitty", "Alacritty", "Hyper"];
 
 // Common distracting sites
 export const COMMON_BLOCKED_SITES = [

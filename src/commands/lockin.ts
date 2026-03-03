@@ -30,12 +30,13 @@ import {
 	COMMON_BLOCKED_SITES,
 	COMMON_QUIT_APPS,
 	saveWindowPositions,
-	arrangeWindows,
 	restoreWindows,
 	startRoastServer,
 	stopRoastServer,
-	KNOWN_IDES,
-	KNOWN_TERMINALS,
+	getFrontmostApp,
+	centerAndResizeApp,
+	minimizeOtherWindows,
+	getGitCommitMessages,
 } from "../core/lockin.js";
 import type { LockInConfig, LockInMusicSource } from "../types.js";
 
@@ -125,13 +126,19 @@ export async function lockInAutoEndCommand(): Promise<void> {
 	const startTime = new Date(session.startedAt);
 	const elapsed = Math.round((Date.now() - startTime.getTime()) / 60000);
 	const stats = getGitDiffStats(session.gitCommitsBefore);
+	const commitMessages = getGitCommitMessages(session.gitCommitsBefore);
 
-	const receipt = [
+	const receiptLines = [
 		`Duration: ${elapsed} min`,
 		`Commits: ${stats.commits}`,
 		`Lines added: +${stats.linesAdded}`,
 		`Lines removed: -${stats.linesRemoved}`,
-	].join("\n");
+	];
+	if (commitMessages.length > 0) {
+		receiptLines.push("", "Commits:");
+		for (const msg of commitMessages) receiptLines.push(`  ${msg}`);
+	}
+	const receipt = receiptLines.join("\n");
 
 	// Obsidian log
 	if (config.obsidianLog) {
@@ -143,7 +150,7 @@ export async function lockInAutoEndCommand(): Promise<void> {
 	// Spawn a Claude session to write a natural summary
 	try {
 		const { query } = await import("@anthropic-ai/claude-agent-sdk");
-		const prompt = `The user's lock-in session just ended. Here are the stats:\n\n${receipt}\n\nWrite a brief, encouraging 2-3 sentence summary of their session. Be specific about the numbers. If they made commits, acknowledge their productivity. If not, that's fine too — they were focused. Keep it casual and warm.`;
+		const prompt = `The user's lock-in session just ended. Here are the stats:\n\n${receipt}\n\nWrite a brief, encouraging 2-3 sentence summary of their session. Be specific about the numbers. If they made commits, mention the commit messages to highlight what they accomplished. If not, that's fine too — they were focused. Keep it casual and warm.`;
 
 		let summary = "";
 		const q = query({
@@ -253,14 +260,6 @@ export function lockInStartCommand(opts: { all?: boolean }): void {
 		actions.push(`Set ${config.lights.room} lights to ${config.lights.brightness}%`);
 	}
 
-	// Windows
-	let savedPositions: string | undefined;
-	if (config.windows) {
-		savedPositions = saveWindowPositions();
-		arrangeWindows(config.windows);
-		actions.push(`Arranged windows: ${config.windows.layout}`);
-	}
-
 	// DND
 	if (config.dnd) {
 		enableDnd();
@@ -271,6 +270,16 @@ export function lockInStartCommand(opts: { all?: boolean }): void {
 	if (config.slackDnd) {
 		enableSlackDnd(config.duration);
 		actions.push(`Set Slack DND for ${config.duration} min`);
+	}
+
+	// Auto window management — runs LAST
+	let savedPositions: string | undefined;
+	const frontApp = getFrontmostApp();
+	if (frontApp) {
+		savedPositions = saveWindowPositions();
+		minimizeOtherWindows(frontApp);
+		centerAndResizeApp(frontApp);
+		actions.push(`Centered ${frontApp}, minimized other windows`);
 	}
 
 	// Save session
@@ -317,6 +326,8 @@ export function lockInEndCommand(): void {
 	const elapsed = Math.round((Date.now() - startTime.getTime()) / 60000);
 	const stats = getGitDiffStats(session.gitCommitsBefore);
 
+	const commitMessages = getGitCommitMessages(session.gitCommitsBefore);
+
 	console.log("Lock-in session ended.\n");
 	console.log("--- Lock In Receipt ---");
 	console.log(`Duration:      ${elapsed} min`);
@@ -326,6 +337,10 @@ export function lockInEndCommand(): void {
 	if (config?.blockedSites) {
 		const total = (config.blockedSites.always?.length ?? 0) + (config.blockedSites.askEachTime?.length ?? 0);
 		console.log(`Sites blocked: ${total}`);
+	}
+	if (commitMessages.length > 0) {
+		console.log("\nCommits:");
+		for (const msg of commitMessages) console.log(`  ${msg}`);
 	}
 	console.log("-----------------------");
 
@@ -735,58 +750,6 @@ export async function lockInSetupCommand(): Promise<void> {
 		config.obsidianLog = selected.includes("obsidianLog");
 	}
 
-	// ── Window Arrangement ──
-	await pawWalk("Windows...");
-	const detectedIDEs = caps.runningApps.filter((a) => KNOWN_IDES.includes(a));
-	const detectedTerminals = caps.runningApps.filter((a) => KNOWN_TERMINALS.includes(a));
-
-	if (detectedIDEs.length > 0 || detectedTerminals.length > 0) {
-		const wantWindows = await p.confirm({
-			message: "Auto-arrange windows when locking in?",
-			initialValue: true,
-		});
-
-		if (!p.isCancel(wantWindows) && wantWindows) {
-			let ide: string | undefined;
-			let terminal: string | undefined;
-
-			if (detectedIDEs.length > 0) {
-				const ideChoice = await p.select({
-					message: "IDE to keep visible",
-					options: [
-						...detectedIDEs.map((a) => ({ value: a, label: a, hint: "running" })),
-						{ value: "_none", label: "None" },
-					],
-				});
-				if (!p.isCancel(ideChoice) && ideChoice !== "_none") ide = ideChoice as string;
-			}
-
-			if (detectedTerminals.length > 0) {
-				const termChoice = await p.select({
-					message: "Terminal to keep visible",
-					options: [
-						...detectedTerminals.map((a) => ({ value: a, label: a, hint: "running" })),
-						{ value: "_none", label: "None" },
-					],
-				});
-				if (!p.isCancel(termChoice) && termChoice !== "_none") terminal = termChoice as string;
-			}
-
-			if (ide || terminal) {
-				const layout = await p.select({
-					message: "Layout",
-					options: [
-						{ value: "side-by-side" as const, label: "Side by side", hint: "IDE left, terminal right" },
-						{ value: "stacked" as const, label: "Stacked", hint: "IDE top, terminal bottom" },
-					],
-				});
-				if (!p.isCancel(layout)) {
-					config.windows = { ide, terminal, layout: layout as "side-by-side" | "stacked" };
-				}
-			}
-		}
-	}
-
 	// ── Skills Directory ──
 	const defaultDir = getDefaultSkillsDir();
 	const installed = listInstalledSkills(defaultDir);
@@ -839,156 +802,67 @@ tags: [lockin, focus, productivity, deep-work, pomodoro, distraction-blocking]
 
 ## What This Skill Does
 
-You orchestrate lock-in sessions by reading the user's config and running shell commands directly.
+You orchestrate lock-in sessions using the \`openpaw lockin\` CLI.
+
+IMPORTANT: Always use \`openpaw lockin start\` to begin a session. Never run site-blocking or admin commands individually — they require macOS admin privileges that only work through the CLI.
 
 ## Config
 
 Read \`~/.config/openpaw/lockin.json\` for preferences. If missing, suggest: \`openpaw lockin setup\`
 
-\`\`\`json
-{
-  "duration": 90,
-  "bluetooth": { "device": "AirPods Pro" },
-  "music": { "source": "spotify", "query": "lo-fi beats" },
-  "blockedSites": {
-    "always": ["x.com", "reddit.com"],
-    "askEachTime": ["youtube.com"]
-  },
-  "quitApps": {
-    "always": ["Messages", "Mail"],
-    "askEachTime": ["Discord"]
-  },
-  "lights": { "room": "Office", "brightness": 30, "color": "warm" },
-  "dnd": true,
-  "slackDnd": true,
-  "timer": true,
-  "obsidianLog": true
-}
-\`\`\`
-
 ## Starting a Lock In Session
 
 When the user says "lock in", "focus", "deep work", or similar:
 
-1. Read \`~/.config/openpaw/lockin.json\`
-2. Check \`~/.config/openpaw/lockin-session.json\` — if it exists, a session is already active
-3. If there are \`askEachTime\` sites or apps, ask the user which to include this session
-4. Tell the user what you're about to do, then execute each enabled step:
+1. Check \`~/.config/openpaw/lockin-session.json\` — if it exists, a session is already active
+2. If there are \`askEachTime\` sites or apps, ask the user which to include this session
+3. Tell the user what you're about to do, then run:
 
-### Commands to Run (in order)
-
-**Block websites** (if \`blockedSites\` configured):
 \`\`\`bash
-# For each site in always + user-approved askEachTime list:
-echo "127.0.0.1 site.com # OPENPAW-LOCKIN
-127.0.0.1 www.site.com # OPENPAW-LOCKIN" | sudo tee -a /etc/hosts > /dev/null
-sudo dscacheutil -flushcache
-sudo killall -HUP mDNSResponder
-\`\`\`
-Blocked sites show a custom roast page with a random witty message, time remaining, and attempt counter.
-
-**Quit apps** (if \`quitApps\` configured):
-\`\`\`bash
-osascript -e 'quit app "AppName"'
+openpaw lockin start        # Start with "always" sites/apps only
+openpaw lockin start --all  # Include all ask-each-time sites/apps too
 \`\`\`
 
-**Connect bluetooth** (if \`bluetooth\` configured):
-\`\`\`bash
-blu connect "device name"
-\`\`\`
-
-**Play music** (if \`music\` configured):
-\`\`\`bash
-# spotify:
-spogo search playlist "query" --play
-# apple-music:
-osascript -e 'tell application "Music" to play playlist "query"'
-# sonos:
-sonos play "query"
-# youtube (yt-dlp — prefix non-URLs with ytsearch1:):
-yt-dlp -x --audio-format mp3 -o "/tmp/openpaw-lockin.%(ext)s" "ytsearch1:query" && afplay /tmp/openpaw-lockin.mp3 &
-\`\`\`
-
-**Set lights** (if \`lights\` configured):
-\`\`\`bash
-openhue set room "room" --on --brightness N --color "color"
-\`\`\`
-
-**Arrange windows** (if \`windows\` configured):
-Run \`openpaw lockin start\` which handles window arrangement automatically.
-Windows are saved and restored when the session ends.
-
-**Enable DND** (if \`dnd: true\`):
-\`\`\`bash
-defaults -currentHost write ~/Library/Preferences/ByHost/com.apple.notificationcenterui doNotDisturb -boolean true
-killall NotificationCenter
-\`\`\`
-
-**Slack DND** (if \`slackDnd: true\`):
-\`\`\`bash
-slack dnd set <duration>
-\`\`\`
-
-**Write the session file** to \`~/.config/openpaw/lockin-session.json\`:
-\`\`\`json
-{
-  "startedAt": "<ISO timestamp>",
-  "endsAt": "<ISO timestamp + duration>",
-  "config": { ... },
-  "blockedSiteAttempts": 0,
-  "gitCommitsBefore": <output of git rev-list --count HEAD>
-}
-\`\`\`
-
-**Start the auto-end timer:**
-\`\`\`bash
-openpaw lockin auto-end &
-\`\`\`
-This sleeps for the duration, then restores everything and sends a summary via Telegram.
-
-Or run \`openpaw lockin start\` to do all of the above automatically.
+This single command handles everything:
+- Blocks configured websites (with a custom roast page on blocked sites)
+- Quits distracting apps
+- Connects Bluetooth devices
+- Plays music
+- Sets smart lights
+- Enables macOS DND and Slack DND
+- Centers the active app and minimizes other windows
+- Saves window positions for later restore
+- Starts auto-end timer (sends summary via Telegram when done)
 
 ## Ending a Lock In Session
 
 When the user says "stop", "end session", "I'm done", or the timer fires:
 
-1. **Restore environment:**
 \`\`\`bash
-# Unblock sites
-sudo sed -i '' '/OPENPAW-LOCKIN/d' /etc/hosts
-sudo dscacheutil -flushcache
-# Disable DND
-defaults -currentHost write ~/Library/Preferences/ByHost/com.apple.notificationcenterui doNotDisturb -boolean false
-killall NotificationCenter
-# Stop music (use the matching command for the source)
-spogo pause
+openpaw lockin end
 \`\`\`
 
-2. **Generate receipt:**
-\`\`\`bash
-git rev-list --count HEAD  # subtract gitCommitsBefore from session file
-git diff --stat HEAD~N HEAD
-\`\`\`
+This restores everything and prints a receipt with:
+- Session duration
+- Git commits made (with commit messages)
+- Lines added/removed
+- Blocked site attempt count
 
-3. **Summarize naturally** — how long they locked in, commits made, lines added/removed. Be encouraging.
-4. **Log to Obsidian** if \`obsidianLog: true\`
-5. Delete \`~/.config/openpaw/lockin-session.json\`
-
-## Reconfigure
+## Other Commands
 
 \`\`\`bash
-openpaw lockin setup      # Interactive wizard
-openpaw lockin configure  # Alias
+openpaw lockin status     # Check if a session is active
+openpaw lockin setup      # Interactive setup wizard
+openpaw lockin configure  # Alias for setup
 \`\`\`
 
 ## Guidelines
 
 - Only start a session when the user explicitly asks — never suggest unprompted
-- Always tell the user what you're doing before each step
-- If a command fails (e.g. sudo denied), tell the user and continue with other steps
-- Skip any step whose config field is missing or false
+- Always tell the user what you're about to do before running start
 - Reference SOUL.md for personal preferences
 - When ending, write a human summary — don't just dump numbers
+- Include commit messages in the summary to highlight what they accomplished
 `;
 
 	fs.writeFileSync(path.join(skillDir, "SKILL.md"), md);
@@ -1015,7 +889,7 @@ function printConfig(config: LockInConfig): void {
 	if (config.bluetooth) lines.push(`${bold("Bluetooth:")}     ${config.bluetooth.device}`);
 	if (config.music) lines.push(`${bold("Music:")}         ${config.music.source} → ${config.music.query}`);
 	if (config.lights) lines.push(`${bold("Lights:")}        ${config.lights.room} at ${config.lights.brightness}%${config.lights.color ? ` (${config.lights.color})` : ""}`);
-	if (config.windows) lines.push(`${bold("Windows:")}       ${config.windows.layout}${config.windows.ide ? ` (${config.windows.ide})` : ""}`);
+	lines.push(`${bold("Windows:")}       auto (center active app)`);
 
 	const flags: string[] = [];
 	if (config.dnd) flags.push("DND");
