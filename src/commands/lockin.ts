@@ -280,11 +280,11 @@ export async function lockInSetupCommand(): Promise<void> {
 					{ value: "_custom", label: "Type a playlist or station..." },
 				],
 				youtube: [
-					{ value: "https://www.youtube.com/watch?v=nMfPqeZjc2c", label: "White noise" },
-					{ value: "https://www.youtube.com/watch?v=jfKfPfyJRdk", label: "Lo-fi hip hop" },
-					{ value: "https://www.youtube.com/watch?v=eKFTSSKCzWA", label: "Rain sounds" },
-					{ value: "https://www.youtube.com/watch?v=lSTgq3bSXNI", label: "Waterfall" },
-					{ value: "https://www.youtube.com/watch?v=GSaJXDsb3N8", label: "Brown noise" },
+					{ value: "https://www.youtube.com/watch?v=nMfPqeZjc2c", label: "White noise", hint: "10h" },
+					{ value: "https://www.youtube.com/watch?v=jfKfPfyJRdk", label: "Lo-fi hip hop", hint: "Lofi Girl livestream" },
+					{ value: "https://www.youtube.com/watch?v=jX6kn9_U8qk", label: "Rain sounds", hint: "10h" },
+					{ value: "https://www.youtube.com/watch?v=jkLRith2wcc", label: "Water/stream sounds", hint: "10h" },
+					{ value: "https://www.youtube.com/watch?v=GSaJXDsb3N8", label: "Brown noise", hint: "8h" },
 					{ value: "_custom", label: "Custom URL..." },
 				],
 			};
