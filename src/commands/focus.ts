@@ -253,6 +253,189 @@ function scheduleEndNotification(minutes: number): void {
 	} catch {}
 }
 
+// ── Non-interactive commands (for Claude Code) ──
+
+export function focusStartCommand(opts: { all?: boolean }): void {
+	const config = readFocusConfig();
+	if (!config) {
+		console.log("Focus Mode not configured. Run: openpaw focus setup");
+		process.exit(1);
+	}
+
+	const session = readFocusSession();
+	if (session) {
+		const endsAt = new Date(session.endsAt);
+		if (endsAt > new Date()) {
+			const remaining = Math.round((endsAt.getTime() - Date.now()) / 60000);
+			console.log(`Focus session already active. ${remaining} min remaining.`);
+			console.log(`Run "openpaw focus end" to stop early.`);
+			return;
+		}
+		// Expired — clean up silently
+		restoreEnvironment(config);
+		clearFocusSession();
+	}
+
+	const actions: string[] = [];
+
+	// Block sites
+	const sites = opts.all
+		? [...(config.blockedSites?.always ?? []), ...(config.blockedSites?.askEachTime ?? [])]
+		: [...(config.blockedSites?.always ?? [])];
+	if (sites.length > 0) {
+		blockSites(sites);
+		actions.push(`Blocked ${sites.length} sites`);
+	}
+
+	// Quit apps
+	const apps = opts.all
+		? [...(config.quitApps?.always ?? []), ...(config.quitApps?.askEachTime ?? [])]
+		: [...(config.quitApps?.always ?? [])];
+	if (apps.length > 0) {
+		quitApps(apps);
+		actions.push(`Quit ${apps.length} apps: ${apps.join(", ")}`);
+	}
+
+	// Bluetooth
+	if (config.bluetooth?.device) {
+		connectBluetooth(config.bluetooth.device);
+		actions.push(`Connected ${config.bluetooth.device}`);
+	}
+
+	// Music
+	if (config.music) {
+		startMusic(config.music);
+		actions.push(`Playing ${config.music.source}: ${config.music.query}`);
+	}
+
+	// Lights
+	if (config.lights) {
+		setLights(config.lights.room, config.lights.brightness, config.lights.color);
+		actions.push(`Set ${config.lights.room} lights to ${config.lights.brightness}%`);
+	}
+
+	// DND
+	if (config.dnd) {
+		enableDnd();
+		actions.push("Enabled Do Not Disturb");
+	}
+
+	// Slack DND
+	if (config.slackDnd) {
+		enableSlackDnd(config.duration);
+		actions.push(`Set Slack DND for ${config.duration} min`);
+	}
+
+	// Save session
+	const now = new Date();
+	writeFocusSession({
+		startedAt: now.toISOString(),
+		endsAt: new Date(now.getTime() + config.duration * 60000).toISOString(),
+		config,
+		blockedSiteAttempts: 0,
+		gitCommitsBefore: getGitCommitCount(),
+	});
+
+	// Timer
+	if (config.timer) {
+		sendNotification("Focus Mode", `${config.duration} minutes starts now.`);
+		scheduleEndNotification(config.duration);
+	}
+
+	// Plain text output for Claude
+	console.log(`Focus session started (${config.duration} min)`);
+	for (const a of actions) console.log(`  - ${a}`);
+	console.log(`\nEnds at: ${new Date(now.getTime() + config.duration * 60000).toLocaleTimeString()}`);
+	console.log(`Run "openpaw focus end" when done.`);
+}
+
+export function focusEndCommand(): void {
+	const config = readFocusConfig();
+	const session = readFocusSession();
+
+	if (!session) {
+		console.log("No active focus session.");
+		return;
+	}
+
+	if (config) {
+		restoreEnvironment(config);
+	}
+
+	// Generate receipt
+	const startTime = new Date(session.startedAt);
+	const elapsed = Math.round((Date.now() - startTime.getTime()) / 60000);
+	const stats = getGitDiffStats(session.gitCommitsBefore);
+
+	console.log("Focus session ended.\n");
+	console.log("--- Focus Receipt ---");
+	console.log(`Duration:      ${elapsed} min`);
+	console.log(`Commits:       ${stats.commits}`);
+	console.log(`Lines added:   +${stats.linesAdded}`);
+	console.log(`Lines removed: -${stats.linesRemoved}`);
+	if (config?.blockedSites) {
+		const total = (config.blockedSites.always?.length ?? 0) + (config.blockedSites.askEachTime?.length ?? 0);
+		console.log(`Sites blocked: ${total}`);
+	}
+	console.log("---------------------");
+
+	// Obsidian log
+	if (config?.obsidianLog) {
+		logToObsidian(elapsed, stats);
+		console.log("Logged to Obsidian.");
+	}
+
+	// Notification
+	if (config?.timer) {
+		sendNotification("Focus Complete", `${elapsed} min session. ${stats.commits} commits.`);
+	}
+
+	clearFocusSession();
+}
+
+export function focusStatusCommand(): void {
+	const config = readFocusConfig();
+	if (!config) {
+		console.log("Focus Mode not configured. Run: openpaw focus setup");
+		return;
+	}
+
+	const session = readFocusSession();
+	if (!session) {
+		console.log("No active focus session.");
+		console.log(`\nConfig: ${config.duration} min sessions`);
+		if (config.blockedSites) console.log(`  Sites: ${config.blockedSites.always.length} always, ${config.blockedSites.askEachTime.length} ask-each-time`);
+		if (config.quitApps) console.log(`  Apps: ${config.quitApps.always.length} always, ${config.quitApps.askEachTime.length} ask-each-time`);
+		if (config.music) console.log(`  Music: ${config.music.source} → ${config.music.query}`);
+		if (config.bluetooth) console.log(`  Bluetooth: ${config.bluetooth.device}`);
+		if (config.lights) console.log(`  Lights: ${config.lights.room} at ${config.lights.brightness}%`);
+		console.log(`\nRun "openpaw focus start" to begin.`);
+		return;
+	}
+
+	const endsAt = new Date(session.endsAt);
+	const now = new Date();
+
+	if (endsAt > now) {
+		const remaining = Math.round((endsAt.getTime() - now.getTime()) / 60000);
+		const elapsed = Math.round((now.getTime() - new Date(session.startedAt).getTime()) / 60000);
+		console.log(`Focus session active.`);
+		console.log(`  Elapsed:   ${elapsed} min`);
+		console.log(`  Remaining: ${remaining} min`);
+		console.log(`  Ends at:   ${endsAt.toLocaleTimeString()}`);
+	} else {
+		console.log("Focus session expired. Run \"openpaw focus end\" to clean up and see receipt.");
+	}
+}
+
+function restoreEnvironment(config: FocusConfig): void {
+	if (config.blockedSites && (config.blockedSites.always.length > 0 || config.blockedSites.askEachTime.length > 0)) {
+		unblockSites();
+	}
+	if (config.dnd) disableDnd();
+	if (config.music) stopMusic(config.music.source);
+}
+
 // ── Focus Setup ──
 
 export async function focusSetupCommand(): Promise<void> {

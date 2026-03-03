@@ -6,62 +6,74 @@ tags: [focus, productivity, deep-work, pomodoro, distraction-blocking]
 
 ## What This Skill Does
 
-Enables Claude to manage focus sessions that orchestrate multiple skills simultaneously — blocking distracting websites, quitting apps, connecting headphones, starting music, dimming lights, enabling Do Not Disturb, and tracking productivity.
+Manages focus sessions that orchestrate multiple actions — blocking websites, quitting apps, connecting headphones, starting music, dimming lights, enabling DND, and tracking productivity via git stats.
 
-## Commands
+## Commands for Claude
+
+Use these non-interactive commands:
 
 ```bash
-# Start a focus session (uses saved config)
-openpaw focus
+# Start a focus session (applies "always" config)
+openpaw focus start
 
-# Set up Focus Mode (auto-detects machine capabilities)
-openpaw focus setup
+# Start with ALL sites/apps (including "ask-each-time" ones)
+openpaw focus start --all
 
-# Reconfigure Focus Mode
-openpaw focus configure
+# Check if a session is active
+openpaw focus status
+
+# End the session — restores environment, prints receipt
+openpaw focus end
 ```
 
-## How Focus Mode Works
+## Interactive Commands (user runs directly)
 
-When the user says "focus", "deep work", "start a focus session", or similar:
+```bash
+openpaw focus setup      # Setup wizard (auto-detects capabilities)
+openpaw focus            # Interactive start (asks about ask-each-time items)
+openpaw focus configure  # Reconfigure
+```
 
-1. **Check config** — Run `openpaw focus` to start a session
-2. If not configured, suggest `openpaw focus setup`
-3. The command handles everything: site blocking, app quitting, bluetooth, music, lights, DND, Slack DND, timer
+## How to Use This Skill
 
-### What Gets Orchestrated
+When the user says "focus", "deep work", "lock in", or similar:
 
-| Action | How | Requires |
-|---|---|---|
-| Block websites | `/etc/hosts` + DNS flush | sudo access |
-| Quit apps | `osascript -e 'quit app "X"'` | macOS |
-| Connect bluetooth | `blu connect "device"` | c-bluetooth |
-| Play music | `spogo`, `osascript`, `sonos`, `yt-dlp` | depends on source |
-| Set lights | `openhue set room` | c-lights |
-| Do Not Disturb | macOS defaults write | macOS |
-| Slack DND | `slack dnd set N` | c-slack |
-| Timer notification | `terminal-notifier` | c-notify |
+1. Run `openpaw focus status` to check current state
+2. If no session is active and there are ask-each-time items in config, ask the user if they want to include those too
+   - Yes → `openpaw focus start --all`
+   - No → `openpaw focus start`
+3. If no ask-each-time items, just run `openpaw focus start`
+4. Tell the user what was activated (the command prints this)
 
-### Focus Receipt
+When the user says "stop focus", "end focus", "I'm done":
 
-When a session ends, a receipt shows:
-- Duration
-- Git commits made during session
-- Lines added/removed
-- Sites blocked count
+1. Run `openpaw focus end`
+2. Read the receipt and **summarize the session** naturally:
+   - How long they focused
+   - Commits made, lines written
+   - Encourage them based on the output
 
-Can optionally log to Obsidian or send via Telegram.
+If not configured: suggest `openpaw focus setup`
 
-## Config Location
+## What Gets Orchestrated
 
-`~/.config/openpaw/focus.json`
+| Action | How |
+|---|---|
+| Block websites | `/etc/hosts` + DNS flush (sudo) |
+| Quit apps | `osascript` |
+| Bluetooth | `blu connect` |
+| Music | spogo / osascript / sonos / yt-dlp |
+| Lights | `openhue set room` |
+| Do Not Disturb | macOS defaults |
+| Slack DND | `slack dnd set` |
+| Timer | background `terminal-notifier` |
 
-Supports "always" vs "ask-each-time" lists for both websites and apps.
+## Config
 
-## Usage Guidelines
+`~/.config/openpaw/focus.json` — supports "always" vs "ask-each-time" for sites and apps.
 
-- When the user asks to focus or start deep work, run `openpaw focus`
-- If they want to change settings, run `openpaw focus setup`
-- If they say "stop focus" or "end focus", run `openpaw focus` (it detects active session and offers to end)
-- Don't suggest focus mode unprompted — only when the user expresses intent to concentrate
-- Reference SOUL.md for the user's preferred focus duration and music preferences
+## Guidelines
+
+- Don't suggest focus mode unprompted — only when the user expresses intent
+- When ending, summarize the receipt naturally, don't just dump numbers
+- Reference SOUL.md for the user's focus preferences

@@ -12,7 +12,7 @@ import { exportCommand, importCommand } from "./commands/export.js";
 import { telegramCommand, telegramSetupCommand } from "./commands/telegram.js";
 import { dashboardCommand } from "./commands/dashboard.js";
 import { configureCommand } from "./commands/configure.js";
-import { focusCommand, focusSetupCommand, focusConfigureCommand } from "./commands/focus.js";
+import { focusCommand, focusSetupCommand, focusConfigureCommand, focusStartCommand, focusEndCommand, focusStatusCommand } from "./commands/focus.js";
 import {
 	scheduleAddCommand,
 	scheduleListCommand,
@@ -112,6 +112,19 @@ const focus = program
 	.description("Start a focus session — block distractions, set the mood, get in the zone");
 
 focus.action(focusCommand);
+
+focus.command("start")
+	.description("Start a focus session (non-interactive, for Claude Code)")
+	.option("--all", "Include ask-each-time sites and apps")
+	.action((opts) => focusStartCommand(opts));
+
+focus.command("end")
+	.description("End the current focus session and show receipt")
+	.action(() => focusEndCommand());
+
+focus.command("status")
+	.description("Show current focus session status")
+	.action(() => focusStatusCommand());
 
 focus.command("setup")
 	.description("Set up or reconfigure Focus Mode")
