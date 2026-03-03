@@ -5,7 +5,7 @@ import { skills as catalog } from "../catalog/index.js";
 import { listInstalledSkills } from "./skills.js";
 import { readConfig as readDashboardConfig } from "./dashboard-server.js";
 import { readScheduleConfig } from "./scheduler.js";
-import { readFocusConfig } from "./focus.js";
+import { readLockInConfig } from "./lockin.js";
 import type { Skill } from "../types.js";
 
 const START_MARKER = "<!-- OPENPAW:START -->";
@@ -87,15 +87,15 @@ function generateSection(
 		}
 	} catch {}
 
-	// Check for focus mode
+	// Check for lock-in mode
 	try {
-		const focusConfig = readFocusConfig();
-		if (focusConfig) {
-			lines.push("## Focus Mode");
+		const lockInConfig = readLockInConfig();
+		if (lockInConfig) {
+			lines.push("## Lock In Mode");
 			lines.push("");
-			lines.push(`Focus Mode is configured (${focusConfig.duration} min sessions).`);
-			lines.push("When the user says \"focus\", \"deep work\", or similar, run `openpaw focus` to start a session.");
-			lines.push("Run `openpaw focus setup` to reconfigure.");
+			lines.push(`Lock In Mode is configured (${lockInConfig.duration} min sessions).`);
+			lines.push("When the user says \"lock in\", \"focus\", or similar, read the c-lockin SKILL.md and follow its instructions.");
+			lines.push("Run `openpaw lockin setup` to reconfigure.");
 			lines.push("");
 		}
 	} catch {}

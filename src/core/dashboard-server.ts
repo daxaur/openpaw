@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import * as crypto from "node:crypto";
-import { generateDashboardHTML } from "./dashboard-html.js";
+import { generateDashboardHTML, generateFocusTimerHTML } from "./dashboard-html.js";
 import type { DashboardConfig, DashboardTask, DashboardTheme } from "../types.js";
 
 const CONFIG_DIR = path.join(os.homedir(), ".config", "openpaw");
@@ -55,6 +55,7 @@ export function startDashboard(opts: {
 	port?: number;
 	theme?: DashboardTheme;
 	botName?: string;
+	noOpen?: boolean;
 }): http.Server {
 	const config = readConfig();
 	if (opts.theme) config.theme = opts.theme;
@@ -84,6 +85,35 @@ export function startDashboard(opts: {
 					writeConfig(current);
 				}
 				html(res, generateDashboardHTML(current.theme, current.botName));
+				return;
+			}
+
+			// ── GET /focus — focus timer page ──
+			if (method === "GET" && pathname === "/focus") {
+				const current = readConfig();
+				const ends = url.searchParams.get("ends") || "";
+				const dur = url.searchParams.get("duration") || "0";
+				html(
+					res,
+					generateFocusTimerHTML(
+						current.theme,
+						current.botName,
+						ends,
+						dur,
+					),
+				);
+				return;
+			}
+
+			// ── GET /api/focus — session data for timer ──
+			if (method === "GET" && pathname === "/api/focus") {
+				try {
+					const sessionPath = path.join(CONFIG_DIR, "lockin-session.json");
+					const raw = fs.readFileSync(sessionPath, "utf-8");
+					json(res, JSON.parse(raw));
+				} catch {
+					json(res, { active: false });
+				}
 				return;
 			}
 
@@ -170,16 +200,17 @@ export function startDashboard(opts: {
 		const url = `http://localhost:${port}`;
 		console.log(`\n  Dashboard running at ${url}\n`);
 
-		// Auto-open browser
-		const platform = os.platform();
-		if (platform === "darwin") {
-			import("node:child_process").then((cp) =>
-				cp.exec(`open ${url}`),
-			);
-		} else if (platform === "linux") {
-			import("node:child_process").then((cp) =>
-				cp.exec(`xdg-open ${url}`),
-			);
+		if (!opts.noOpen) {
+			const platform = os.platform();
+			if (platform === "darwin") {
+				import("node:child_process").then((cp) =>
+					cp.exec(`open ${url}`),
+				);
+			} else if (platform === "linux") {
+				import("node:child_process").then((cp) =>
+					cp.exec(`xdg-open ${url}`),
+				);
+			}
 		}
 	});
 

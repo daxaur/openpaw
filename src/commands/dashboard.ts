@@ -4,6 +4,7 @@ import type { DashboardTheme } from "../types.js";
 export function dashboardCommand(opts: {
 	port?: string;
 	theme?: string;
+	open?: boolean;
 }): void {
 	const port = opts.port ? Number.parseInt(opts.port, 10) : undefined;
 	const theme =
@@ -12,5 +13,5 @@ export function dashboardCommand(opts: {
 			? (opts.theme as DashboardTheme)
 			: undefined;
 
-	startDashboard({ port, theme });
+	startDashboard({ port, theme, noOpen: opts.open === false });
 }

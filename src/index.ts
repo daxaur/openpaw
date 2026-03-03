@@ -12,7 +12,7 @@ import { exportCommand, importCommand } from "./commands/export.js";
 import { telegramCommand, telegramSetupCommand } from "./commands/telegram.js";
 import { dashboardCommand } from "./commands/dashboard.js";
 import { configureCommand } from "./commands/configure.js";
-import { focusCommand, focusSetupCommand, focusConfigureCommand, focusStartCommand, focusEndCommand, focusStatusCommand, focusAutoEndCommand } from "./commands/focus.js";
+import { lockInCommand, lockInSetupCommand, lockInConfigureCommand, lockInGenScriptsCommand } from "./commands/lockin.js";
 import {
 	scheduleAddCommand,
 	scheduleListCommand,
@@ -97,6 +97,7 @@ program
 	.description("Start the task manager dashboard in your browser")
 	.option("-p, --port <port>", "Port to run on (default: 3141)")
 	.option("-t, --theme <theme>", "Theme: paw, midnight, or neon")
+	.option("--no-open", "Start server without opening browser")
 	.action(dashboardCommand);
 
 program
@@ -105,39 +106,29 @@ program
 	.description("Configure your setup — add skills, change personality, manage dashboard")
 	.action(configureCommand);
 
-// ── Focus ──
+// ── Lock In ──
 
-const focus = program
-	.command("focus")
-	.description("Start a focus session — block distractions, set the mood, get in the zone");
+const lockin = program
+	.command("lockin")
+	.description("Start a lock-in session — block distractions, set the mood, get in the zone");
 
-focus.action(focusCommand);
+lockin.action(lockInCommand);
 
-focus.command("start")
-	.description("Start a focus session (non-interactive, for Claude Code)")
-	.option("--all", "Include ask-each-time sites and apps")
-	.action((opts) => focusStartCommand(opts));
+lockin.command("setup")
+	.description("Set up or reconfigure Lock In Mode")
+	.action(lockInSetupCommand);
 
-focus.command("end")
-	.description("End the current focus session and show receipt")
-	.action(() => focusEndCommand());
-
-focus.command("status")
-	.description("Show current focus session status")
-	.action(() => focusStatusCommand());
-
-focus.command("auto-end")
-	.description("Auto-end focus session (internal — triggered by timer)")
-	.action(focusAutoEndCommand);
-
-focus.command("setup")
-	.description("Set up or reconfigure Focus Mode")
-	.action(focusSetupCommand);
-
-focus.command("configure")
+lockin.command("configure")
 	.alias("config")
-	.description("Reconfigure Focus Mode (alias for setup)")
-	.action(focusConfigureCommand);
+	.description("Reconfigure Lock In Mode (alias for setup)")
+	.action(lockInConfigureCommand);
+
+lockin.command("gen-scripts")
+	.description("Generate start/end shell scripts from config (used by Claude)")
+	.requiredOption("--ends <iso>", "Session end time (ISO 8601)")
+	.option("--extra-sites <sites>", "Comma-separated extra sites to block")
+	.option("--extra-apps <apps>", "Comma-separated extra apps to quit")
+	.action(lockInGenScriptsCommand);
 
 const tg = program
 	.command("telegram")
