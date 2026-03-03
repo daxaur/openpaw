@@ -52,6 +52,7 @@ echo "127.0.0.1 site.com # OPENPAW-LOCKIN
 sudo dscacheutil -flushcache
 sudo killall -HUP mDNSResponder
 ```
+Blocked sites show a custom roast page with a random witty message, time remaining, and attempt counter.
 
 **Quit apps** (if `quitApps` configured):
 ```bash

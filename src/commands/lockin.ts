@@ -32,6 +32,8 @@ import {
 	saveWindowPositions,
 	arrangeWindows,
 	restoreWindows,
+	startRoastServer,
+	stopRoastServer,
 	KNOWN_IDES,
 	KNOWN_TERMINALS,
 } from "../core/lockin.js";
@@ -211,6 +213,8 @@ export function lockInStartCommand(opts: { all?: boolean }): void {
 	}
 
 	const actions: string[] = [];
+	const now = new Date();
+	const endsAt = new Date(now.getTime() + config.duration * 60000);
 
 	// Block sites
 	const sites = opts.all
@@ -218,7 +222,8 @@ export function lockInStartCommand(opts: { all?: boolean }): void {
 		: [...(config.blockedSites?.always ?? [])];
 	if (sites.length > 0) {
 		blockSites(sites);
-		actions.push(`Blocked ${sites.length} sites`);
+		startRoastServer(endsAt.toISOString());
+		actions.push(`Blocked ${sites.length} sites (with roast page)`);
 	}
 
 	// Quit apps
@@ -269,10 +274,9 @@ export function lockInStartCommand(opts: { all?: boolean }): void {
 	}
 
 	// Save session
-	const now = new Date();
 	writeLockInSession({
 		startedAt: now.toISOString(),
-		endsAt: new Date(now.getTime() + config.duration * 60000).toISOString(),
+		endsAt: endsAt.toISOString(),
 		config,
 		blockedSiteAttempts: 0,
 		gitCommitsBefore: getGitCommitCount(),
@@ -291,7 +295,7 @@ export function lockInStartCommand(opts: { all?: boolean }): void {
 	// Plain text output for Claude
 	console.log(`Lock-in session started (${config.duration} min)`);
 	for (const a of actions) console.log(`  - ${a}`);
-	console.log(`\nEnds at: ${new Date(now.getTime() + config.duration * 60000).toLocaleTimeString()}`);
+	console.log(`\nEnds at: ${endsAt.toLocaleTimeString()}`);
 	console.log(`Run "openpaw lockin end" when done.`);
 }
 
@@ -377,6 +381,7 @@ export function lockInStatusCommand(): void {
 function restoreEnvironment(config: LockInConfig, session?: { savedWindowPositions?: string } | null): void {
 	if (config.blockedSites && (config.blockedSites.always.length > 0 || config.blockedSites.askEachTime.length > 0)) {
 		unblockSites();
+		stopRoastServer();
 	}
 	if (config.dnd) disableDnd();
 	if (config.music) stopMusic(config.music.source);
@@ -880,6 +885,7 @@ echo "127.0.0.1 site.com # OPENPAW-LOCKIN
 sudo dscacheutil -flushcache
 sudo killall -HUP mDNSResponder
 \`\`\`
+Blocked sites show a custom roast page with a random witty message, time remaining, and attempt counter.
 
 **Quit apps** (if \`quitApps\` configured):
 \`\`\`bash

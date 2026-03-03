@@ -1,13 +1,38 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { execSync } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 import type { LockInConfig, LockInSession } from "../types.js";
 
 const CONFIG_DIR = path.join(os.homedir(), ".config", "openpaw");
 const LOCKIN_PATH = path.join(CONFIG_DIR, "lockin.json");
 const SESSION_PATH = path.join(CONFIG_DIR, "lockin-session.json");
 const HOSTS_MARKER = "# OPENPAW-LOCKIN";
+const ROAST_PID_PATH = path.join(CONFIG_DIR, "roast-server.pid");
+const ROAST_SCRIPT_PATH = "/tmp/openpaw-roast-server.js";
+
+const ROASTS = [
+	"You literally just started focusing 30 seconds ago.",
+	"The internet will still be there when you're done.",
+	"Your future self is judging you right now.",
+	"This site isn't going anywhere. Your productivity is.",
+	"Even your cat is more focused than you right now.",
+	"The dopamine hit isn't worth it. Get back to work.",
+	"You're not 'just checking real quick.' You never are.",
+	"Your git commit count: still 0. Coincidence?",
+	"If you had a dollar for every time you tried this...",
+	"Focus mode exists because you can't be trusted. Exhibit A.",
+	"This is exactly why we can't have nice things.",
+	"Plot twist: nothing important happened on this site.",
+	"Your code isn't going to write itself. Unlike this roast.",
+	"Blocked. Ratio'd. Denied. Get back to work.",
+	"Every second you spend here is a second you're not shipping.",
+	"The only thing you should be browsing is your codebase.",
+	"Nice try. Now go make something cool.",
+	"This page is more productive than you were about to be.",
+	"You wanted to lock in. So lock in.",
+	"Remember why you started this session. It wasn't for this.",
+];
 
 function ensureDir(): void {
 	fs.mkdirSync(CONFIG_DIR, { recursive: true });
@@ -360,6 +385,97 @@ export function logToObsidian(duration: number, stats: { commits: number; linesA
 				{ stdio: "pipe" },
 			);
 		}
+	} catch {}
+}
+
+// ── Roast Server ──
+
+export function startRoastServer(endsAt: string): void {
+	ensureDir();
+
+	const serverScript = `
+const http = require('http');
+const fs = require('fs');
+const ROASTS = ${JSON.stringify(ROASTS)};
+const endsAt = new Date('${"{ENDS_AT}"}');
+const pidFile = '${ROAST_PID_PATH}';
+const sessionFile = '${SESSION_PATH}';
+
+fs.writeFileSync(pidFile, String(process.pid));
+
+const server = http.createServer((req, res) => {
+  const host = req.headers.host || 'blocked site';
+  const site = host.replace(/:\\d+$/, '');
+  const now = new Date();
+  const remaining = Math.max(0, Math.round((endsAt - now) / 60000));
+  const roast = ROASTS[Math.floor(Math.random() * ROASTS.length)];
+
+  let attempts = 0;
+  try {
+    const session = JSON.parse(fs.readFileSync(sessionFile, 'utf-8'));
+    session.blockedSiteAttempts = (session.blockedSiteAttempts || 0) + 1;
+    attempts = session.blockedSiteAttempts;
+    fs.writeFileSync(sessionFile, JSON.stringify(session, null, 2));
+  } catch {}
+
+  res.writeHead(200, { 'Content-Type': 'text/html' });
+  res.end(\`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Locked In</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#e0e0e0;font-family:-apple-system,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh}
+.card{text-align:center;max-width:500px;padding:3rem}
+.paw{font-size:4rem;margin-bottom:1rem}
+.site{color:#666;font-size:0.9rem;margin-bottom:1.5rem}
+.roast{font-size:1.4rem;font-weight:600;line-height:1.4;margin-bottom:2rem;background:linear-gradient(135deg,#ff6b6b,#ffa500);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.meta{color:#555;font-size:0.85rem;margin-bottom:1.5rem}
+.btn{background:#1a1a1a;border:1px solid #333;color:#888;padding:0.6rem 1.5rem;border-radius:8px;cursor:pointer;font-size:0.9rem;transition:all 0.2s}
+.btn:hover{border-color:#555;color:#aaa}
+</style></head><body>
+<div class="card">
+<div class="paw">\u{1F43E}</div>
+<div class="site">\${site}</div>
+<div class="roast">\${roast}</div>
+<div class="meta">\${remaining} min remaining \u00b7 attempt #\${attempts}</div>
+<button class="btn" onclick="window.close()">Get back to work</button>
+</div></body></html>\`);
+});
+
+server.listen(80, () => {});
+
+const checkInterval = setInterval(() => {
+  if (new Date() > endsAt) {
+    clearInterval(checkInterval);
+    server.close();
+    try { fs.unlinkSync(pidFile); } catch {}
+    process.exit(0);
+  }
+}, 30000);
+`.replace("{ENDS_AT}", endsAt);
+
+	try {
+		fs.writeFileSync(ROAST_SCRIPT_PATH, serverScript);
+
+		const child = spawn("sudo", ["node", ROAST_SCRIPT_PATH], {
+			detached: true,
+			stdio: "ignore",
+		});
+		child.unref();
+	} catch {}
+}
+
+export function stopRoastServer(): void {
+	try {
+		if (fs.existsSync(ROAST_PID_PATH)) {
+			const pid = fs.readFileSync(ROAST_PID_PATH, "utf-8").trim();
+			if (pid) {
+				execSync(`sudo kill ${pid} 2>/dev/null`, { stdio: "pipe" });
+			}
+			fs.unlinkSync(ROAST_PID_PATH);
+		}
+	} catch {}
+	try {
+		fs.unlinkSync(ROAST_SCRIPT_PATH);
 	} catch {}
 }
 
