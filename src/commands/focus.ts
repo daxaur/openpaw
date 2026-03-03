@@ -923,14 +923,14 @@ function generateFocusSkillMd(config: FocusConfig): void {
 	lines.push("");
 	lines.push('When the user says "focus", "deep work", "lock in", or similar:');
 	lines.push("");
-	lines.push("1. Read `~/.config/openpaw/focus.json` — if missing, suggest: `openpaw focus setup`");
-	lines.push("2. Check `~/.config/openpaw/focus-session.json` — if it exists, a session is already active");
+	lines.push("1. Check `~/.config/openpaw/focus-session.json` — if it exists, a session is already active");
 
-	if (config.blockedSites?.askEachTime?.length || config.quitApps?.askEachTime?.length) {
-		lines.push("3. Ask the user which ask-each-time items to include this session");
+	const hasAskEachTime = (config.blockedSites?.askEachTime?.length ?? 0) > 0 || (config.quitApps?.askEachTime?.length ?? 0) > 0;
+	if (hasAskEachTime) {
+		lines.push("2. Ask the user which ask-each-time items to include this session");
 	}
 
-	lines.push(`${config.blockedSites?.askEachTime?.length || config.quitApps?.askEachTime?.length ? "4" : "3"}. Tell the user what you're about to do, then execute each step:`);
+	lines.push(`${hasAskEachTime ? "3" : "2"}. Tell the user what you're about to do, then execute each step:`);
 	lines.push("");
 
 	// ── Commands ──
