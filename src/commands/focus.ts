@@ -4,6 +4,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { spawn } from "node:child_process";
 import { showMini, accent, dim, bold } from "../core/branding.js";
+import { getDefaultSkillsDir, listInstalledSkills } from "../core/skills.js";
 import {
 	readFocusConfig,
 	writeFocusConfig,
@@ -688,9 +689,37 @@ export async function focusSetupCommand(): Promise<void> {
 		config.obsidianLog = selected.includes("obsidianLog");
 	}
 
+	// ── Skills Directory ──
+	const defaultDir = getDefaultSkillsDir();
+	const installed = listInstalledSkills(defaultDir);
+	const hint = installed.length > 0 ? `${installed.length} skills installed here` : "recommended";
+
+	const skillsDir = await p.select({
+		message: "Where should the focus skill live?",
+		options: [
+			{ value: defaultDir, label: `Global ${dim("~/.claude/skills/")}`, hint },
+			{ value: ".claude/skills", label: `Project ${dim(".claude/skills/")}` },
+			{ value: "custom", label: "Custom path" },
+		],
+	});
+
+	let targetDir = p.isCancel(skillsDir) ? defaultDir : (skillsDir as string);
+	if (targetDir === "custom") {
+		const customDir = await p.text({
+			message: "Skills directory path:",
+			defaultValue: "",
+			validate: (v) => (v.length === 0 ? "Path cannot be empty" : undefined),
+		});
+		if (p.isCancel(customDir)) {
+			targetDir = defaultDir;
+		} else {
+			targetDir = (customDir as string).replace(/^~/, os.homedir());
+		}
+	}
+
 	// ── Save ──
 	writeFocusConfig(config);
-	installFocusSkillMd();
+	installFocusSkillMd(targetDir);
 
 	console.log("");
 	printConfig(config);
@@ -699,8 +728,8 @@ export async function focusSetupCommand(): Promise<void> {
 
 // ── Install SKILL.md ──
 
-function installFocusSkillMd(): void {
-	const skillDir = path.join(os.homedir(), ".claude", "skills", "c-focus");
+function installFocusSkillMd(skillsDir: string): void {
+	const skillDir = path.join(skillsDir, "c-focus");
 	fs.mkdirSync(skillDir, { recursive: true });
 
 	const md = `---
