@@ -1,16 +1,16 @@
 ---
 name: c-focus
-description: Focus Mode — orchestrate website blocking, app quitting, bluetooth, music, lights, DND, Slack, and timer based on user's saved preferences.
+description: Focus Mode — orchestrate distraction blocking, environment setup, and session tracking.
 tags: [focus, productivity, deep-work, pomodoro, distraction-blocking]
 ---
 
 ## What This Skill Does
 
-You orchestrate focus sessions by reading the user's config and executing shell commands directly. The config is created by `openpaw focus setup` — you don't need the CLI to run a session.
+You orchestrate focus sessions by reading the user's config and running shell commands directly.
 
 ## Config
 
-Read the user's preferences from `~/.config/openpaw/focus.json`. Example:
+Read `~/.config/openpaw/focus.json` for preferences. If missing, suggest: `openpaw focus setup`
 
 ```json
 {
@@ -18,7 +18,7 @@ Read the user's preferences from `~/.config/openpaw/focus.json`. Example:
   "bluetooth": { "device": "AirPods Pro" },
   "music": { "source": "spotify", "query": "lo-fi beats" },
   "blockedSites": {
-    "always": ["x.com", "reddit.com", "instagram.com"],
+    "always": ["x.com", "reddit.com"],
     "askEachTime": ["youtube.com"]
   },
   "quitApps": {
@@ -37,10 +37,10 @@ Read the user's preferences from `~/.config/openpaw/focus.json`. Example:
 
 When the user says "focus", "deep work", "lock in", or similar:
 
-1. Read `~/.config/openpaw/focus.json`. If missing, suggest: `openpaw focus setup`
+1. Read `~/.config/openpaw/focus.json`
 2. Check `~/.config/openpaw/focus-session.json` — if it exists, a session is already active
 3. If there are `askEachTime` sites or apps, ask the user which to include this session
-4. Tell the user what you're about to do, then execute each step:
+4. Tell the user what you're about to do, then execute each enabled step:
 
 ### Commands to Run (in order)
 
@@ -55,31 +55,29 @@ sudo killall -HUP mDNSResponder
 
 **Quit apps** (if `quitApps` configured):
 ```bash
-osascript -e 'quit app "Messages"'
-osascript -e 'quit app "Mail"'
-# etc.
+osascript -e 'quit app "AppName"'
 ```
 
 **Connect bluetooth** (if `bluetooth` configured):
 ```bash
-blu connect "AirPods Pro"
+blu connect "device name"
 ```
 
 **Play music** (if `music` configured):
 ```bash
-# Spotify:
-spogo search playlist "lo-fi beats" --play
-# Apple Music:
-osascript -e 'tell application "Music" to play playlist "Focus"'
-# Sonos:
-sonos play "playlist name"
-# YouTube (yt-dlp):
-yt-dlp -x --audio-format mp3 -o "/tmp/openpaw-focus.%(ext)s" "ytsearch1:white noise 1 hour" && afplay /tmp/openpaw-focus.mp3 &
+# spotify:
+spogo search playlist "query" --play
+# apple-music:
+osascript -e 'tell application "Music" to play playlist "query"'
+# sonos:
+sonos play "query"
+# youtube (yt-dlp — prefix non-URLs with ytsearch1:):
+yt-dlp -x --audio-format mp3 -o "/tmp/openpaw-focus.%(ext)s" "ytsearch1:query" && afplay /tmp/openpaw-focus.mp3 &
 ```
 
 **Set lights** (if `lights` configured):
 ```bash
-openhue set room "Office" --on --brightness 30 --color "warm"
+openhue set room "room" --on --brightness N --color "color"
 ```
 
 **Enable DND** (if `dnd: true`):
@@ -90,28 +88,27 @@ killall NotificationCenter
 
 **Slack DND** (if `slackDnd: true`):
 ```bash
-slack dnd set 90
+slack dnd set <duration>
 ```
 
-5. Write the session file to `~/.config/openpaw/focus-session.json`:
+**Write the session file** to `~/.config/openpaw/focus-session.json`:
 ```json
 {
-  "startedAt": "2026-03-03T10:00:00.000Z",
-  "endsAt": "2026-03-03T11:30:00.000Z",
+  "startedAt": "<ISO timestamp>",
+  "endsAt": "<ISO timestamp + duration>",
   "config": { ... },
   "blockedSiteAttempts": 0,
-  "gitCommitsBefore": 42
+  "gitCommitsBefore": <output of git rev-list --count HEAD>
 }
 ```
-Get `gitCommitsBefore` with: `git rev-list --count HEAD`
 
-6. Start the auto-end timer (sends Telegram summary when time is up):
+**Start the auto-end timer:**
 ```bash
 openpaw focus auto-end &
 ```
-This sleeps for the duration, then spawns a Claude session to restore everything and send a summary.
+This sleeps for the duration, then restores everything and sends a summary via Telegram.
 
-Or if you prefer, just run `openpaw focus start` to do steps 4-6 automatically.
+Or run `openpaw focus start` to do all of the above automatically.
 
 ## Ending a Focus Session
 
@@ -125,27 +122,21 @@ sudo dscacheutil -flushcache
 # Disable DND
 defaults -currentHost write ~/Library/Preferences/ByHost/com.apple.notificationcenterui doNotDisturb -boolean false
 killall NotificationCenter
-# Stop music
-spogo pause  # or: osascript -e 'tell application "Music" to pause'
+# Stop music (use the matching command for the source)
+spogo pause
 ```
 
-2. **Generate receipt** — read the session file and compute:
+2. **Generate receipt:**
 ```bash
-# Commits since session start
-git rev-list --count HEAD  # subtract gitCommitsBefore
-# Lines changed
+git rev-list --count HEAD  # subtract gitCommitsBefore from session file
 git diff --stat HEAD~N HEAD
 ```
 
-3. **Summarize naturally** — tell the user:
-   - How long they focused
-   - Commits made, lines added/removed
-   - Be encouraging and specific
-
-4. **Optional**: log to Obsidian if `obsidianLog: true`
+3. **Summarize naturally** — how long they focused, commits made, lines added/removed. Be encouraging.
+4. **Log to Obsidian** if `obsidianLog: true`
 5. Delete `~/.config/openpaw/focus-session.json`
 
-## Setup (user runs this)
+## Reconfigure
 
 ```bash
 openpaw focus setup      # Interactive wizard
@@ -157,5 +148,6 @@ openpaw focus configure  # Alias
 - Only start focus when the user explicitly asks — never suggest unprompted
 - Always tell the user what you're doing before each step
 - If a command fails (e.g. sudo denied), tell the user and continue with other steps
+- Skip any step whose config field is missing or false
 - Reference SOUL.md for personal preferences
 - When ending, write a human summary — don't just dump numbers
