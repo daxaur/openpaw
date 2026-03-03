@@ -29,44 +29,49 @@ When the user says "lock in", "focus", "deep work", or similar:
 7. Write the session file (see Session File section)
 8. Open the dashboard focus timer if the dashboard is running
 
-### Site Blocking (SelfControl)
+### Site Blocking (PAC File + Chrome Policy)
 
-Only if `siteBlocker` is `"selfcontrol"` and `blockedSites` has entries.
-
-SelfControl blocks cannot be ended early — this is by design. Warn the user before starting.
+Only if `blockedSites` has entries. No admin password required.
 
 1. Build the site list from `blockedSites.always` + any selected `askEachTime` sites
-2. Write a blocklist plist file. The format uses `HostBlacklist` (array of plain strings) and `BlockAsWhitelist` (bool):
+2. Write a PAC file that blocks those domains:
 
 ```bash
-cat > /tmp/lockin-blocklist.selfcontrol << 'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>HostBlacklist</key>
-    <array>
-        <string>x.com</string>
-        <string>reddit.com</string>
-    </array>
-    <key>BlockAsWhitelist</key>
-    <false/>
-</dict>
-</plist>
-PLIST
+cat > /tmp/lockin-block.pac << 'PACEOF'
+function FindProxyForURL(url, host) {
+  var blocked = [SITE_LIST];
+  for (var i = 0; i < blocked.length; i++) {
+    if (dnsDomainIs(host, blocked[i]) || dnsDomainIs(host, "www." + blocked[i])) {
+      return "PROXY 127.0.0.1:1";
+    }
+  }
+  return "DIRECT";
+}
+PACEOF
 ```
 
-Replace the example domains with the actual sites to block. Each site is a plain `<string>` entry — not a dict.
+Replace `SITE_LIST` with the actual domains as quoted strings, e.g. `"x.com","reddit.com","youtube.com"`
 
-3. Start the block:
+3. Serve the PAC file locally:
 
 ```bash
-/Applications/SelfControl.app/Contents/MacOS/selfcontrol-cli start \
-  --blocklist /tmp/lockin-blocklist.selfcontrol \
-  --enddate "ENDS_AT_ISO8601"
+python3 -m http.server 9777 --directory /tmp &>/dev/null &
 ```
 
-This will prompt for admin credentials via a native macOS dialog (not in terminal).
+4. Set the system auto-proxy URL:
+
+```bash
+networksetup -setautoproxyurl Wi-Fi "http://127.0.0.1:9777/lockin-block.pac"
+```
+
+5. Add Chrome-level blocking (covers incognito, proxy bypass):
+
+```bash
+defaults write com.google.Chrome URLBlocklist -array CHROME_BLOCKLIST
+defaults write com.google.Chrome IncognitoModeAvailability -integer 1
+```
+
+Replace `CHROME_BLOCKLIST` with each site as a separate string arg, e.g. `"*://x.com/*" "*://www.x.com/*" "*://reddit.com/*" "*://www.reddit.com/*"`
 
 ### Quit Apps
 
@@ -129,20 +134,30 @@ Only if `timer` is true:
 
 ### Dashboard Focus Timer
 
-If the dashboard is running (port 3141), open the timer page:
+If the dashboard is running (port 3141), open the timer page and position it top-left:
 
 ```bash
 open "http://localhost:3141/focus?ends=ENDS_AT_ISO8601&duration=DURATION_MIN"
 ```
 
-### Window Positioning
-
-After all setup, arrange windows for focus:
+Then position the browser window at top-left:
 
 ```bash
-# Get screen size
-SCREEN_SIZE=$(osascript -e 'tell application "Finder" to get bounds of window of desktop' 2>/dev/null || echo "0, 0, 1920, 1080")
+osascript -e '
+tell application "System Events"
+    set frontApp to name of first application process whose frontmost is true
+end tell
+tell application frontApp
+    set bounds of front window to {0, 25, 400, 325}
+end tell
+'
+```
 
+### Window Positioning
+
+After opening the timer, switch to the coding app and arrange it for focus:
+
+```bash
 # Center the frontmost app (your coding window) at ~80% screen
 osascript -e '
 tell application "System Events"
@@ -167,6 +182,7 @@ end tell
 ```
 
 Calculate centered bounds: x = (screen_width - window_width) / 2, y = 50, width = screen_width * 0.8, height = screen_height - 100.
+Get screen size: `osascript -e 'tell application "Finder" to get bounds of window of desktop' 2>/dev/null || echo "0, 0, 1920, 1080"`
 
 ### Session File
 
@@ -190,9 +206,22 @@ When the user says "stop", "end session", "I'm done":
 
 Run each step ONE AT A TIME:
 
-1. **Disable DND**: `defaults -currentHost write com.apple.notificationcenterui doNotDisturb -boolean false && killall NotificationCenter 2>/dev/null`
-2. **Stop music**: `osascript -e 'tell application "Music" to pause' 2>/dev/null; osascript -e 'tell application "Spotify" to pause' 2>/dev/null`
-3. **SelfControl**: blocks expire on their own — nothing to do
+1. **Remove site blocking**:
+
+```bash
+networksetup -setautoproxystate Wi-Fi off
+```
+
+```bash
+pkill -f "python3 -m http.server 9777" 2>/dev/null; rm -f /tmp/lockin-block.pac
+```
+
+```bash
+defaults delete com.google.Chrome URLBlocklist 2>/dev/null; defaults delete com.google.Chrome IncognitoModeAvailability 2>/dev/null
+```
+
+2. **Disable DND**: `defaults -currentHost write com.apple.notificationcenterui doNotDisturb -boolean false && killall NotificationCenter 2>/dev/null`
+3. **Stop music**: `osascript -e 'tell application "Music" to pause' 2>/dev/null; osascript -e 'tell application "Spotify" to pause' 2>/dev/null`
 4. **Git receipt**: gather stats since session start
 
 ```bash
@@ -225,7 +254,6 @@ openpaw lockin configure  # Alias for setup
 - Always tell the user what you're about to do before starting
 - If a command fails, tell the user and continue with the next step
 - Skip any step whose config field is missing or false
-- Warn about SelfControl blocks being unbypassable before starting
 - Reference SOUL.md for personal preferences
 - When ending, write a human summary — don't just dump numbers
 - Include commit messages in the summary to highlight what they accomplished

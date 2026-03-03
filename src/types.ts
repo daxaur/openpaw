@@ -150,7 +150,6 @@ export interface LockInConfig {
 	duration: number;
 	bluetooth?: { device: string };
 	music?: LockInMusicConfig;
-	siteBlocker?: "selfcontrol";
 	blockedSites?: {
 		always: string[];
 		askEachTime: string[];
