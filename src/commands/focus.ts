@@ -1,4 +1,5 @@
 import * as p from "@clack/prompts";
+import * as path from "node:path";
 import chalk from "chalk";
 import { spawn } from "node:child_process";
 import { showMini, accent, dim, bold } from "../core/branding.js";
@@ -172,11 +173,14 @@ export async function focusCommand(): Promise<void> {
 	};
 	writeFocusSession(session);
 
-	// Timer: notify at start + schedule end notification in background
+	// Timer notification at start
 	if (config.timer) {
 		sendNotification("Focus Mode", `${config.duration} minutes starts now. Get after it.`);
 		scheduleEndNotification(config.duration);
 	}
+
+	// Schedule auto-end: Claude session fires when time is up
+	scheduleFocusEndSession(config.duration);
 
 	console.log("");
 	p.log.success(`${bold(config.duration + " minutes")} of focus. Go build something great.`);
@@ -251,6 +255,101 @@ function scheduleEndNotification(minutes: number): void {
 		});
 		child.unref();
 	} catch {}
+}
+
+function scheduleFocusEndSession(minutes: number): void {
+	const seconds = minutes * 60;
+	// Resolve the CLI entry point so it works from any cwd
+	const cli = path.resolve(process.argv[1]);
+	try {
+		// Sleep N minutes, then run `openpaw focus auto-end` which spawns a Claude session
+		const child = spawn("sh", ["-c", `sleep ${seconds} && node "${cli}" focus auto-end`], {
+			detached: true,
+			stdio: "ignore",
+			env: { ...process.env },
+		});
+		child.unref();
+	} catch {}
+}
+
+/**
+ * Auto-end: spawns a Claude session that ends the focus, reads the receipt,
+ * and sends a natural summary via Telegram (or saves to file).
+ */
+export async function focusAutoEndCommand(): Promise<void> {
+	const config = readFocusConfig();
+	const session = readFocusSession();
+	if (!session || !config) return;
+
+	// Restore environment first
+	restoreEnvironment(config);
+
+	// Generate receipt data
+	const startTime = new Date(session.startedAt);
+	const elapsed = Math.round((Date.now() - startTime.getTime()) / 60000);
+	const stats = getGitDiffStats(session.gitCommitsBefore);
+
+	const receipt = [
+		`Duration: ${elapsed} min`,
+		`Commits: ${stats.commits}`,
+		`Lines added: +${stats.linesAdded}`,
+		`Lines removed: -${stats.linesRemoved}`,
+	].join("\n");
+
+	// Obsidian log
+	if (config.obsidianLog) {
+		logToObsidian(elapsed, stats);
+	}
+
+	clearFocusSession();
+
+	// Spawn a Claude session to write a natural summary
+	try {
+		const { query } = await import("@anthropic-ai/claude-agent-sdk");
+		const prompt = `The user's focus session just ended. Here are the stats:\n\n${receipt}\n\nWrite a brief, encouraging 2-3 sentence summary of their focus session. Be specific about the numbers. If they made commits, acknowledge their productivity. If not, that's fine too — they were focused. Keep it casual and warm.`;
+
+		let summary = "";
+		const q = query({
+			prompt,
+			options: {
+				model: "claude-haiku-4-5-20251001",
+				permissionMode: "bypassPermissions",
+				allowDangerouslySkipPermissions: true,
+				maxTurns: 1,
+			},
+		});
+
+		for await (const message of q) {
+			if (message.type === "result") {
+				const result = message as { result?: string };
+				if (result.result) summary = result.result;
+			}
+		}
+
+		if (!summary) summary = `Focus session complete: ${elapsed} min, ${stats.commits} commits, +${stats.linesAdded}/-${stats.linesRemoved} lines.`;
+
+		// Deliver via Telegram if available, otherwise notification
+		try {
+			const { readTelegramConfig } = await import("../core/telegram.js");
+			const tgConfig = readTelegramConfig();
+			if (tgConfig) {
+				for (const userId of tgConfig.allowedUserIds) {
+					await fetch(`https://api.telegram.org/bot${tgConfig.botToken}/sendMessage`, {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ chat_id: userId, text: `🎯 *Focus Complete*\n\n${summary}`, parse_mode: "Markdown" }),
+					});
+				}
+				return;
+			}
+		} catch {}
+
+		// Fallback: native notification
+		sendNotification("Focus Complete", summary.slice(0, 200));
+	} catch {
+		// SDK not available — just send basic notification
+		sendNotification("Focus Complete", `${elapsed} min session done. ${stats.commits} commits.`);
+	}
 }
 
 // ── Non-interactive commands (for Claude Code) ──
@@ -341,6 +440,9 @@ export function focusStartCommand(opts: { all?: boolean }): void {
 		sendNotification("Focus Mode", `${config.duration} minutes starts now.`);
 		scheduleEndNotification(config.duration);
 	}
+
+	// Schedule auto-end: Claude session fires when time is up
+	scheduleFocusEndSession(config.duration);
 
 	// Plain text output for Claude
 	console.log(`Focus session started (${config.duration} min)`);
