@@ -139,7 +139,7 @@ export interface DashboardConfig {
 
 // ── Focus Mode ──
 
-export type FocusMusicSource = "spotify" | "apple-music" | "sonos" | "youtube" | "url" | "local";
+export type FocusMusicSource = "spotify" | "apple-music" | "sonos" | "youtube";
 
 export interface FocusMusicConfig {
 	source: FocusMusicSource;
@@ -161,10 +161,8 @@ export interface FocusConfig {
 	lights?: { room: string; brightness: number; color?: string };
 	dnd: boolean;
 	slackDnd: boolean;
-	calendarBlock: boolean;
 	timer: boolean;
 	obsidianLog: boolean;
-	telegramNotify: boolean;
 }
 
 export interface FocusSession {

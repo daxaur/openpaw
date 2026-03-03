@@ -233,14 +233,9 @@ async function endFocusSession(config: FocusConfig, session: { startedAt: string
 		p.log.info(dim("Logged to Obsidian."));
 	}
 
-	// Telegram notify
-	if (config.telegramNotify) {
-		sendNotification("Focus Complete", `${elapsed} min session done. ${stats.commits} commits, +${stats.linesAdded}/-${stats.linesRemoved} lines.`);
-	}
-
-	// Timer notification
+	// End notification (background timer handles the scheduled one, this is for early end)
 	if (config.timer) {
-		sendNotification("Focus Session Complete", `${elapsed} minutes of focus. ${stats.commits} commits.`);
+		sendNotification("Focus Complete", `${elapsed} min session. ${stats.commits} commits, +${stats.linesAdded}/-${stats.linesRemoved} lines.`);
 	}
 
 	clearFocusSession();
@@ -544,8 +539,8 @@ export async function focusSetupCommand(): Promise<void> {
 				config.lights = { room, brightness: parseInt(brightnessVal as string, 10) };
 
 				const color = await p.text({
-					message: "Color? (warm, cool, red, etc — or skip)",
-					placeholder: "warm",
+					message: "Color? (warm, cool, red, etc — enter to skip)",
+					defaultValue: "",
 				});
 				if (!p.isCancel(color) && (color as string).trim()) {
 					config.lights.color = (color as string).trim();
@@ -560,10 +555,8 @@ export async function focusSetupCommand(): Promise<void> {
 		options: [
 			{ value: "dnd", label: "macOS Do Not Disturb", hint: "silence all notifications" },
 			...(caps.hasSlack ? [{ value: "slackDnd", label: "Slack DND", hint: `auto-set for ${config.duration} min` }] : []),
-			{ value: "calendarBlock", label: "Calendar block", hint: "create a busy event" },
-			{ value: "timer", label: "Timer notification", hint: "notify when session ends" },
+			...(caps.hasTerminalNotifier ? [{ value: "timer", label: "Timer notification", hint: "notify when session ends" }] : []),
 			...(caps.hasObsidian ? [{ value: "obsidianLog", label: "Log to Obsidian", hint: "save focus receipt" }] : []),
-			...(caps.hasTelegram ? [{ value: "telegramNotify", label: "Telegram notification", hint: "send receipt via Telegram" }] : []),
 		],
 		required: false,
 	});
@@ -572,10 +565,8 @@ export async function focusSetupCommand(): Promise<void> {
 		const selected = toggles as string[];
 		config.dnd = selected.includes("dnd");
 		config.slackDnd = selected.includes("slackDnd");
-		config.calendarBlock = selected.includes("calendarBlock");
 		config.timer = selected.includes("timer");
 		config.obsidianLog = selected.includes("obsidianLog");
-		config.telegramNotify = selected.includes("telegramNotify");
 	}
 
 	// ── Save ──
@@ -599,7 +590,6 @@ function printConfig(config: FocusConfig): void {
 	lines.push(`${bold("Duration:")}      ${config.duration} min`);
 
 	if (config.blockedSites) {
-		const total = config.blockedSites.always.length + config.blockedSites.askEachTime.length;
 		lines.push(`${bold("Sites:")}         ${config.blockedSites.always.length} always blocked, ${config.blockedSites.askEachTime.length} ask-each-time`);
 	}
 	if (config.quitApps) {
@@ -612,10 +602,8 @@ function printConfig(config: FocusConfig): void {
 	const flags: string[] = [];
 	if (config.dnd) flags.push("DND");
 	if (config.slackDnd) flags.push("Slack DND");
-	if (config.calendarBlock) flags.push("Cal block");
 	if (config.timer) flags.push("Timer");
 	if (config.obsidianLog) flags.push("Obsidian log");
-	if (config.telegramNotify) flags.push("Telegram");
 	if (flags.length) lines.push(`${bold("Extras:")}        ${flags.join(", ")}`);
 
 	p.note(lines.join("\n"), "Focus Config");

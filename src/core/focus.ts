@@ -183,11 +183,10 @@ export function blockSites(sites: string[]): void {
 	const allLines = [...lines, ...wwwLines].join("\n");
 
 	try {
-		// Append to /etc/hosts (requires sudo)
+		// Append to /etc/hosts (requires sudo — inherit stdio so user can enter password)
 		execSync(`echo '${allLines}' | sudo tee -a /etc/hosts > /dev/null`, {
-			stdio: "pipe",
+			stdio: "inherit",
 		});
-		// Flush DNS cache
 		execSync("sudo dscacheutil -flushcache 2>/dev/null; sudo killall -HUP mDNSResponder 2>/dev/null", {
 			stdio: "pipe",
 		});
@@ -197,7 +196,7 @@ export function blockSites(sites: string[]): void {
 export function unblockSites(): void {
 	try {
 		execSync(`sudo sed -i '' '/${HOSTS_MARKER}/d' /etc/hosts`, {
-			stdio: "pipe",
+			stdio: "inherit",
 		});
 		execSync("sudo dscacheutil -flushcache 2>/dev/null; sudo killall -HUP mDNSResponder 2>/dev/null", {
 			stdio: "pipe",
@@ -288,13 +287,7 @@ export function startMusic(config: { source: string; query: string }): void {
 				);
 				break;
 			}
-			case "url":
-				execSync(`open "${config.query}" 2>/dev/null`, { stdio: "pipe" });
-				break;
-			case "local":
-				execSync(`afplay "${config.query}" &`, { stdio: "pipe" });
-				break;
-		}
+			}
 	} catch {}
 }
 
