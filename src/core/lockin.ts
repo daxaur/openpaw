@@ -284,24 +284,6 @@ PACEOF`);
 	lines.push("# Window management");
 	lines.push(`FRONT_APP=$(osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true' 2>/dev/null || echo "Terminal")`);
 	lines.push("");
-	lines.push("# Center coding app at ~80% screen");
-	lines.push(`osascript << 'ASCRIPT'
-tell application "Finder"
-    set {x1, y1, x2, y2} to bounds of window of desktop
-end tell
-set sw to x2 - x1
-set sh to y2 - y1
-set w to (sw * 0.8) as integer
-set h to (sh - 100) as integer
-set xPos to ((sw - w) / 2) as integer
-tell application "System Events"
-    set frontApp to name of first application process whose frontmost is true
-end tell
-tell application frontApp
-    set bounds of front window to {xPos, 50, xPos + w, 50 + h}
-end tell
-ASCRIPT`);
-	lines.push("");
 
 	const encodedEnds = encodeURIComponent(endsAt);
 	lines.push("# Start dashboard + open timer");

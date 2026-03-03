@@ -608,7 +608,6 @@ function printConfig(config: LockInConfig): void {
 	if (config.bluetooth) lines.push(`${bold("Bluetooth:")}     ${config.bluetooth.device}`);
 	if (config.music) lines.push(`${bold("Music:")}         ${config.music.source} → ${config.music.query}`);
 	if (config.lights) lines.push(`${bold("Lights:")}        ${config.lights.room} at ${config.lights.brightness}%${config.lights.color ? ` (${config.lights.color})` : ""}`);
-	lines.push(`${bold("Windows:")}       auto (center active app)`);
 
 	const flags: string[] = [];
 	if (config.dnd) flags.push("DND");
