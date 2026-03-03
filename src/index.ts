@@ -12,7 +12,7 @@ import { exportCommand, importCommand } from "./commands/export.js";
 import { telegramCommand, telegramSetupCommand } from "./commands/telegram.js";
 import { dashboardCommand } from "./commands/dashboard.js";
 import { configureCommand } from "./commands/configure.js";
-import { lockInCommand, lockInSetupCommand, lockInConfigureCommand } from "./commands/lockin.js";
+import { lockInCommand, lockInSetupCommand, lockInConfigureCommand, lockInGenScriptsCommand } from "./commands/lockin.js";
 import {
 	scheduleAddCommand,
 	scheduleListCommand,
@@ -122,6 +122,13 @@ lockin.command("configure")
 	.alias("config")
 	.description("Reconfigure Lock In Mode (alias for setup)")
 	.action(lockInConfigureCommand);
+
+lockin.command("gen-scripts")
+	.description("Generate start/end shell scripts from config (used by Claude)")
+	.requiredOption("--ends <iso>", "Session end time (ISO 8601)")
+	.option("--extra-sites <sites>", "Comma-separated extra sites to block")
+	.option("--extra-apps <apps>", "Comma-separated extra apps to quit")
+	.action(lockInGenScriptsCommand);
 
 const tg = program
 	.command("telegram")
