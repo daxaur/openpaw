@@ -650,12 +650,19 @@ export async function focusSetupCommand(): Promise<void> {
 			if (!p.isCancel(brightnessVal)) {
 				config.lights = { room, brightness: parseInt(brightnessVal as string, 10) };
 
-				const color = await p.text({
-					message: "Color? (warm, cool, red, etc — enter to skip)",
-					defaultValue: "",
+				const color = await p.select({
+					message: "Light color",
+					options: [
+						{ value: "", label: "No preference", hint: "keep current" },
+						{ value: "warm", label: "Warm", hint: "relaxed, cozy" },
+						{ value: "cool", label: "Cool", hint: "bright, alert" },
+						{ value: "red", label: "Red", hint: "low stimulation" },
+						{ value: "orange", label: "Orange", hint: "sunset vibe" },
+						{ value: "blue", label: "Blue", hint: "calm focus" },
+					],
 				});
-				if (!p.isCancel(color) && (color as string).trim()) {
-					config.lights.color = (color as string).trim();
+				if (!p.isCancel(color) && color) {
+					config.lights.color = color as string;
 				}
 			}
 		}
