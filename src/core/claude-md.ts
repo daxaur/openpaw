@@ -94,7 +94,7 @@ function generateSection(
 			lines.push("## Lock In Mode");
 			lines.push("");
 			lines.push(`Lock In Mode is configured (${lockInConfig.duration} min sessions).`);
-			lines.push("When the user says \"lock in\", \"focus\", or similar, run `openpaw lockin start` to start a session.");
+			lines.push("When the user says \"lock in\", \"focus\", or similar, read the c-lockin SKILL.md and follow its instructions.");
 			lines.push("Run `openpaw lockin setup` to reconfigure.");
 			lines.push("");
 		}

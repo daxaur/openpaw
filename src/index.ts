@@ -12,7 +12,7 @@ import { exportCommand, importCommand } from "./commands/export.js";
 import { telegramCommand, telegramSetupCommand } from "./commands/telegram.js";
 import { dashboardCommand } from "./commands/dashboard.js";
 import { configureCommand } from "./commands/configure.js";
-import { lockInCommand, lockInSetupCommand, lockInConfigureCommand, lockInStartCommand, lockInEndCommand, lockInStatusCommand, lockInAutoEndCommand } from "./commands/lockin.js";
+import { lockInCommand, lockInSetupCommand, lockInConfigureCommand } from "./commands/lockin.js";
 import {
 	scheduleAddCommand,
 	scheduleListCommand,
@@ -112,23 +112,6 @@ const lockin = program
 	.description("Start a lock-in session — block distractions, set the mood, get in the zone");
 
 lockin.action(lockInCommand);
-
-lockin.command("start")
-	.description("Start a lock-in session (non-interactive, for Claude Code)")
-	.option("--all", "Include ask-each-time sites and apps")
-	.action((opts) => lockInStartCommand(opts));
-
-lockin.command("end")
-	.description("End the current lock-in session and show receipt")
-	.action(() => lockInEndCommand());
-
-lockin.command("status")
-	.description("Show current lock-in session status")
-	.action(() => lockInStatusCommand());
-
-lockin.command("auto-end")
-	.description("Auto-end lock-in session (internal — triggered by timer)")
-	.action(lockInAutoEndCommand);
 
 lockin.command("setup")
 	.description("Set up or reconfigure Lock In Mode")

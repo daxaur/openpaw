@@ -2,7 +2,6 @@ import * as p from "@clack/prompts";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { spawn } from "node:child_process";
 import { showMini, accent, dim, bold, subtle } from "../core/branding.js";
 import { getDefaultSkillsDir, listInstalledSkills } from "../core/skills.js";
 import {
@@ -11,32 +10,8 @@ import {
 	lockInConfigExists,
 	detectCapabilities,
 	readLockInSession,
-	writeLockInSession,
-	clearLockInSession,
-	blockSites,
-	unblockSites,
-	quitApps,
-	enableDnd,
-	disableDnd,
-	enableSlackDnd,
-	setLights,
-	connectBluetooth,
-	startMusic,
-	stopMusic,
-	getGitCommitCount,
-	getGitDiffStats,
-	sendNotification,
-	logToObsidian,
 	COMMON_BLOCKED_SITES,
 	COMMON_QUIT_APPS,
-	saveWindowPositions,
-	restoreWindows,
-	startRoastServer,
-	stopRoastServer,
-	getFrontmostApp,
-	centerAndResizeApp,
-	minimizeOtherWindows,
-	getGitCommitMessages,
 } from "../core/lockin.js";
 import type { LockInConfig, LockInMusicSource } from "../types.js";
 
@@ -70,11 +45,11 @@ export function lockInCommand(): void {
 				].join("\n"),
 				"Lock In Session",
 			);
-			p.log.info(dim("Claude is managing this session. Tell Claude to end it, or run ") + bold("openpaw lockin end"));
+			p.log.info(dim("Claude is managing this session. Tell Claude to end it."));
 			return;
 		}
 		// Session expired
-		p.log.warn("Previous session expired. Run " + bold("openpaw lockin end") + " to clean up.");
+		p.log.warn("Previous session expired. Tell Claude to clean up, or delete ~/.config/openpaw/lockin-session.json");
 	}
 
 	// Show config
@@ -82,327 +57,6 @@ export function lockInCommand(): void {
 	console.log("");
 	p.log.info(dim("Tell Claude to ") + bold("lock in") + dim(" to start a session."));
 	p.log.info(dim("Reconfigure: ") + bold("openpaw lockin setup"));
-}
-
-function scheduleEndNotification(minutes: number): void {
-	const seconds = minutes * 60;
-	try {
-		const child = spawn("sh", ["-c", `sleep ${seconds} && terminal-notifier -title "Lock In Complete" -message "Your ${minutes}-minute session is done!" -sound default`], {
-			detached: true,
-			stdio: "ignore",
-		});
-		child.unref();
-	} catch {}
-}
-
-function scheduleLockInEndSession(minutes: number): void {
-	const seconds = minutes * 60;
-	// Resolve the CLI entry point so it works from any cwd
-	const cli = path.resolve(process.argv[1]);
-	try {
-		// Sleep N minutes, then run `openpaw lockin auto-end` which spawns a Claude session
-		const child = spawn("sh", ["-c", `sleep ${seconds} && node "${cli}" lockin auto-end`], {
-			detached: true,
-			stdio: "ignore",
-			env: { ...process.env },
-		});
-		child.unref();
-	} catch {}
-}
-
-/**
- * Auto-end: spawns a Claude session that ends the lock-in, reads the receipt,
- * and sends a natural summary via Telegram (or saves to file).
- */
-export async function lockInAutoEndCommand(): Promise<void> {
-	const config = readLockInConfig();
-	const session = readLockInSession();
-	if (!session || !config) return;
-
-	// Restore environment first
-	restoreEnvironment(config, session);
-
-	// Generate receipt data
-	const startTime = new Date(session.startedAt);
-	const elapsed = Math.round((Date.now() - startTime.getTime()) / 60000);
-	const stats = getGitDiffStats(session.gitCommitsBefore);
-	const commitMessages = getGitCommitMessages(session.gitCommitsBefore);
-
-	const receiptLines = [
-		`Duration: ${elapsed} min`,
-		`Commits: ${stats.commits}`,
-		`Lines added: +${stats.linesAdded}`,
-		`Lines removed: -${stats.linesRemoved}`,
-	];
-	if (commitMessages.length > 0) {
-		receiptLines.push("", "Commits:");
-		for (const msg of commitMessages) receiptLines.push(`  ${msg}`);
-	}
-	const receipt = receiptLines.join("\n");
-
-	// Obsidian log
-	if (config.obsidianLog) {
-		logToObsidian(elapsed, stats);
-	}
-
-	clearLockInSession();
-
-	// Spawn a Claude session to write a natural summary
-	try {
-		const { query } = await import("@anthropic-ai/claude-agent-sdk");
-		const prompt = `The user's lock-in session just ended. Here are the stats:\n\n${receipt}\n\nWrite a brief, encouraging 2-3 sentence summary of their session. Be specific about the numbers. If they made commits, mention the commit messages to highlight what they accomplished. If not, that's fine too — they were focused. Keep it casual and warm.`;
-
-		let summary = "";
-		const q = query({
-			prompt,
-			options: {
-				model: "claude-haiku-4-5-20251001",
-				permissionMode: "bypassPermissions",
-				allowDangerouslySkipPermissions: true,
-				maxTurns: 1,
-			},
-		});
-
-		for await (const message of q) {
-			if (message.type === "result") {
-				const result = message as { result?: string };
-				if (result.result) summary = result.result;
-			}
-		}
-
-		if (!summary) summary = `Lock-in session complete: ${elapsed} min, ${stats.commits} commits, +${stats.linesAdded}/-${stats.linesRemoved} lines.`;
-
-		// Deliver via Telegram if available, otherwise notification
-		try {
-			const { readTelegramConfig } = await import("../core/telegram.js");
-			const tgConfig = readTelegramConfig();
-			if (tgConfig) {
-				for (const userId of tgConfig.allowedUserIds) {
-					await fetch(`https://api.telegram.org/bot${tgConfig.botToken}/sendMessage`, {
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({ chat_id: userId, text: `🎯 *Lock In Complete*\n\n${summary}`, parse_mode: "Markdown" }),
-					});
-				}
-				return;
-			}
-		} catch {}
-
-		// Fallback: native notification
-		sendNotification("Lock In Complete", summary.slice(0, 200));
-	} catch {
-		// SDK not available — just send basic notification
-		sendNotification("Lock In Complete", `${elapsed} min session done. ${stats.commits} commits.`);
-	}
-}
-
-// ── Non-interactive commands (for Claude Code) ──
-
-export function lockInStartCommand(opts: { all?: boolean }): void {
-	const config = readLockInConfig();
-	if (!config) {
-		console.log("Lock In Mode not configured. Run: openpaw lockin setup");
-		process.exit(1);
-	}
-
-	const session = readLockInSession();
-	if (session) {
-		const endsAt = new Date(session.endsAt);
-		if (endsAt > new Date()) {
-			const remaining = Math.round((endsAt.getTime() - Date.now()) / 60000);
-			console.log(`Lock-in session already active. ${remaining} min remaining.`);
-			console.log(`Run "openpaw lockin end" to stop early.`);
-			return;
-		}
-		// Expired — clean up silently
-		restoreEnvironment(config, session);
-		clearLockInSession();
-	}
-
-	const actions: string[] = [];
-	const now = new Date();
-	const endsAt = new Date(now.getTime() + config.duration * 60000);
-
-	// Block sites
-	const sites = opts.all
-		? [...(config.blockedSites?.always ?? []), ...(config.blockedSites?.askEachTime ?? [])]
-		: [...(config.blockedSites?.always ?? [])];
-	if (sites.length > 0) {
-		blockSites(sites);
-		startRoastServer(endsAt.toISOString());
-		actions.push(`Blocked ${sites.length} sites (with roast page)`);
-	}
-
-	// Quit apps
-	const apps = opts.all
-		? [...(config.quitApps?.always ?? []), ...(config.quitApps?.askEachTime ?? [])]
-		: [...(config.quitApps?.always ?? [])];
-	if (apps.length > 0) {
-		quitApps(apps);
-		actions.push(`Quit ${apps.length} apps: ${apps.join(", ")}`);
-	}
-
-	// Bluetooth
-	if (config.bluetooth?.device) {
-		connectBluetooth(config.bluetooth.device);
-		actions.push(`Connected ${config.bluetooth.device}`);
-	}
-
-	// Music
-	if (config.music) {
-		startMusic(config.music);
-		actions.push(`Playing ${config.music.source}: ${config.music.query}`);
-	}
-
-	// Lights
-	if (config.lights) {
-		setLights(config.lights.room, config.lights.brightness, config.lights.color);
-		actions.push(`Set ${config.lights.room} lights to ${config.lights.brightness}%`);
-	}
-
-	// DND
-	if (config.dnd) {
-		enableDnd();
-		actions.push("Enabled Do Not Disturb");
-	}
-
-	// Slack DND
-	if (config.slackDnd) {
-		enableSlackDnd(config.duration);
-		actions.push(`Set Slack DND for ${config.duration} min`);
-	}
-
-	// Auto window management — runs LAST
-	let savedPositions: string | undefined;
-	const frontApp = getFrontmostApp();
-	if (frontApp) {
-		savedPositions = saveWindowPositions();
-		minimizeOtherWindows(frontApp);
-		centerAndResizeApp(frontApp);
-		actions.push(`Centered ${frontApp}, minimized other windows`);
-	}
-
-	// Save session
-	writeLockInSession({
-		startedAt: now.toISOString(),
-		endsAt: endsAt.toISOString(),
-		config,
-		blockedSiteAttempts: 0,
-		gitCommitsBefore: getGitCommitCount(),
-		savedWindowPositions: savedPositions,
-	});
-
-	// Timer
-	if (config.timer) {
-		sendNotification("Lock In Mode", `${config.duration} minutes starts now.`);
-		scheduleEndNotification(config.duration);
-	}
-
-	// Schedule auto-end: Claude session fires when time is up
-	scheduleLockInEndSession(config.duration);
-
-	// Plain text output for Claude
-	console.log(`Lock-in session started (${config.duration} min)`);
-	for (const a of actions) console.log(`  - ${a}`);
-	console.log(`\nEnds at: ${endsAt.toLocaleTimeString()}`);
-	console.log(`Run "openpaw lockin end" when done.`);
-}
-
-export function lockInEndCommand(): void {
-	const config = readLockInConfig();
-	const session = readLockInSession();
-
-	if (!session) {
-		console.log("No active lock-in session.");
-		return;
-	}
-
-	if (config) {
-		restoreEnvironment(config, session);
-	}
-
-	// Generate receipt
-	const startTime = new Date(session.startedAt);
-	const elapsed = Math.round((Date.now() - startTime.getTime()) / 60000);
-	const stats = getGitDiffStats(session.gitCommitsBefore);
-
-	const commitMessages = getGitCommitMessages(session.gitCommitsBefore);
-
-	console.log("Lock-in session ended.\n");
-	console.log("--- Lock In Receipt ---");
-	console.log(`Duration:      ${elapsed} min`);
-	console.log(`Commits:       ${stats.commits}`);
-	console.log(`Lines added:   +${stats.linesAdded}`);
-	console.log(`Lines removed: -${stats.linesRemoved}`);
-	if (config?.blockedSites) {
-		const total = (config.blockedSites.always?.length ?? 0) + (config.blockedSites.askEachTime?.length ?? 0);
-		console.log(`Sites blocked: ${total}`);
-	}
-	if (commitMessages.length > 0) {
-		console.log("\nCommits:");
-		for (const msg of commitMessages) console.log(`  ${msg}`);
-	}
-	console.log("-----------------------");
-
-	// Obsidian log
-	if (config?.obsidianLog) {
-		logToObsidian(elapsed, stats);
-		console.log("Logged to Obsidian.");
-	}
-
-	// Notification
-	if (config?.timer) {
-		sendNotification("Lock In Complete", `${elapsed} min session. ${stats.commits} commits.`);
-	}
-
-	clearLockInSession();
-}
-
-export function lockInStatusCommand(): void {
-	const config = readLockInConfig();
-	if (!config) {
-		console.log("Lock In Mode not configured. Run: openpaw lockin setup");
-		return;
-	}
-
-	const session = readLockInSession();
-	if (!session) {
-		console.log("No active lock-in session.");
-		console.log(`\nConfig: ${config.duration} min sessions`);
-		if (config.blockedSites) console.log(`  Sites: ${config.blockedSites.always.length} always, ${config.blockedSites.askEachTime.length} ask-each-time`);
-		if (config.quitApps) console.log(`  Apps: ${config.quitApps.always.length} always, ${config.quitApps.askEachTime.length} ask-each-time`);
-		if (config.music) console.log(`  Music: ${config.music.source} → ${config.music.query}`);
-		if (config.bluetooth) console.log(`  Bluetooth: ${config.bluetooth.device}`);
-		if (config.lights) console.log(`  Lights: ${config.lights.room} at ${config.lights.brightness}%`);
-		console.log(`\nRun "openpaw lockin start" to begin.`);
-		return;
-	}
-
-	const endsAt = new Date(session.endsAt);
-	const now = new Date();
-
-	if (endsAt > now) {
-		const remaining = Math.round((endsAt.getTime() - now.getTime()) / 60000);
-		const elapsed = Math.round((now.getTime() - new Date(session.startedAt).getTime()) / 60000);
-		console.log(`Lock-in session active.`);
-		console.log(`  Elapsed:   ${elapsed} min`);
-		console.log(`  Remaining: ${remaining} min`);
-		console.log(`  Ends at:   ${endsAt.toLocaleTimeString()}`);
-	} else {
-		console.log("Lock-in session expired. Run \"openpaw lockin end\" to clean up and see receipt.");
-	}
-}
-
-function restoreEnvironment(config: LockInConfig, session?: { savedWindowPositions?: string } | null): void {
-	if (config.blockedSites && (config.blockedSites.always.length > 0 || config.blockedSites.askEachTime.length > 0)) {
-		unblockSites();
-		stopRoastServer();
-	}
-	if (config.dnd) disableDnd();
-	if (config.music) stopMusic(config.music.source);
-	if (session?.savedWindowPositions) {
-		restoreWindows(session.savedWindowPositions);
-	}
 }
 
 // ── Paw Animation ──
@@ -641,7 +295,6 @@ export async function lockInSetupCommand(): Promise<void> {
 			let query: string | undefined;
 
 			if (sourcePresets.length === 1 && sourcePresets[0].value === "_custom") {
-				// Only custom option — go straight to text input
 				const custom = await p.text({
 					message: "Playlist or station name",
 					defaultValue: "",
@@ -790,7 +443,7 @@ export async function lockInSetupCommand(): Promise<void> {
 
 // ── Install SKILL.md ──
 
-function installLockInSkillMd(skillsDir: string): void {
+export function installLockInSkillMd(skillsDir: string): void {
 	const skillDir = path.join(skillsDir, "c-lockin");
 	fs.mkdirSync(skillDir, { recursive: true });
 
@@ -802,9 +455,7 @@ tags: [lockin, focus, productivity, deep-work, pomodoro, distraction-blocking]
 
 ## What This Skill Does
 
-You orchestrate lock-in sessions using the \`openpaw lockin\` CLI.
-
-IMPORTANT: Always use \`openpaw lockin start\` to begin a session. Never run site-blocking or admin commands individually — they require macOS admin privileges that only work through the CLI.
+You orchestrate lock-in sessions by reading the user's config and running commands directly.
 
 ## Config
 
@@ -814,52 +465,34 @@ Read \`~/.config/openpaw/lockin.json\` for preferences. If missing, suggest: \`o
 
 When the user says "lock in", "focus", "deep work", or similar:
 
-1. Check \`~/.config/openpaw/lockin-session.json\` — if it exists, a session is already active
-2. If there are \`askEachTime\` sites or apps, ask the user which to include this session
-3. Tell the user what you're about to do, then run:
-
-\`\`\`bash
-openpaw lockin start        # Start with "always" sites/apps only
-openpaw lockin start --all  # Include all ask-each-time sites/apps too
-\`\`\`
-
-This single command handles everything:
-- Blocks configured websites (with a custom roast page on blocked sites)
-- Quits distracting apps
-- Connects Bluetooth devices
-- Plays music
-- Sets smart lights
-- Enables macOS DND and Slack DND
-- Centers the active app and minimizes other windows
-- Saves window positions for later restore
-- Starts auto-end timer (sends summary via Telegram when done)
+1. Read \`~/.config/openpaw/lockin.json\`
+2. Check \`~/.config/openpaw/lockin-session.json\` — if it exists and endsAt is in the future, a session is already active
+3. If there are \`askEachTime\` sites or apps, ask the user which to include this session
+4. Tell the user what you're about to do, then run the commands for each enabled feature
 
 ## Ending a Lock In Session
 
 When the user says "stop", "end session", "I'm done", or the timer fires:
 
-\`\`\`bash
-openpaw lockin end
-\`\`\`
+1. Restore environment (disable DND, stop music)
+2. Generate receipt with git stats
+3. Log to Obsidian if enabled
+4. Delete \`~/.config/openpaw/lockin-session.json\`
+5. Write a warm, encouraging summary
 
-This restores everything and prints a receipt with:
-- Session duration
-- Git commits made (with commit messages)
-- Lines added/removed
-- Blocked site attempt count
-
-## Other Commands
+## Reconfigure
 
 \`\`\`bash
-openpaw lockin status     # Check if a session is active
-openpaw lockin setup      # Interactive setup wizard
-openpaw lockin configure  # Alias for setup
+openpaw lockin setup      # Interactive wizard
+openpaw lockin configure  # Alias
 \`\`\`
 
 ## Guidelines
 
 - Only start a session when the user explicitly asks — never suggest unprompted
-- Always tell the user what you're about to do before running start
+- Always tell the user what you're doing before each step
+- If a command fails, tell the user and continue with other steps
+- Skip any step whose config field is missing or false
 - Reference SOUL.md for personal preferences
 - When ending, write a human summary — don't just dump numbers
 - Include commit messages in the summary to highlight what they accomplished
