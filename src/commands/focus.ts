@@ -2,7 +2,6 @@ import * as p from "@clack/prompts";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import chalk from "chalk";
 import { spawn } from "node:child_process";
 import { showMini, accent, dim, bold } from "../core/branding.js";
 import {
@@ -32,9 +31,9 @@ import {
 } from "../core/focus.js";
 import type { FocusConfig, FocusMusicSource } from "../types.js";
 
-// ── Focus Start ──
+// ── Focus (show config + status) ──
 
-export async function focusCommand(): Promise<void> {
+export function focusCommand(): void {
 	showMini();
 	console.log("");
 
@@ -46,206 +45,34 @@ export async function focusCommand(): Promise<void> {
 	}
 
 	// Check for active session
-	const existing = readFocusSession();
-	if (existing) {
-		const endsAt = new Date(existing.endsAt);
+	const session = readFocusSession();
+	if (session) {
+		const endsAt = new Date(session.endsAt);
 		const now = new Date();
 		if (endsAt > now) {
 			const remaining = Math.round((endsAt.getTime() - now.getTime()) / 60000);
-			p.log.info(`Focus session active — ${bold(remaining + " min")} remaining.`);
-			const action = await p.select({
-				message: "What do you want to do?",
-				options: [
-					{ value: "status", label: "Keep going", hint: "close this and get back to work" },
-					{ value: "end", label: "End session early", hint: "restore everything + show receipt" },
-				],
-			});
-			if (p.isCancel(action) || action === "status") {
-				p.outro(dim("Stay focused!"));
-				return;
-			}
-			await endFocusSession(config, existing);
+			const elapsed = Math.round((now.getTime() - new Date(session.startedAt).getTime()) / 60000);
+			p.note(
+				[
+					`${bold("Status:")}       ${accent("active")}`,
+					`${bold("Elapsed:")}      ${elapsed} min`,
+					`${bold("Remaining:")}    ${remaining} min`,
+					`${bold("Ends at:")}      ${endsAt.toLocaleTimeString()}`,
+				].join("\n"),
+				"Focus Session",
+			);
+			p.log.info(dim("Claude is managing this session. Tell Claude to end it, or run ") + bold("openpaw focus end"));
 			return;
 		}
-		// Session expired — clean up
-		await endFocusSession(config, existing);
-		return;
+		// Session expired
+		p.log.warn("Previous session expired. Run " + bold("openpaw focus end") + " to clean up.");
 	}
 
-	// Show current config
+	// Show config
 	printConfig(config);
-
-	const confirm = await p.confirm({
-		message: `Start ${bold(config.duration + "-minute")} focus session?`,
-		initialValue: true,
-	});
-
-	if (p.isCancel(confirm) || !confirm) {
-		p.outro(dim("Maybe later."));
-		return;
-	}
-
-	// Ask about "ask each time" items
-	let sitesToBlock = [...(config.blockedSites?.always ?? [])];
-	if (config.blockedSites?.askEachTime?.length) {
-		const extraSites = await p.multiselect({
-			message: "Block these sites too this session?",
-			options: config.blockedSites.askEachTime.map((s) => ({
-				value: s,
-				label: s,
-			})),
-			required: false,
-		});
-		if (!p.isCancel(extraSites)) {
-			sitesToBlock = [...sitesToBlock, ...(extraSites as string[])];
-		}
-	}
-
-	let appsToQuit = [...(config.quitApps?.always ?? [])];
-	if (config.quitApps?.askEachTime?.length) {
-		const extraApps = await p.multiselect({
-			message: "Quit these apps too this session?",
-			options: config.quitApps.askEachTime.map((a) => ({
-				value: a,
-				label: a,
-			})),
-			required: false,
-		});
-		if (!p.isCancel(extraApps)) {
-			appsToQuit = [...appsToQuit, ...(extraApps as string[])];
-		}
-	}
-
-	// ── Execute focus sequence ──
-	const s = p.spinner();
-	s.start("Entering focus mode...");
-
-	// 1. Block sites
-	if (sitesToBlock.length > 0) {
-		s.message(`Blocking ${sitesToBlock.length} sites...`);
-		blockSites(sitesToBlock);
-	}
-
-	// 2. Quit apps
-	if (appsToQuit.length > 0) {
-		s.message(`Quitting ${appsToQuit.length} apps...`);
-		quitApps(appsToQuit);
-	}
-
-	// 3. Bluetooth
-	if (config.bluetooth?.device) {
-		s.message(`Connecting ${config.bluetooth.device}...`);
-		connectBluetooth(config.bluetooth.device);
-	}
-
-	// 4. Music
-	if (config.music) {
-		s.message(`Starting ${config.music.source} music...`);
-		startMusic(config.music);
-	}
-
-	// 5. Lights
-	if (config.lights) {
-		s.message(`Setting ${config.lights.room} lights...`);
-		setLights(config.lights.room, config.lights.brightness, config.lights.color);
-	}
-
-	// 6. DND
-	if (config.dnd) {
-		s.message("Enabling Do Not Disturb...");
-		enableDnd();
-	}
-
-	// 7. Slack DND
-	if (config.slackDnd) {
-		s.message("Setting Slack to DND...");
-		enableSlackDnd(config.duration);
-	}
-
-	s.stop("Focus mode active!");
-
-	// Save session
-	const now = new Date();
-	const session = {
-		startedAt: now.toISOString(),
-		endsAt: new Date(now.getTime() + config.duration * 60000).toISOString(),
-		config,
-		blockedSiteAttempts: 0,
-		gitCommitsBefore: getGitCommitCount(),
-	};
-	writeFocusSession(session);
-
-	// Timer notification at start
-	if (config.timer) {
-		sendNotification("Focus Mode", `${config.duration} minutes starts now. Get after it.`);
-		scheduleEndNotification(config.duration);
-	}
-
-	// Schedule auto-end: Claude session fires when time is up
-	scheduleFocusEndSession(config.duration);
-
 	console.log("");
-	p.log.success(`${bold(config.duration + " minutes")} of focus. Go build something great.`);
-	p.log.info(`Run ${accent("openpaw focus")} to end early or check status.`);
-	p.outro(dim("Distractions eliminated."));
-}
-
-async function endFocusSession(config: FocusConfig, session: { startedAt: string; gitCommitsBefore: number }): Promise<void> {
-	const s = p.spinner();
-	s.start("Restoring environment...");
-
-	// Unblock sites
-	if (config.blockedSites && (config.blockedSites.always.length > 0 || config.blockedSites.askEachTime.length > 0)) {
-		s.message("Unblocking sites...");
-		unblockSites();
-	}
-
-	// Disable DND
-	if (config.dnd) {
-		s.message("Disabling Do Not Disturb...");
-		disableDnd();
-	}
-
-	// Stop music
-	if (config.music) {
-		s.message("Stopping music...");
-		stopMusic(config.music.source);
-	}
-
-	s.stop("Environment restored.");
-
-	// ── Focus Receipt ──
-	const startTime = new Date(session.startedAt);
-	const elapsed = Math.round((Date.now() - startTime.getTime()) / 60000);
-	const stats = getGitDiffStats(session.gitCommitsBefore);
-
-	const receipt: string[] = [
-		`${bold("Duration:")}     ${elapsed} min`,
-		`${bold("Commits:")}      ${stats.commits}`,
-		`${bold("Lines:")}        ${chalk.green("+" + stats.linesAdded)} / ${chalk.red("-" + stats.linesRemoved)}`,
-	];
-
-	if (config.blockedSites) {
-		const total = (config.blockedSites.always?.length ?? 0) + (config.blockedSites.askEachTime?.length ?? 0);
-		receipt.push(`${bold("Sites blocked:")} ${total}`);
-	}
-
-	console.log("");
-	p.note(receipt.join("\n"), "Focus Receipt");
-
-	// Obsidian log
-	if (config.obsidianLog) {
-		logToObsidian(elapsed, stats);
-		p.log.info(dim("Logged to Obsidian."));
-	}
-
-	// End notification (background timer handles the scheduled one, this is for early end)
-	if (config.timer) {
-		sendNotification("Focus Complete", `${elapsed} min session. ${stats.commits} commits, +${stats.linesAdded}/-${stats.linesRemoved} lines.`);
-	}
-
-	clearFocusSession();
-	p.outro(dim("Focus session complete. Nice work."));
+	p.log.info(dim("Tell Claude to ") + bold("focus") + dim(" or ") + bold("lock in") + dim(" to start a session."));
+	p.log.info(dim("Reconfigure: ") + bold("openpaw focus setup"));
 }
 
 function scheduleEndNotification(minutes: number): void {
