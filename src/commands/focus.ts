@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { spawn } from "node:child_process";
-import { showMini, accent, dim, bold } from "../core/branding.js";
+import { showMini, accent, dim, bold, subtle } from "../core/branding.js";
 import { getDefaultSkillsDir, listInstalledSkills } from "../core/skills.js";
 import {
 	readFocusConfig,
@@ -368,6 +368,23 @@ function restoreEnvironment(config: FocusConfig): void {
 	if (config.music) stopMusic(config.music.source);
 }
 
+// ── Paw Animation ──
+
+const PAW_FRAMES = ["🐾", "  🐾", "    🐾", "      🐾", "        🐾", "          🐾"];
+
+function sleep(ms: number): Promise<void> {
+	return new Promise((r) => setTimeout(r, ms));
+}
+
+async function pawWalk(label: string): Promise<void> {
+	for (const frame of PAW_FRAMES) {
+		process.stdout.write(`\r  ${subtle(frame)} ${dim(label)}`);
+		await sleep(60);
+	}
+	process.stdout.write(`\r\x1B[2K`);
+	console.log(`  ${accent("🐾")} ${label}`);
+}
+
 // ── Focus Setup ──
 
 export async function focusSetupCommand(): Promise<void> {
@@ -397,6 +414,7 @@ export async function focusSetupCommand(): Promise<void> {
 	}
 
 	if (detected.length > 0) {
+		await pawWalk("Sniffing your system...");
 		p.log.info(`Detected: ${detected.map((d) => accent(d)).join(", ")}`);
 	}
 
@@ -420,6 +438,7 @@ export async function focusSetupCommand(): Promise<void> {
 	};
 
 	// ── Website Blocking ──
+	await pawWalk("Distractions...");
 	const wantSites = await p.confirm({
 		message: "Block distracting websites during focus?",
 		initialValue: true,
@@ -466,6 +485,7 @@ export async function focusSetupCommand(): Promise<void> {
 	}
 
 	// ── App Quitting ──
+	await pawWalk("Apps...");
 	const wantApps = await p.confirm({
 		message: "Quit distracting apps when focus starts?",
 		initialValue: true,
@@ -503,6 +523,7 @@ export async function focusSetupCommand(): Promise<void> {
 
 	// ── Bluetooth ──
 	if (caps.hasBluetooth && caps.bluetoothDevices.length > 0) {
+		await pawWalk("Bluetooth...");
 		const wantBt = await p.confirm({
 			message: "Auto-connect a Bluetooth device (headphones)?",
 			initialValue: true,
@@ -531,6 +552,7 @@ export async function focusSetupCommand(): Promise<void> {
 	}
 
 	// ── Music ──
+	await pawWalk("Vibes...");
 	const musicSources: { value: FocusMusicSource; label: string; hint?: string }[] = [];
 	if (caps.hasSpotify) musicSources.push({ value: "spotify", label: "Spotify", hint: "spogo" });
 	if (caps.hasAppleMusic) musicSources.push({ value: "apple-music", label: "Apple Music" });
@@ -615,6 +637,7 @@ export async function focusSetupCommand(): Promise<void> {
 
 	// ── Lights ──
 	if (caps.hasHue) {
+		await pawWalk("Lights...");
 		const wantLights = await p.confirm({
 			message: "Set Hue lights for focus?",
 			initialValue: true,
@@ -670,6 +693,7 @@ export async function focusSetupCommand(): Promise<void> {
 	}
 
 	// ── DND / Slack / Calendar ──
+	await pawWalk("Finishing up...");
 	const toggles = await p.multiselect({
 		message: "Enable during focus",
 		options: [
@@ -718,6 +742,7 @@ export async function focusSetupCommand(): Promise<void> {
 	}
 
 	// ── Save ──
+	await pawWalk("Saving your focus config...");
 	writeFocusConfig(config);
 	installFocusSkillMd(targetDir);
 
