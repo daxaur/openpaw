@@ -1,5 +1,6 @@
 import * as p from "@clack/prompts";
 import chalk from "chalk";
+import { spawn } from "node:child_process";
 import { showMini, accent, dim, bold } from "../core/branding.js";
 import {
 	readFocusConfig,
@@ -171,9 +172,10 @@ export async function focusCommand(): Promise<void> {
 	};
 	writeFocusSession(session);
 
-	// Timer notification
+	// Timer: notify at start + schedule end notification in background
 	if (config.timer) {
 		sendNotification("Focus Mode", `${config.duration} minutes starts now. Get after it.`);
+		scheduleEndNotification(config.duration);
 	}
 
 	console.log("");
@@ -243,6 +245,17 @@ async function endFocusSession(config: FocusConfig, session: { startedAt: string
 
 	clearFocusSession();
 	p.outro(dim("Focus session complete. Nice work."));
+}
+
+function scheduleEndNotification(minutes: number): void {
+	const seconds = minutes * 60;
+	try {
+		const child = spawn("sh", ["-c", `sleep ${seconds} && terminal-notifier -title "Focus Complete" -message "Your ${minutes}-minute focus session is done!" -sound default`], {
+			detached: true,
+			stdio: "ignore",
+		});
+		child.unref();
+	} catch {}
 }
 
 // ── Focus Setup ──
