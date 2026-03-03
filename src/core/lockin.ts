@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { execSync, spawn } from "node:child_process";
+import { execSync } from "node:child_process";
 import type { LockInConfig, LockInSession } from "../types.js";
 
 const CONFIG_DIR = path.join(os.homedir(), ".config", "openpaw");
@@ -116,6 +116,14 @@ function tryExec(cmd: string): string {
 	}
 }
 
+function runAsAdmin(cmd: string): void {
+	const escaped = cmd.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+	execSync(
+		`osascript -e 'do shell script "${escaped}" with administrator privileges'`,
+		{ stdio: "pipe", timeout: 30000 },
+	);
+}
+
 export function detectCapabilities(): DetectedCapabilities {
 	const caps: DetectedCapabilities = {
 		hasBluetooth: false,
@@ -201,31 +209,24 @@ export function detectCapabilities(): DetectedCapabilities {
 export function blockSites(sites: string[]): void {
 	if (sites.length === 0) return;
 
-	const lines = sites.map((s) => `127.0.0.1 ${s} ${HOSTS_MARKER}`);
-	const wwwLines = sites
-		.filter((s) => !s.startsWith("www."))
-		.map((s) => `127.0.0.1 www.${s} ${HOSTS_MARKER}`);
-	const allLines = [...lines, ...wwwLines].join("\n");
+	const entries: string[] = [];
+	for (const s of sites) {
+		entries.push(`127.0.0.1 ${s} ${HOSTS_MARKER}`);
+		if (!s.startsWith("www.")) entries.push(`127.0.0.1 www.${s} ${HOSTS_MARKER}`);
+	}
 
 	try {
-		// Append to /etc/hosts (requires sudo — inherit stdio so user can enter password)
-		execSync(`echo '${allLines}' | sudo tee -a /etc/hosts > /dev/null`, {
-			stdio: "inherit",
-		});
-		execSync("sudo dscacheutil -flushcache 2>/dev/null; sudo killall -HUP mDNSResponder 2>/dev/null", {
-			stdio: "pipe",
-		});
+		const tmpFile = "/tmp/openpaw-hosts-block.txt";
+		fs.writeFileSync(tmpFile, entries.join("\n") + "\n");
+		runAsAdmin(`cat ${tmpFile} >> /etc/hosts && rm ${tmpFile}`);
+		runAsAdmin("dscacheutil -flushcache; killall -HUP mDNSResponder");
 	} catch {}
 }
 
 export function unblockSites(): void {
 	try {
-		execSync(`sudo sed -i '' '/${HOSTS_MARKER}/d' /etc/hosts`, {
-			stdio: "inherit",
-		});
-		execSync("sudo dscacheutil -flushcache 2>/dev/null; sudo killall -HUP mDNSResponder 2>/dev/null", {
-			stdio: "pipe",
-		});
+		runAsAdmin(`sed -i '' '/${HOSTS_MARKER}/d' /etc/hosts`);
+		runAsAdmin("dscacheutil -flushcache; killall -HUP mDNSResponder");
 	} catch {}
 }
 
@@ -455,12 +456,7 @@ const checkInterval = setInterval(() => {
 
 	try {
 		fs.writeFileSync(ROAST_SCRIPT_PATH, serverScript);
-
-		const child = spawn("sudo", ["node", ROAST_SCRIPT_PATH], {
-			detached: true,
-			stdio: "ignore",
-		});
-		child.unref();
+		runAsAdmin(`nohup node ${ROAST_SCRIPT_PATH} > /dev/null 2>&1 &`);
 	} catch {}
 }
 
@@ -469,7 +465,7 @@ export function stopRoastServer(): void {
 		if (fs.existsSync(ROAST_PID_PATH)) {
 			const pid = fs.readFileSync(ROAST_PID_PATH, "utf-8").trim();
 			if (pid) {
-				execSync(`sudo kill ${pid} 2>/dev/null`, { stdio: "pipe" });
+				runAsAdmin(`kill ${pid}`);
 			}
 			fs.unlinkSync(ROAST_PID_PATH);
 		}
