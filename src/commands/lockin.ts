@@ -318,6 +318,21 @@ export async function lockInSetupCommand(): Promise<void> {
 
 			if (query) {
 				config.music = { source: source as LockInMusicSource, query };
+
+				// Pre-download YouTube audio so sessions start instantly
+				if (source === "youtube") {
+					const s = p.spinner();
+					s.start("Downloading audio so lock-in starts instantly...");
+					try {
+						execSync(
+							`rm -f /tmp/lockin-audio.* 2>/dev/null; yt-dlp -q -f bestaudio --no-playlist -o "/tmp/lockin-audio.%(ext)s" "ytsearch1:${query.replace(/"/g, '\\"')}"`,
+							{ stdio: "pipe", timeout: 60000 },
+						);
+						s.stop(accent("Audio cached!"));
+					} catch {
+						s.stop("Download failed — will retry when you lock in.");
+					}
+				}
 			}
 		}
 	}
@@ -566,9 +581,9 @@ blu connect "DEVICE_NAME"
 
 Only if \`music\` is set. Based on \`music.source\`:
 
-- **youtube** — download audio then play (afplay can't stream from pipe):
+- **youtube** — audio is pre-cached at \`/tmp/lockin-audio.*\` during setup. If the file exists, just play it. If not, download first:
 \`\`\`bash
-rm -f /tmp/lockin-audio.* 2>/dev/null; nohup bash -c 'yt-dlp -q -f bestaudio --no-playlist -o "/tmp/lockin-audio.%(ext)s" "ytsearch1:QUERY" && afplay /tmp/lockin-audio.*' &>/dev/null &
+ls /tmp/lockin-audio.* &>/dev/null && nohup afplay /tmp/lockin-audio.* &>/dev/null & || nohup bash -c 'yt-dlp -q -f bestaudio --no-playlist -o "/tmp/lockin-audio.%(ext)s" "ytsearch1:QUERY" && afplay /tmp/lockin-audio.*' &>/dev/null &
 \`\`\`
 - **spotify**: \`spogo play "QUERY"\`
 - **apple-music**: \`osascript -e 'tell application "Music" to play (first playlist whose name contains "QUERY")'\`
@@ -640,10 +655,14 @@ end tell
 ASCRIPT
 \`\`\`
 
-3. Open the dashboard timer (ignore errors if dashboard isn't running):
+3. Start dashboard if not running, then open focus timer:
 
 \`\`\`bash
-open "http://localhost:3141/focus?ends=ENDS_AT_ISO8601&duration=DURATION_MIN" 2>/dev/null
+curl -s -o /dev/null http://localhost:3141 2>/dev/null || nohup openpaw dashboard --no-open &>/dev/null &
+\`\`\`
+
+\`\`\`bash
+sleep 1 && open "http://localhost:3141/focus?ends=ENDS_AT_ISO8601&duration=DURATION_MIN"
 \`\`\`
 
 4. Position timer window top-left:

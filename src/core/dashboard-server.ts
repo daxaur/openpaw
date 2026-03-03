@@ -55,6 +55,7 @@ export function startDashboard(opts: {
 	port?: number;
 	theme?: DashboardTheme;
 	botName?: string;
+	noOpen?: boolean;
 }): http.Server {
 	const config = readConfig();
 	if (opts.theme) config.theme = opts.theme;
@@ -199,16 +200,17 @@ export function startDashboard(opts: {
 		const url = `http://localhost:${port}`;
 		console.log(`\n  Dashboard running at ${url}\n`);
 
-		// Auto-open browser
-		const platform = os.platform();
-		if (platform === "darwin") {
-			import("node:child_process").then((cp) =>
-				cp.exec(`open ${url}`),
-			);
-		} else if (platform === "linux") {
-			import("node:child_process").then((cp) =>
-				cp.exec(`xdg-open ${url}`),
-			);
+		if (!opts.noOpen) {
+			const platform = os.platform();
+			if (platform === "darwin") {
+				import("node:child_process").then((cp) =>
+					cp.exec(`open ${url}`),
+				);
+			} else if (platform === "linux") {
+				import("node:child_process").then((cp) =>
+					cp.exec(`xdg-open ${url}`),
+				);
+			}
 		}
 	});
 
