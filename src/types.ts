@@ -137,19 +137,19 @@ export interface DashboardConfig {
 	tasks: DashboardTask[];
 }
 
-// ── Focus Mode ──
+// ── Lock In Mode ──
 
-export type FocusMusicSource = "spotify" | "apple-music" | "sonos" | "youtube";
+export type LockInMusicSource = "spotify" | "apple-music" | "sonos" | "youtube";
 
-export interface FocusMusicConfig {
-	source: FocusMusicSource;
+export interface LockInMusicConfig {
+	source: LockInMusicSource;
 	query: string;
 }
 
-export interface FocusConfig {
+export interface LockInConfig {
 	duration: number;
 	bluetooth?: { device: string };
-	music?: FocusMusicConfig;
+	music?: LockInMusicConfig;
 	blockedSites?: {
 		always: string[];
 		askEachTime: string[];
@@ -159,18 +159,20 @@ export interface FocusConfig {
 		askEachTime: string[];
 	};
 	lights?: { room: string; brightness: number; color?: string };
+	windows?: { ide?: string; terminal?: string; layout: "side-by-side" | "stacked" };
 	dnd: boolean;
 	slackDnd: boolean;
 	timer: boolean;
 	obsidianLog: boolean;
 }
 
-export interface FocusSession {
+export interface LockInSession {
 	startedAt: string;
 	endsAt: string;
-	config: FocusConfig;
+	config: LockInConfig;
 	blockedSiteAttempts: number;
 	gitCommitsBefore: number;
+	savedWindowPositions?: string;
 }
 
 export interface SettingsJson {

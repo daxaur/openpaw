@@ -2,12 +2,12 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { execSync } from "node:child_process";
-import type { FocusConfig, FocusSession } from "../types.js";
+import type { LockInConfig, LockInSession } from "../types.js";
 
 const CONFIG_DIR = path.join(os.homedir(), ".config", "openpaw");
-const FOCUS_PATH = path.join(CONFIG_DIR, "focus.json");
-const SESSION_PATH = path.join(CONFIG_DIR, "focus-session.json");
-const HOSTS_MARKER = "# OPENPAW-FOCUS";
+const LOCKIN_PATH = path.join(CONFIG_DIR, "lockin.json");
+const SESSION_PATH = path.join(CONFIG_DIR, "lockin-session.json");
+const HOSTS_MARKER = "# OPENPAW-LOCKIN";
 
 function ensureDir(): void {
 	fs.mkdirSync(CONFIG_DIR, { recursive: true });
@@ -15,42 +15,42 @@ function ensureDir(): void {
 
 // ── Config I/O ──
 
-export function readFocusConfig(): FocusConfig | null {
+export function readLockInConfig(): LockInConfig | null {
 	try {
-		const raw = fs.readFileSync(FOCUS_PATH, "utf-8");
-		return JSON.parse(raw) as FocusConfig;
+		const raw = fs.readFileSync(LOCKIN_PATH, "utf-8");
+		return JSON.parse(raw) as LockInConfig;
 	} catch {
 		return null;
 	}
 }
 
-export function writeFocusConfig(config: FocusConfig): void {
+export function writeLockInConfig(config: LockInConfig): void {
 	ensureDir();
-	fs.writeFileSync(FOCUS_PATH, JSON.stringify(config, null, 2));
-	fs.chmodSync(FOCUS_PATH, 0o600);
+	fs.writeFileSync(LOCKIN_PATH, JSON.stringify(config, null, 2));
+	fs.chmodSync(LOCKIN_PATH, 0o600);
 }
 
-export function focusConfigExists(): boolean {
-	return fs.existsSync(FOCUS_PATH);
+export function lockInConfigExists(): boolean {
+	return fs.existsSync(LOCKIN_PATH);
 }
 
 // ── Session I/O ──
 
-export function readFocusSession(): FocusSession | null {
+export function readLockInSession(): LockInSession | null {
 	try {
 		const raw = fs.readFileSync(SESSION_PATH, "utf-8");
-		return JSON.parse(raw) as FocusSession;
+		return JSON.parse(raw) as LockInSession;
 	} catch {
 		return null;
 	}
 }
 
-export function writeFocusSession(session: FocusSession): void {
+export function writeLockInSession(session: LockInSession): void {
 	ensureDir();
 	fs.writeFileSync(SESSION_PATH, JSON.stringify(session, null, 2));
 }
 
-export function clearFocusSession(): void {
+export function clearLockInSession(): void {
 	try {
 		fs.unlinkSync(SESSION_PATH);
 	} catch {}
@@ -171,7 +171,7 @@ export function detectCapabilities(): DetectedCapabilities {
 	return caps;
 }
 
-// ── Focus Actions ──
+// ── Lock In Actions ──
 
 export function blockSites(sites: string[]): void {
 	if (sites.length === 0) return;
@@ -282,7 +282,7 @@ export function startMusic(config: { source: string; query: string }): void {
 				const isUrl = config.query.startsWith("http://") || config.query.startsWith("https://");
 				const ytQuery = isUrl ? config.query : `ytsearch1:${config.query}`;
 				execSync(
-					`yt-dlp -x --audio-format mp3 -o "/tmp/openpaw-focus.%(ext)s" "${ytQuery}" 2>/dev/null && afplay /tmp/openpaw-focus.mp3 &`,
+					`yt-dlp -x --audio-format mp3 -o "/tmp/openpaw-lockin.%(ext)s" "${ytQuery}" 2>/dev/null && afplay /tmp/openpaw-lockin.mp3 &`,
 					{ stdio: "pipe", timeout: 30000 },
 				);
 				break;
@@ -353,10 +353,10 @@ export function logToObsidian(duration: number, stats: { commits: number; linesA
 	try {
 		const date = new Date().toISOString().split("T")[0];
 		const time = new Date().toLocaleTimeString();
-		const note = `## Focus Session — ${date} ${time}\n- Duration: ${duration} min\n- Commits: ${stats.commits}\n- Lines: +${stats.linesAdded} / -${stats.linesRemoved}\n`;
+		const note = `## Lock In Session — ${date} ${time}\n- Duration: ${duration} min\n- Commits: ${stats.commits}\n- Lines: +${stats.linesAdded} / -${stats.linesRemoved}\n`;
 		if (cmdExists("obsidian-cli")) {
 			execSync(
-				`obsidian-cli create "Focus Log ${date}" --content "${note.replace(/"/g, '\\"')}" 2>/dev/null`,
+				`obsidian-cli create "Lock In Log ${date}" --content "${note.replace(/"/g, '\\"')}" 2>/dev/null`,
 				{ stdio: "pipe" },
 			);
 		}

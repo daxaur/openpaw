@@ -6,13 +6,13 @@ import { spawn } from "node:child_process";
 import { showMini, accent, dim, bold, subtle } from "../core/branding.js";
 import { getDefaultSkillsDir, listInstalledSkills } from "../core/skills.js";
 import {
-	readFocusConfig,
-	writeFocusConfig,
-	focusConfigExists,
+	readLockInConfig,
+	writeLockInConfig,
+	lockInConfigExists,
 	detectCapabilities,
-	readFocusSession,
-	writeFocusSession,
-	clearFocusSession,
+	readLockInSession,
+	writeLockInSession,
+	clearLockInSession,
 	blockSites,
 	unblockSites,
 	quitApps,
@@ -29,24 +29,24 @@ import {
 	logToObsidian,
 	COMMON_BLOCKED_SITES,
 	COMMON_QUIT_APPS,
-} from "../core/focus.js";
-import type { FocusConfig, FocusMusicSource } from "../types.js";
+} from "../core/lockin.js";
+import type { LockInConfig, LockInMusicSource } from "../types.js";
 
-// ── Focus (show config + status) ──
+// ── Lock In (show config + status) ──
 
-export function focusCommand(): void {
+export function lockInCommand(): void {
 	showMini();
 	console.log("");
 
-	const config = readFocusConfig();
+	const config = readLockInConfig();
 	if (!config) {
-		p.log.warn("Focus Mode isn't set up yet.");
-		p.log.info(`Run ${bold("openpaw focus setup")} to configure your focus environment.`);
+		p.log.warn("Lock In Mode isn't set up yet.");
+		p.log.info(`Run ${bold("openpaw lockin setup")} to configure your environment.`);
 		return;
 	}
 
 	// Check for active session
-	const session = readFocusSession();
+	const session = readLockInSession();
 	if (session) {
 		const endsAt = new Date(session.endsAt);
 		const now = new Date();
@@ -60,26 +60,26 @@ export function focusCommand(): void {
 					`${bold("Remaining:")}    ${remaining} min`,
 					`${bold("Ends at:")}      ${endsAt.toLocaleTimeString()}`,
 				].join("\n"),
-				"Focus Session",
+				"Lock In Session",
 			);
-			p.log.info(dim("Claude is managing this session. Tell Claude to end it, or run ") + bold("openpaw focus end"));
+			p.log.info(dim("Claude is managing this session. Tell Claude to end it, or run ") + bold("openpaw lockin end"));
 			return;
 		}
 		// Session expired
-		p.log.warn("Previous session expired. Run " + bold("openpaw focus end") + " to clean up.");
+		p.log.warn("Previous session expired. Run " + bold("openpaw lockin end") + " to clean up.");
 	}
 
 	// Show config
 	printConfig(config);
 	console.log("");
-	p.log.info(dim("Tell Claude to ") + bold("focus") + dim(" or ") + bold("lock in") + dim(" to start a session."));
-	p.log.info(dim("Reconfigure: ") + bold("openpaw focus setup"));
+	p.log.info(dim("Tell Claude to ") + bold("lock in") + dim(" to start a session."));
+	p.log.info(dim("Reconfigure: ") + bold("openpaw lockin setup"));
 }
 
 function scheduleEndNotification(minutes: number): void {
 	const seconds = minutes * 60;
 	try {
-		const child = spawn("sh", ["-c", `sleep ${seconds} && terminal-notifier -title "Focus Complete" -message "Your ${minutes}-minute focus session is done!" -sound default`], {
+		const child = spawn("sh", ["-c", `sleep ${seconds} && terminal-notifier -title "Lock In Complete" -message "Your ${minutes}-minute session is done!" -sound default`], {
 			detached: true,
 			stdio: "ignore",
 		});
@@ -87,13 +87,13 @@ function scheduleEndNotification(minutes: number): void {
 	} catch {}
 }
 
-function scheduleFocusEndSession(minutes: number): void {
+function scheduleLockInEndSession(minutes: number): void {
 	const seconds = minutes * 60;
 	// Resolve the CLI entry point so it works from any cwd
 	const cli = path.resolve(process.argv[1]);
 	try {
-		// Sleep N minutes, then run `openpaw focus auto-end` which spawns a Claude session
-		const child = spawn("sh", ["-c", `sleep ${seconds} && node "${cli}" focus auto-end`], {
+		// Sleep N minutes, then run `openpaw lockin auto-end` which spawns a Claude session
+		const child = spawn("sh", ["-c", `sleep ${seconds} && node "${cli}" lockin auto-end`], {
 			detached: true,
 			stdio: "ignore",
 			env: { ...process.env },
@@ -103,12 +103,12 @@ function scheduleFocusEndSession(minutes: number): void {
 }
 
 /**
- * Auto-end: spawns a Claude session that ends the focus, reads the receipt,
+ * Auto-end: spawns a Claude session that ends the lock-in, reads the receipt,
  * and sends a natural summary via Telegram (or saves to file).
  */
-export async function focusAutoEndCommand(): Promise<void> {
-	const config = readFocusConfig();
-	const session = readFocusSession();
+export async function lockInAutoEndCommand(): Promise<void> {
+	const config = readLockInConfig();
+	const session = readLockInSession();
 	if (!session || !config) return;
 
 	// Restore environment first
@@ -131,12 +131,12 @@ export async function focusAutoEndCommand(): Promise<void> {
 		logToObsidian(elapsed, stats);
 	}
 
-	clearFocusSession();
+	clearLockInSession();
 
 	// Spawn a Claude session to write a natural summary
 	try {
 		const { query } = await import("@anthropic-ai/claude-agent-sdk");
-		const prompt = `The user's focus session just ended. Here are the stats:\n\n${receipt}\n\nWrite a brief, encouraging 2-3 sentence summary of their focus session. Be specific about the numbers. If they made commits, acknowledge their productivity. If not, that's fine too — they were focused. Keep it casual and warm.`;
+		const prompt = `The user's lock-in session just ended. Here are the stats:\n\n${receipt}\n\nWrite a brief, encouraging 2-3 sentence summary of their session. Be specific about the numbers. If they made commits, acknowledge their productivity. If not, that's fine too — they were focused. Keep it casual and warm.`;
 
 		let summary = "";
 		const q = query({
@@ -156,7 +156,7 @@ export async function focusAutoEndCommand(): Promise<void> {
 			}
 		}
 
-		if (!summary) summary = `Focus session complete: ${elapsed} min, ${stats.commits} commits, +${stats.linesAdded}/-${stats.linesRemoved} lines.`;
+		if (!summary) summary = `Lock-in session complete: ${elapsed} min, ${stats.commits} commits, +${stats.linesAdded}/-${stats.linesRemoved} lines.`;
 
 		// Deliver via Telegram if available, otherwise notification
 		try {
@@ -167,7 +167,7 @@ export async function focusAutoEndCommand(): Promise<void> {
 					await fetch(`https://api.telegram.org/bot${tgConfig.botToken}/sendMessage`, {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({ chat_id: userId, text: `🎯 *Focus Complete*\n\n${summary}`, parse_mode: "Markdown" }),
+						body: JSON.stringify({ chat_id: userId, text: `🎯 *Lock In Complete*\n\n${summary}`, parse_mode: "Markdown" }),
 					});
 				}
 				return;
@@ -175,34 +175,34 @@ export async function focusAutoEndCommand(): Promise<void> {
 		} catch {}
 
 		// Fallback: native notification
-		sendNotification("Focus Complete", summary.slice(0, 200));
+		sendNotification("Lock In Complete", summary.slice(0, 200));
 	} catch {
 		// SDK not available — just send basic notification
-		sendNotification("Focus Complete", `${elapsed} min session done. ${stats.commits} commits.`);
+		sendNotification("Lock In Complete", `${elapsed} min session done. ${stats.commits} commits.`);
 	}
 }
 
 // ── Non-interactive commands (for Claude Code) ──
 
-export function focusStartCommand(opts: { all?: boolean }): void {
-	const config = readFocusConfig();
+export function lockInStartCommand(opts: { all?: boolean }): void {
+	const config = readLockInConfig();
 	if (!config) {
-		console.log("Focus Mode not configured. Run: openpaw focus setup");
+		console.log("Lock In Mode not configured. Run: openpaw lockin setup");
 		process.exit(1);
 	}
 
-	const session = readFocusSession();
+	const session = readLockInSession();
 	if (session) {
 		const endsAt = new Date(session.endsAt);
 		if (endsAt > new Date()) {
 			const remaining = Math.round((endsAt.getTime() - Date.now()) / 60000);
-			console.log(`Focus session already active. ${remaining} min remaining.`);
-			console.log(`Run "openpaw focus end" to stop early.`);
+			console.log(`Lock-in session already active. ${remaining} min remaining.`);
+			console.log(`Run "openpaw lockin end" to stop early.`);
 			return;
 		}
 		// Expired — clean up silently
 		restoreEnvironment(config);
-		clearFocusSession();
+		clearLockInSession();
 	}
 
 	const actions: string[] = [];
@@ -257,7 +257,7 @@ export function focusStartCommand(opts: { all?: boolean }): void {
 
 	// Save session
 	const now = new Date();
-	writeFocusSession({
+	writeLockInSession({
 		startedAt: now.toISOString(),
 		endsAt: new Date(now.getTime() + config.duration * 60000).toISOString(),
 		config,
@@ -267,26 +267,26 @@ export function focusStartCommand(opts: { all?: boolean }): void {
 
 	// Timer
 	if (config.timer) {
-		sendNotification("Focus Mode", `${config.duration} minutes starts now.`);
+		sendNotification("Lock In Mode", `${config.duration} minutes starts now.`);
 		scheduleEndNotification(config.duration);
 	}
 
 	// Schedule auto-end: Claude session fires when time is up
-	scheduleFocusEndSession(config.duration);
+	scheduleLockInEndSession(config.duration);
 
 	// Plain text output for Claude
-	console.log(`Focus session started (${config.duration} min)`);
+	console.log(`Lock-in session started (${config.duration} min)`);
 	for (const a of actions) console.log(`  - ${a}`);
 	console.log(`\nEnds at: ${new Date(now.getTime() + config.duration * 60000).toLocaleTimeString()}`);
-	console.log(`Run "openpaw focus end" when done.`);
+	console.log(`Run "openpaw lockin end" when done.`);
 }
 
-export function focusEndCommand(): void {
-	const config = readFocusConfig();
-	const session = readFocusSession();
+export function lockInEndCommand(): void {
+	const config = readLockInConfig();
+	const session = readLockInSession();
 
 	if (!session) {
-		console.log("No active focus session.");
+		console.log("No active lock-in session.");
 		return;
 	}
 
@@ -299,8 +299,8 @@ export function focusEndCommand(): void {
 	const elapsed = Math.round((Date.now() - startTime.getTime()) / 60000);
 	const stats = getGitDiffStats(session.gitCommitsBefore);
 
-	console.log("Focus session ended.\n");
-	console.log("--- Focus Receipt ---");
+	console.log("Lock-in session ended.\n");
+	console.log("--- Lock In Receipt ---");
 	console.log(`Duration:      ${elapsed} min`);
 	console.log(`Commits:       ${stats.commits}`);
 	console.log(`Lines added:   +${stats.linesAdded}`);
@@ -309,7 +309,7 @@ export function focusEndCommand(): void {
 		const total = (config.blockedSites.always?.length ?? 0) + (config.blockedSites.askEachTime?.length ?? 0);
 		console.log(`Sites blocked: ${total}`);
 	}
-	console.log("---------------------");
+	console.log("-----------------------");
 
 	// Obsidian log
 	if (config?.obsidianLog) {
@@ -319,29 +319,29 @@ export function focusEndCommand(): void {
 
 	// Notification
 	if (config?.timer) {
-		sendNotification("Focus Complete", `${elapsed} min session. ${stats.commits} commits.`);
+		sendNotification("Lock In Complete", `${elapsed} min session. ${stats.commits} commits.`);
 	}
 
-	clearFocusSession();
+	clearLockInSession();
 }
 
-export function focusStatusCommand(): void {
-	const config = readFocusConfig();
+export function lockInStatusCommand(): void {
+	const config = readLockInConfig();
 	if (!config) {
-		console.log("Focus Mode not configured. Run: openpaw focus setup");
+		console.log("Lock In Mode not configured. Run: openpaw lockin setup");
 		return;
 	}
 
-	const session = readFocusSession();
+	const session = readLockInSession();
 	if (!session) {
-		console.log("No active focus session.");
+		console.log("No active lock-in session.");
 		console.log(`\nConfig: ${config.duration} min sessions`);
 		if (config.blockedSites) console.log(`  Sites: ${config.blockedSites.always.length} always, ${config.blockedSites.askEachTime.length} ask-each-time`);
 		if (config.quitApps) console.log(`  Apps: ${config.quitApps.always.length} always, ${config.quitApps.askEachTime.length} ask-each-time`);
 		if (config.music) console.log(`  Music: ${config.music.source} → ${config.music.query}`);
 		if (config.bluetooth) console.log(`  Bluetooth: ${config.bluetooth.device}`);
 		if (config.lights) console.log(`  Lights: ${config.lights.room} at ${config.lights.brightness}%`);
-		console.log(`\nRun "openpaw focus start" to begin.`);
+		console.log(`\nRun "openpaw lockin start" to begin.`);
 		return;
 	}
 
@@ -351,16 +351,16 @@ export function focusStatusCommand(): void {
 	if (endsAt > now) {
 		const remaining = Math.round((endsAt.getTime() - now.getTime()) / 60000);
 		const elapsed = Math.round((now.getTime() - new Date(session.startedAt).getTime()) / 60000);
-		console.log(`Focus session active.`);
+		console.log(`Lock-in session active.`);
 		console.log(`  Elapsed:   ${elapsed} min`);
 		console.log(`  Remaining: ${remaining} min`);
 		console.log(`  Ends at:   ${endsAt.toLocaleTimeString()}`);
 	} else {
-		console.log("Focus session expired. Run \"openpaw focus end\" to clean up and see receipt.");
+		console.log("Lock-in session expired. Run \"openpaw lockin end\" to clean up and see receipt.");
 	}
 }
 
-function restoreEnvironment(config: FocusConfig): void {
+function restoreEnvironment(config: LockInConfig): void {
 	if (config.blockedSites && (config.blockedSites.always.length > 0 || config.blockedSites.askEachTime.length > 0)) {
 		unblockSites();
 	}
@@ -385,9 +385,9 @@ async function pawWalk(label: string): Promise<void> {
 	console.log(`  ${accent("🐾")} ${label}`);
 }
 
-// ── Focus Setup ──
+// ── Lock In Setup ──
 
-export async function focusSetupCommand(): Promise<void> {
+export async function lockInSetupCommand(): Promise<void> {
 	showMini();
 	console.log("");
 
@@ -404,11 +404,11 @@ export async function focusSetupCommand(): Promise<void> {
 	if (caps.hasObsidian) detected.push("Obsidian");
 	if (caps.hasTerminalNotifier) detected.push("Notifications");
 
-	p.intro(accent("Focus Mode Setup"));
+	p.intro(accent("Lock In Mode Setup"));
 
-	if (focusConfigExists()) {
-		const existing = readFocusConfig()!;
-		p.log.info("You already have a focus config. This will update it.");
+	if (lockInConfigExists()) {
+		const existing = readLockInConfig()!;
+		p.log.info("You already have a lock-in config. This will update it.");
 		printConfig(existing);
 		console.log("");
 	}
@@ -420,7 +420,7 @@ export async function focusSetupCommand(): Promise<void> {
 
 	// ── Duration ──
 	const duration = await p.text({
-		message: "How long is your typical focus session? (minutes)",
+		message: "How long is your typical lock-in session? (minutes)",
 		initialValue: "90",
 		validate: (v) => {
 			const n = parseInt(v, 10);
@@ -429,7 +429,7 @@ export async function focusSetupCommand(): Promise<void> {
 	});
 	if (p.isCancel(duration)) return;
 
-	const config: FocusConfig = {
+	const config: LockInConfig = {
 		duration: parseInt(duration as string, 10),
 		dnd: false,
 		slackDnd: false,
@@ -440,7 +440,7 @@ export async function focusSetupCommand(): Promise<void> {
 	// ── Website Blocking ──
 	await pawWalk("Distractions...");
 	const wantSites = await p.confirm({
-		message: "Block distracting websites during focus?",
+		message: "Block distracting websites when locked in?",
 		initialValue: true,
 	});
 
@@ -487,7 +487,7 @@ export async function focusSetupCommand(): Promise<void> {
 	// ── App Quitting ──
 	await pawWalk("Apps...");
 	const wantApps = await p.confirm({
-		message: "Quit distracting apps when focus starts?",
+		message: "Quit distracting apps when locked in?",
 		initialValue: true,
 	});
 
@@ -553,14 +553,14 @@ export async function focusSetupCommand(): Promise<void> {
 
 	// ── Music ──
 	await pawWalk("Vibes...");
-	const musicSources: { value: FocusMusicSource; label: string; hint?: string }[] = [];
+	const musicSources: { value: LockInMusicSource; label: string; hint?: string }[] = [];
 	if (caps.hasSpotify) musicSources.push({ value: "spotify", label: "Spotify", hint: "spogo" });
 	if (caps.hasAppleMusic) musicSources.push({ value: "apple-music", label: "Apple Music" });
 	if (caps.hasSonos) musicSources.push({ value: "sonos", label: "Sonos" });
 	if (caps.hasYtDlp) musicSources.push({ value: "youtube", label: "YouTube (audio)", hint: "yt-dlp" });
 
 	const wantMusic = musicSources.length > 0 ? await p.confirm({
-		message: "Play music when focus starts?",
+		message: "Play music when locked in?",
 		initialValue: true,
 	}) : false;
 
@@ -630,7 +630,7 @@ export async function focusSetupCommand(): Promise<void> {
 			}
 
 			if (query) {
-				config.music = { source: source as FocusMusicSource, query };
+				config.music = { source: source as LockInMusicSource, query };
 			}
 		}
 	}
@@ -639,7 +639,7 @@ export async function focusSetupCommand(): Promise<void> {
 	if (caps.hasHue) {
 		await pawWalk("Lights...");
 		const wantLights = await p.confirm({
-			message: "Set Hue lights for focus?",
+			message: "Set Hue lights when locked in?",
 			initialValue: true,
 		});
 
@@ -692,15 +692,15 @@ export async function focusSetupCommand(): Promise<void> {
 		}
 	}
 
-	// ── DND / Slack / Calendar ──
+	// ── DND / Slack / Extras ──
 	await pawWalk("Finishing up...");
 	const toggles = await p.multiselect({
-		message: "Enable during focus",
+		message: "Enable when locked in",
 		options: [
 			{ value: "dnd", label: "macOS Do Not Disturb", hint: "silence all notifications" },
 			...(caps.hasSlack ? [{ value: "slackDnd", label: "Slack DND", hint: `auto-set for ${config.duration} min` }] : []),
 			...(caps.hasTerminalNotifier ? [{ value: "timer", label: "Timer notification", hint: "notify when session ends" }] : []),
-			...(caps.hasObsidian ? [{ value: "obsidianLog", label: "Log to Obsidian", hint: "save focus receipt" }] : []),
+			...(caps.hasObsidian ? [{ value: "obsidianLog", label: "Log to Obsidian", hint: "save session receipt" }] : []),
 		],
 		required: false,
 	});
@@ -719,7 +719,7 @@ export async function focusSetupCommand(): Promise<void> {
 	const hint = installed.length > 0 ? `${installed.length} skills installed here` : "recommended";
 
 	const skillsDir = await p.select({
-		message: "Where should the focus skill live?",
+		message: "Where should the lock-in skill live?",
 		options: [
 			{ value: defaultDir, label: `Global ${dim("~/.claude/skills/")}`, hint },
 			{ value: ".claude/skills", label: `Project ${dim(".claude/skills/")}` },
@@ -742,34 +742,34 @@ export async function focusSetupCommand(): Promise<void> {
 	}
 
 	// ── Save ──
-	await pawWalk("Saving your focus config...");
-	writeFocusConfig(config);
-	installFocusSkillMd(targetDir);
+	await pawWalk("Saving your lock-in config...");
+	writeLockInConfig(config);
+	installLockInSkillMd(targetDir);
 
 	console.log("");
 	printConfig(config);
-	p.outro(accent("Focus Mode configured! ") + dim('Tell Claude to "focus" or "lock in" to start a session. 🐾'));
+	p.outro(accent("Lock In Mode configured! ") + dim('Tell Claude to "lock in" to start a session. 🐾'));
 }
 
 // ── Install SKILL.md ──
 
-function installFocusSkillMd(skillsDir: string): void {
-	const skillDir = path.join(skillsDir, "c-focus");
+function installLockInSkillMd(skillsDir: string): void {
+	const skillDir = path.join(skillsDir, "c-lockin");
 	fs.mkdirSync(skillDir, { recursive: true });
 
 	const md = `---
-name: c-focus
-description: Focus Mode — orchestrate distraction blocking, environment setup, and session tracking.
-tags: [focus, productivity, deep-work, pomodoro, distraction-blocking]
+name: c-lockin
+description: Lock In Mode — orchestrate distraction blocking, environment setup, and session tracking.
+tags: [lockin, focus, productivity, deep-work, pomodoro, distraction-blocking]
 ---
 
 ## What This Skill Does
 
-You orchestrate focus sessions by reading the user's config and running shell commands directly.
+You orchestrate lock-in sessions by reading the user's config and running shell commands directly.
 
 ## Config
 
-Read \`~/.config/openpaw/focus.json\` for preferences. If missing, suggest: \`openpaw focus setup\`
+Read \`~/.config/openpaw/lockin.json\` for preferences. If missing, suggest: \`openpaw lockin setup\`
 
 \`\`\`json
 {
@@ -792,12 +792,12 @@ Read \`~/.config/openpaw/focus.json\` for preferences. If missing, suggest: \`op
 }
 \`\`\`
 
-## Starting a Focus Session
+## Starting a Lock In Session
 
-When the user says "focus", "deep work", "lock in", or similar:
+When the user says "lock in", "focus", "deep work", or similar:
 
-1. Read \`~/.config/openpaw/focus.json\`
-2. Check \`~/.config/openpaw/focus-session.json\` — if it exists, a session is already active
+1. Read \`~/.config/openpaw/lockin.json\`
+2. Check \`~/.config/openpaw/lockin-session.json\` — if it exists, a session is already active
 3. If there are \`askEachTime\` sites or apps, ask the user which to include this session
 4. Tell the user what you're about to do, then execute each enabled step:
 
@@ -806,8 +806,8 @@ When the user says "focus", "deep work", "lock in", or similar:
 **Block websites** (if \`blockedSites\` configured):
 \`\`\`bash
 # For each site in always + user-approved askEachTime list:
-echo "127.0.0.1 site.com # OPENPAW-FOCUS
-127.0.0.1 www.site.com # OPENPAW-FOCUS" | sudo tee -a /etc/hosts > /dev/null
+echo "127.0.0.1 site.com # OPENPAW-LOCKIN
+127.0.0.1 www.site.com # OPENPAW-LOCKIN" | sudo tee -a /etc/hosts > /dev/null
 sudo dscacheutil -flushcache
 sudo killall -HUP mDNSResponder
 \`\`\`
@@ -831,7 +831,7 @@ osascript -e 'tell application "Music" to play playlist "query"'
 # sonos:
 sonos play "query"
 # youtube (yt-dlp — prefix non-URLs with ytsearch1:):
-yt-dlp -x --audio-format mp3 -o "/tmp/openpaw-focus.%(ext)s" "ytsearch1:query" && afplay /tmp/openpaw-focus.mp3 &
+yt-dlp -x --audio-format mp3 -o "/tmp/openpaw-lockin.%(ext)s" "ytsearch1:query" && afplay /tmp/openpaw-lockin.mp3 &
 \`\`\`
 
 **Set lights** (if \`lights\` configured):
@@ -850,7 +850,7 @@ killall NotificationCenter
 slack dnd set <duration>
 \`\`\`
 
-**Write the session file** to \`~/.config/openpaw/focus-session.json\`:
+**Write the session file** to \`~/.config/openpaw/lockin-session.json\`:
 \`\`\`json
 {
   "startedAt": "<ISO timestamp>",
@@ -863,20 +863,20 @@ slack dnd set <duration>
 
 **Start the auto-end timer:**
 \`\`\`bash
-openpaw focus auto-end &
+openpaw lockin auto-end &
 \`\`\`
 This sleeps for the duration, then restores everything and sends a summary via Telegram.
 
-Or run \`openpaw focus start\` to do all of the above automatically.
+Or run \`openpaw lockin start\` to do all of the above automatically.
 
-## Ending a Focus Session
+## Ending a Lock In Session
 
-When the user says "stop focus", "end focus", "I'm done", or the timer fires:
+When the user says "stop", "end session", "I'm done", or the timer fires:
 
 1. **Restore environment:**
 \`\`\`bash
 # Unblock sites
-sudo sed -i '' '/OPENPAW-FOCUS/d' /etc/hosts
+sudo sed -i '' '/OPENPAW-LOCKIN/d' /etc/hosts
 sudo dscacheutil -flushcache
 # Disable DND
 defaults -currentHost write ~/Library/Preferences/ByHost/com.apple.notificationcenterui doNotDisturb -boolean false
@@ -891,20 +891,20 @@ git rev-list --count HEAD  # subtract gitCommitsBefore from session file
 git diff --stat HEAD~N HEAD
 \`\`\`
 
-3. **Summarize naturally** — how long they focused, commits made, lines added/removed. Be encouraging.
+3. **Summarize naturally** — how long they locked in, commits made, lines added/removed. Be encouraging.
 4. **Log to Obsidian** if \`obsidianLog: true\`
-5. Delete \`~/.config/openpaw/focus-session.json\`
+5. Delete \`~/.config/openpaw/lockin-session.json\`
 
 ## Reconfigure
 
 \`\`\`bash
-openpaw focus setup      # Interactive wizard
-openpaw focus configure  # Alias
+openpaw lockin setup      # Interactive wizard
+openpaw lockin configure  # Alias
 \`\`\`
 
 ## Guidelines
 
-- Only start focus when the user explicitly asks — never suggest unprompted
+- Only start a session when the user explicitly asks — never suggest unprompted
 - Always tell the user what you're doing before each step
 - If a command fails (e.g. sudo denied), tell the user and continue with other steps
 - Skip any step whose config field is missing or false
@@ -915,15 +915,15 @@ openpaw focus configure  # Alias
 	fs.writeFileSync(path.join(skillDir, "SKILL.md"), md);
 }
 
-// ── Focus Configure (alias to setup) ──
+// ── Lock In Configure (alias to setup) ──
 
-export async function focusConfigureCommand(): Promise<void> {
-	return focusSetupCommand();
+export async function lockInConfigureCommand(): Promise<void> {
+	return lockInSetupCommand();
 }
 
 // ── Helpers ──
 
-function printConfig(config: FocusConfig): void {
+function printConfig(config: LockInConfig): void {
 	const lines: string[] = [];
 	lines.push(`${bold("Duration:")}      ${config.duration} min`);
 
@@ -936,6 +936,7 @@ function printConfig(config: FocusConfig): void {
 	if (config.bluetooth) lines.push(`${bold("Bluetooth:")}     ${config.bluetooth.device}`);
 	if (config.music) lines.push(`${bold("Music:")}         ${config.music.source} → ${config.music.query}`);
 	if (config.lights) lines.push(`${bold("Lights:")}        ${config.lights.room} at ${config.lights.brightness}%${config.lights.color ? ` (${config.lights.color})` : ""}`);
+	if (config.windows) lines.push(`${bold("Windows:")}       ${config.windows.layout}${config.windows.ide ? ` (${config.windows.ide})` : ""}`);
 
 	const flags: string[] = [];
 	if (config.dnd) flags.push("DND");
@@ -944,5 +945,5 @@ function printConfig(config: FocusConfig): void {
 	if (config.obsidianLog) flags.push("Obsidian log");
 	if (flags.length) lines.push(`${bold("Extras:")}        ${flags.join(", ")}`);
 
-	p.note(lines.join("\n"), "Focus Config");
+	p.note(lines.join("\n"), "Lock In Config");
 }

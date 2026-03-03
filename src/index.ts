@@ -12,7 +12,7 @@ import { exportCommand, importCommand } from "./commands/export.js";
 import { telegramCommand, telegramSetupCommand } from "./commands/telegram.js";
 import { dashboardCommand } from "./commands/dashboard.js";
 import { configureCommand } from "./commands/configure.js";
-import { focusCommand, focusSetupCommand, focusConfigureCommand, focusStartCommand, focusEndCommand, focusStatusCommand, focusAutoEndCommand } from "./commands/focus.js";
+import { lockInCommand, lockInSetupCommand, lockInConfigureCommand, lockInStartCommand, lockInEndCommand, lockInStatusCommand, lockInAutoEndCommand } from "./commands/lockin.js";
 import {
 	scheduleAddCommand,
 	scheduleListCommand,
@@ -105,39 +105,39 @@ program
 	.description("Configure your setup — add skills, change personality, manage dashboard")
 	.action(configureCommand);
 
-// ── Focus ──
+// ── Lock In ──
 
-const focus = program
-	.command("focus")
-	.description("Start a focus session — block distractions, set the mood, get in the zone");
+const lockin = program
+	.command("lockin")
+	.description("Start a lock-in session — block distractions, set the mood, get in the zone");
 
-focus.action(focusCommand);
+lockin.action(lockInCommand);
 
-focus.command("start")
-	.description("Start a focus session (non-interactive, for Claude Code)")
+lockin.command("start")
+	.description("Start a lock-in session (non-interactive, for Claude Code)")
 	.option("--all", "Include ask-each-time sites and apps")
-	.action((opts) => focusStartCommand(opts));
+	.action((opts) => lockInStartCommand(opts));
 
-focus.command("end")
-	.description("End the current focus session and show receipt")
-	.action(() => focusEndCommand());
+lockin.command("end")
+	.description("End the current lock-in session and show receipt")
+	.action(() => lockInEndCommand());
 
-focus.command("status")
-	.description("Show current focus session status")
-	.action(() => focusStatusCommand());
+lockin.command("status")
+	.description("Show current lock-in session status")
+	.action(() => lockInStatusCommand());
 
-focus.command("auto-end")
-	.description("Auto-end focus session (internal — triggered by timer)")
-	.action(focusAutoEndCommand);
+lockin.command("auto-end")
+	.description("Auto-end lock-in session (internal — triggered by timer)")
+	.action(lockInAutoEndCommand);
 
-focus.command("setup")
-	.description("Set up or reconfigure Focus Mode")
-	.action(focusSetupCommand);
+lockin.command("setup")
+	.description("Set up or reconfigure Lock In Mode")
+	.action(lockInSetupCommand);
 
-focus.command("configure")
+lockin.command("configure")
 	.alias("config")
-	.description("Reconfigure Focus Mode (alias for setup)")
-	.action(focusConfigureCommand);
+	.description("Reconfigure Lock In Mode (alias for setup)")
+	.action(lockInConfigureCommand);
 
 const tg = program
 	.command("telegram")

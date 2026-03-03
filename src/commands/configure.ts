@@ -19,7 +19,7 @@ export async function configureCommand(): Promise<void> {
 			{ value: "soul", label: "Edit personality", hint: "name, tone, verbosity" },
 			{ value: "dashboard", label: "Open dashboard", hint: "task manager in browser" },
 			{ value: "telegram", label: "Telegram setup", hint: "configure bot bridge" },
-			{ value: "focus setup", label: "Focus Mode", hint: "block distractions, set the mood" },
+			{ value: "lockin setup", label: "Lock In Mode", hint: "block distractions, set the mood" },
 		{ value: "schedule", label: "Manage schedules", hint: "recurring tasks + cost control" },
 			{ value: "status", label: "View status", hint: "see what's installed" },
 			{ value: "doctor", label: "Run diagnostics", hint: "check for issues" },
