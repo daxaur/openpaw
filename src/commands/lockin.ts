@@ -278,11 +278,11 @@ export async function lockInSetupCommand(): Promise<void> {
 					{ value: "_custom", label: "Type a playlist or station..." },
 				],
 				youtube: [
-					{ value: "white noise 1 hour", label: "White noise" },
-					{ value: "nature sounds rain", label: "Rain sounds" },
-					{ value: "waterfall ambient", label: "Waterfall" },
-					{ value: "lo-fi hip hop radio", label: "Lo-fi hip hop" },
-					{ value: "brown noise focus", label: "Brown noise" },
+					{ value: "https://www.youtube.com/watch?v=nMfPqeZjc2c", label: "White noise" },
+					{ value: "https://www.youtube.com/watch?v=jfKfPfyJRdk", label: "Lo-fi hip hop" },
+					{ value: "https://www.youtube.com/watch?v=eKFTSSKCzWA", label: "Rain sounds" },
+					{ value: "https://www.youtube.com/watch?v=lSTgq3bSXNI", label: "Waterfall" },
+					{ value: "https://www.youtube.com/watch?v=GSaJXDsb3N8", label: "Brown noise" },
 					{ value: "_custom", label: "Custom URL..." },
 				],
 			};
@@ -306,7 +306,7 @@ export async function lockInSetupCommand(): Promise<void> {
 				if (!p.isCancel(picked)) {
 					if (picked === "_custom") {
 						const custom = await p.text({
-							message: source === "youtube" ? "YouTube search or URL" : "Playlist or search query",
+							message: source === "youtube" ? "YouTube URL" : "Playlist or search query",
 							defaultValue: "",
 						});
 						if (!p.isCancel(custom) && (custom as string).trim()) query = custom as string;
@@ -318,21 +318,6 @@ export async function lockInSetupCommand(): Promise<void> {
 
 			if (query) {
 				config.music = { source: source as LockInMusicSource, query };
-
-				// Pre-download YouTube audio so sessions start instantly
-				if (source === "youtube") {
-					const s = p.spinner();
-					s.start("Downloading audio so lock-in starts instantly...");
-					try {
-						execSync(
-							`rm -f /tmp/lockin-audio.* 2>/dev/null; yt-dlp -q -f bestaudio --no-playlist -o "/tmp/lockin-audio.%(ext)s" "ytsearch1:${query.replace(/"/g, '\\"')}"`,
-							{ stdio: "pipe", timeout: 60000 },
-						);
-						s.stop(accent("Audio cached!"));
-					} catch {
-						s.stop("Download failed — will retry when you lock in.");
-					}
-				}
 			}
 		}
 	}
@@ -581,10 +566,7 @@ blu connect "DEVICE_NAME"
 
 Only if \`music\` is set. Based on \`music.source\`:
 
-- **youtube** — audio is pre-cached at \`/tmp/lockin-audio.*\` during setup. If the file exists, just play it. If not, download first:
-\`\`\`bash
-ls /tmp/lockin-audio.* &>/dev/null && nohup afplay /tmp/lockin-audio.* &>/dev/null & || nohup bash -c 'yt-dlp -q -f bestaudio --no-playlist -o "/tmp/lockin-audio.%(ext)s" "ytsearch1:QUERY" && afplay /tmp/lockin-audio.*' &>/dev/null &
-\`\`\`
+- **youtube**: \`open "URL"\` (the config stores a YouTube URL — just open it in the browser)
 - **spotify**: \`spogo play "QUERY"\`
 - **apple-music**: \`osascript -e 'tell application "Music" to play (first playlist whose name contains "QUERY")'\`
 - **sonos**: \`sonos play "QUERY"\`
@@ -737,11 +719,7 @@ defaults delete com.google.Chrome IncognitoModeAvailability 2>/dev/null
 
 2. **Disable DND**: \`defaults -currentHost write com.apple.notificationcenterui doNotDisturb -boolean false && killall NotificationCenter 2>/dev/null\`
 
-3. **Stop music**:
-
-\`\`\`bash
-pkill -f "afplay /tmp/lockin-audio" 2>/dev/null; rm -f /tmp/lockin-audio.* 2>/dev/null; osascript -e 'tell application "Music" to pause' 2>/dev/null; osascript -e 'tell application "Spotify" to pause' 2>/dev/null
-\`\`\`
+3. **Stop music**: \`osascript -e 'tell application "Music" to pause' 2>/dev/null; osascript -e 'tell application "Spotify" to pause' 2>/dev/null\`
 
 4. **Git receipt**:
 

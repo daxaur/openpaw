@@ -86,10 +86,7 @@ blu connect "DEVICE_NAME"
 
 Only if `music` is set. Based on `music.source`:
 
-- **youtube** — audio is pre-cached at `/tmp/lockin-audio.*` during setup. If the file exists, just play it. If not, download first:
-```bash
-ls /tmp/lockin-audio.* &>/dev/null && nohup afplay /tmp/lockin-audio.* &>/dev/null & || nohup bash -c 'yt-dlp -q -f bestaudio --no-playlist -o "/tmp/lockin-audio.%(ext)s" "ytsearch1:QUERY" && afplay /tmp/lockin-audio.*' &>/dev/null &
-```
+- **youtube**: `open "URL"` (the config stores a YouTube URL — just open it in the browser)
 - **spotify**: `spogo play "QUERY"`
 - **apple-music**: `osascript -e 'tell application "Music" to play (first playlist whose name contains "QUERY")'`
 - **sonos**: `sonos play "QUERY"`
@@ -242,11 +239,7 @@ defaults delete com.google.Chrome IncognitoModeAvailability 2>/dev/null
 
 2. **Disable DND**: `defaults -currentHost write com.apple.notificationcenterui doNotDisturb -boolean false && killall NotificationCenter 2>/dev/null`
 
-3. **Stop music**:
-
-```bash
-pkill -f "afplay /tmp/lockin-audio" 2>/dev/null; rm -f /tmp/lockin-audio.* 2>/dev/null; osascript -e 'tell application "Music" to pause' 2>/dev/null; osascript -e 'tell application "Spotify" to pause' 2>/dev/null
-```
+3. **Stop music**: `osascript -e 'tell application "Music" to pause' 2>/dev/null; osascript -e 'tell application "Spotify" to pause' 2>/dev/null`
 
 4. **Git receipt**:
 
