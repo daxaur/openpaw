@@ -29,6 +29,11 @@ import {
 	logToObsidian,
 	COMMON_BLOCKED_SITES,
 	COMMON_QUIT_APPS,
+	saveWindowPositions,
+	arrangeWindows,
+	restoreWindows,
+	KNOWN_IDES,
+	KNOWN_TERMINALS,
 } from "../core/lockin.js";
 import type { LockInConfig, LockInMusicSource } from "../types.js";
 
@@ -112,7 +117,7 @@ export async function lockInAutoEndCommand(): Promise<void> {
 	if (!session || !config) return;
 
 	// Restore environment first
-	restoreEnvironment(config);
+	restoreEnvironment(config, session);
 
 	// Generate receipt data
 	const startTime = new Date(session.startedAt);
@@ -201,7 +206,7 @@ export function lockInStartCommand(opts: { all?: boolean }): void {
 			return;
 		}
 		// Expired — clean up silently
-		restoreEnvironment(config);
+		restoreEnvironment(config, session);
 		clearLockInSession();
 	}
 
@@ -243,6 +248,14 @@ export function lockInStartCommand(opts: { all?: boolean }): void {
 		actions.push(`Set ${config.lights.room} lights to ${config.lights.brightness}%`);
 	}
 
+	// Windows
+	let savedPositions: string | undefined;
+	if (config.windows) {
+		savedPositions = saveWindowPositions();
+		arrangeWindows(config.windows);
+		actions.push(`Arranged windows: ${config.windows.layout}`);
+	}
+
 	// DND
 	if (config.dnd) {
 		enableDnd();
@@ -263,6 +276,7 @@ export function lockInStartCommand(opts: { all?: boolean }): void {
 		config,
 		blockedSiteAttempts: 0,
 		gitCommitsBefore: getGitCommitCount(),
+		savedWindowPositions: savedPositions,
 	});
 
 	// Timer
@@ -291,7 +305,7 @@ export function lockInEndCommand(): void {
 	}
 
 	if (config) {
-		restoreEnvironment(config);
+		restoreEnvironment(config, session);
 	}
 
 	// Generate receipt
@@ -360,12 +374,15 @@ export function lockInStatusCommand(): void {
 	}
 }
 
-function restoreEnvironment(config: LockInConfig): void {
+function restoreEnvironment(config: LockInConfig, session?: { savedWindowPositions?: string } | null): void {
 	if (config.blockedSites && (config.blockedSites.always.length > 0 || config.blockedSites.askEachTime.length > 0)) {
 		unblockSites();
 	}
 	if (config.dnd) disableDnd();
 	if (config.music) stopMusic(config.music.source);
+	if (session?.savedWindowPositions) {
+		restoreWindows(session.savedWindowPositions);
+	}
 }
 
 // ── Paw Animation ──
@@ -713,6 +730,58 @@ export async function lockInSetupCommand(): Promise<void> {
 		config.obsidianLog = selected.includes("obsidianLog");
 	}
 
+	// ── Window Arrangement ──
+	await pawWalk("Windows...");
+	const detectedIDEs = caps.runningApps.filter((a) => KNOWN_IDES.includes(a));
+	const detectedTerminals = caps.runningApps.filter((a) => KNOWN_TERMINALS.includes(a));
+
+	if (detectedIDEs.length > 0 || detectedTerminals.length > 0) {
+		const wantWindows = await p.confirm({
+			message: "Auto-arrange windows when locking in?",
+			initialValue: true,
+		});
+
+		if (!p.isCancel(wantWindows) && wantWindows) {
+			let ide: string | undefined;
+			let terminal: string | undefined;
+
+			if (detectedIDEs.length > 0) {
+				const ideChoice = await p.select({
+					message: "IDE to keep visible",
+					options: [
+						...detectedIDEs.map((a) => ({ value: a, label: a, hint: "running" })),
+						{ value: "_none", label: "None" },
+					],
+				});
+				if (!p.isCancel(ideChoice) && ideChoice !== "_none") ide = ideChoice as string;
+			}
+
+			if (detectedTerminals.length > 0) {
+				const termChoice = await p.select({
+					message: "Terminal to keep visible",
+					options: [
+						...detectedTerminals.map((a) => ({ value: a, label: a, hint: "running" })),
+						{ value: "_none", label: "None" },
+					],
+				});
+				if (!p.isCancel(termChoice) && termChoice !== "_none") terminal = termChoice as string;
+			}
+
+			if (ide || terminal) {
+				const layout = await p.select({
+					message: "Layout",
+					options: [
+						{ value: "side-by-side" as const, label: "Side by side", hint: "IDE left, terminal right" },
+						{ value: "stacked" as const, label: "Stacked", hint: "IDE top, terminal bottom" },
+					],
+				});
+				if (!p.isCancel(layout)) {
+					config.windows = { ide, terminal, layout: layout as "side-by-side" | "stacked" };
+				}
+			}
+		}
+	}
+
 	// ── Skills Directory ──
 	const defaultDir = getDefaultSkillsDir();
 	const installed = listInstalledSkills(defaultDir);
@@ -838,6 +907,10 @@ yt-dlp -x --audio-format mp3 -o "/tmp/openpaw-lockin.%(ext)s" "ytsearch1:query" 
 \`\`\`bash
 openhue set room "room" --on --brightness N --color "color"
 \`\`\`
+
+**Arrange windows** (if \`windows\` configured):
+Run \`openpaw lockin start\` which handles window arrangement automatically.
+Windows are saved and restored when the session ends.
 
 **Enable DND** (if \`dnd: true\`):
 \`\`\`bash

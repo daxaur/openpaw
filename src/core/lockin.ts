@@ -363,6 +363,154 @@ export function logToObsidian(duration: number, stats: { commits: number; linesA
 	} catch {}
 }
 
+// ── Window Management ──
+
+export function getScreenSize(): { width: number; height: number } {
+	try {
+		const out = tryExec(
+			`osascript -e 'tell application "Finder" to get bounds of window of desktop' 2>/dev/null`,
+		);
+		if (out) {
+			const parts = out.split(", ").map(Number);
+			if (parts.length === 4) {
+				return { width: parts[2], height: parts[3] };
+			}
+		}
+	} catch {}
+	return { width: 1920, height: 1080 };
+}
+
+interface WindowPosition {
+	app: string;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
+export function saveWindowPositions(): string {
+	if (process.platform !== "darwin") return "[]";
+	try {
+		const script = `
+			tell application "System Events"
+				set windowList to {}
+				set appList to every process whose background only is false
+				repeat with proc in appList
+					try
+						set appName to name of proc
+						repeat with win in (every window of proc)
+							set {x, y} to position of win
+							set {w, h} to size of win
+							set end of windowList to appName & "||" & x & "||" & y & "||" & w & "||" & h
+						end repeat
+					end try
+				end repeat
+				set AppleScript's text item delimiters to "\\n"
+				return windowList as text
+			end tell
+		`;
+		const out = tryExec(`osascript -e '${script.replace(/'/g, "'\\''")}'`);
+		if (out) {
+			const positions: WindowPosition[] = out
+				.split("\n")
+				.filter(Boolean)
+				.map((line) => {
+					const [app, x, y, w, h] = line.split("||");
+					return { app, x: Number(x), y: Number(y), width: Number(w), height: Number(h) };
+				});
+			return JSON.stringify(positions);
+		}
+	} catch {}
+	return "[]";
+}
+
+export function arrangeWindows(config: { ide?: string; terminal?: string; layout: string }): void {
+	if (process.platform !== "darwin") return;
+	const screen = getScreenSize();
+	const menuBarHeight = 25;
+	const usableHeight = screen.height - menuBarHeight;
+
+	// Position IDE and terminal based on layout
+	if (config.ide) {
+		try {
+			if (config.layout === "side-by-side") {
+				const w = Math.floor(screen.width / 2);
+				execSync(
+					`osascript -e 'tell application "System Events" to tell process "${config.ide}" to set position of front window to {0, ${menuBarHeight}}' -e 'tell application "System Events" to tell process "${config.ide}" to set size of front window to {${w}, ${usableHeight}}' 2>/dev/null`,
+					{ stdio: "pipe", timeout: 5000 },
+				);
+			} else {
+				// stacked
+				const h = Math.floor(usableHeight * 0.6);
+				execSync(
+					`osascript -e 'tell application "System Events" to tell process "${config.ide}" to set position of front window to {0, ${menuBarHeight}}' -e 'tell application "System Events" to tell process "${config.ide}" to set size of front window to {${screen.width}, ${h}}' 2>/dev/null`,
+					{ stdio: "pipe", timeout: 5000 },
+				);
+			}
+		} catch {}
+	}
+
+	if (config.terminal) {
+		try {
+			if (config.layout === "side-by-side") {
+				const w = Math.floor(screen.width / 2);
+				execSync(
+					`osascript -e 'tell application "System Events" to tell process "${config.terminal}" to set position of front window to {${w}, ${menuBarHeight}}' -e 'tell application "System Events" to tell process "${config.terminal}" to set size of front window to {${w}, ${usableHeight}}' 2>/dev/null`,
+					{ stdio: "pipe", timeout: 5000 },
+				);
+			} else {
+				// stacked
+				const topH = Math.floor(usableHeight * 0.6);
+				const botH = usableHeight - topH;
+				execSync(
+					`osascript -e 'tell application "System Events" to tell process "${config.terminal}" to set position of front window to {0, ${menuBarHeight + topH}}' -e 'tell application "System Events" to tell process "${config.terminal}" to set size of front window to {${screen.width}, ${botH}}' 2>/dev/null`,
+					{ stdio: "pipe", timeout: 5000 },
+				);
+			}
+		} catch {}
+	}
+
+	// Minimize other visible windows
+	try {
+		const skip = [config.ide, config.terminal].filter(Boolean);
+		const skipList = skip.map((a) => `"${a}"`).join(", ");
+		execSync(
+			`osascript -e '
+				tell application "System Events"
+					set skipApps to {${skipList}}
+					repeat with proc in (every process whose background only is false)
+						if name of proc is not in skipApps and name of proc is not "Finder" and name of proc is not "Dock" then
+							try
+								click (first button of every window of proc whose role description is "minimize button")
+							end try
+						end if
+					end repeat
+				end tell
+			' 2>/dev/null`,
+			{ stdio: "pipe", timeout: 10000 },
+		);
+	} catch {}
+}
+
+export function restoreWindows(saved: string): void {
+	if (process.platform !== "darwin") return;
+	try {
+		const positions: WindowPosition[] = JSON.parse(saved);
+		for (const pos of positions) {
+			try {
+				execSync(
+					`osascript -e 'tell application "System Events" to tell process "${pos.app}" to set position of front window to {${pos.x}, ${pos.y}}' -e 'tell application "System Events" to tell process "${pos.app}" to set size of front window to {${pos.width}, ${pos.height}}' 2>/dev/null`,
+					{ stdio: "pipe", timeout: 3000 },
+				);
+			} catch {}
+		}
+	} catch {}
+}
+
+// Known IDEs and terminals for auto-detection
+export const KNOWN_IDES = ["Code", "Cursor", "Xcode", "IntelliJ IDEA", "WebStorm", "PyCharm", "Android Studio", "Sublime Text", "Atom", "Nova", "Zed"];
+export const KNOWN_TERMINALS = ["Terminal", "iTerm2", "Warp", "Ghostty", "kitty", "Alacritty", "Hyper"];
+
 // Common distracting sites
 export const COMMON_BLOCKED_SITES = [
 	"x.com",

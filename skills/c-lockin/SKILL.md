@@ -80,6 +80,10 @@ yt-dlp -x --audio-format mp3 -o "/tmp/openpaw-lockin.%(ext)s" "ytsearch1:query" 
 openhue set room "room" --on --brightness N --color "color"
 ```
 
+**Arrange windows** (if `windows` configured):
+Run `openpaw lockin start` which handles window arrangement automatically.
+Windows are saved and restored when the session ends.
+
 **Enable DND** (if `dnd: true`):
 ```bash
 defaults -currentHost write ~/Library/Preferences/ByHost/com.apple.notificationcenterui doNotDisturb -boolean true
