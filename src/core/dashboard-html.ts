@@ -1,67 +1,66 @@
 import type { DashboardTheme } from "../types.js";
 
+interface ThemeColors {
+	bg: string;
+	surface: string;
+	surfaceHover: string;
+	border: string;
+	text: string;
+	textDim: string;
+	accent: string;
+	accentDim: string;
+	done: string;
+	high: string;
+	low: string;
+}
+
+const THEME_COLORS: Record<DashboardTheme, ThemeColors> = {
+	paw: {
+		bg: "#1a1008",
+		surface: "#241a10",
+		surfaceHover: "#2e2218",
+		border: "#3a2a18",
+		text: "#e8d8c8",
+		textDim: "#8a7a6a",
+		accent: "#b4783c",
+		accentDim: "#8a5a2a",
+		done: "#6a9a5a",
+		high: "#d44",
+		low: "#666",
+	},
+	midnight: {
+		bg: "#0a0a0f",
+		surface: "#12121a",
+		surfaceHover: "#1a1a25",
+		border: "#222233",
+		text: "#d0d0e0",
+		textDim: "#6a6a8a",
+		accent: "#6688cc",
+		accentDim: "#445588",
+		done: "#5a8a5a",
+		high: "#cc5555",
+		low: "#555566",
+	},
+	neon: {
+		bg: "#050505",
+		surface: "#0a0a0a",
+		surfaceHover: "#111111",
+		border: "#1a1a1a",
+		text: "#e0e0e0",
+		textDim: "#555",
+		accent: "#00ff88",
+		accentDim: "#008844",
+		done: "#00cc66",
+		high: "#ff3355",
+		low: "#444",
+	},
+};
+
 export function generateDashboardHTML(
 	theme: DashboardTheme,
 	botName: string,
 ): string {
-	const themes: Record<
-		DashboardTheme,
-		{
-			bg: string;
-			surface: string;
-			surfaceHover: string;
-			border: string;
-			text: string;
-			textDim: string;
-			accent: string;
-			accentDim: string;
-			done: string;
-			high: string;
-			low: string;
-		}
-	> = {
-		paw: {
-			bg: "#1a1008",
-			surface: "#241a10",
-			surfaceHover: "#2e2218",
-			border: "#3a2a18",
-			text: "#e8d8c8",
-			textDim: "#8a7a6a",
-			accent: "#b4783c",
-			accentDim: "#8a5a2a",
-			done: "#6a9a5a",
-			high: "#d44",
-			low: "#666",
-		},
-		midnight: {
-			bg: "#0a0a0f",
-			surface: "#12121a",
-			surfaceHover: "#1a1a25",
-			border: "#222233",
-			text: "#d0d0e0",
-			textDim: "#6a6a8a",
-			accent: "#6688cc",
-			accentDim: "#445588",
-			done: "#5a8a5a",
-			high: "#cc5555",
-			low: "#555566",
-		},
-		neon: {
-			bg: "#050505",
-			surface: "#0a0a0a",
-			surfaceHover: "#111111",
-			border: "#1a1a1a",
-			text: "#e0e0e0",
-			textDim: "#555",
-			accent: "#00ff88",
-			accentDim: "#008844",
-			done: "#00cc66",
-			high: "#ff3355",
-			low: "#444",
-		},
-	};
-
-	const t = themes[theme];
+	const t = THEME_COLORS[theme];
 
 	// Escape botName for safe use in HTML/JS
 	const safeBotName = botName.replace(/[&<>"']/g, "");
@@ -401,6 +400,100 @@ document.querySelectorAll(".theme-dot").forEach(function(dot) {
 });
 
 load();
+</script>
+</body>
+</html>`;
+}
+
+export function generateFocusTimerHTML(
+	theme: DashboardTheme,
+	botName: string,
+	endsAt: string,
+	duration: string,
+): string {
+	const t = THEME_COLORS[theme];
+	const safeBotName = botName.replace(/[&<>"']/g, "");
+	const safeEndsAt = endsAt.replace(/[&<>"']/g, "");
+	const safeDuration = duration.replace(/[^0-9]/g, "");
+
+	return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${safeBotName} — Locked In</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+font-family:'JetBrains Mono',monospace;
+background:${t.bg};color:${t.text};
+min-height:100vh;display:flex;flex-direction:column;
+align-items:center;justify-content:center;
+overflow:hidden;
+}
+.container{text-align:center;position:relative;z-index:1}
+.paw{font-size:48px;margin-bottom:16px;opacity:.8}
+.label{font-size:14px;text-transform:uppercase;letter-spacing:3px;color:${t.accent};font-weight:600;margin-bottom:32px}
+.timer{font-size:96px;font-weight:700;letter-spacing:4px;color:${t.text};line-height:1;margin-bottom:16px;font-variant-numeric:tabular-nums}
+.sub{font-size:13px;color:${t.textDim};margin-bottom:48px}
+.session-info{font-size:12px;color:${t.textDim};display:flex;gap:24px;justify-content:center}
+.session-info span{display:flex;align-items:center;gap:6px}
+.dot{width:6px;height:6px;border-radius:50%;background:${t.accent};animation:pulse 2s ease-in-out infinite}
+.complete .label{color:${t.done}}
+.complete .timer{color:${t.done}}
+.complete .dot{background:${t.done};animation:none}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+@keyframes flash{0%,100%{opacity:1}50%{opacity:.3}}
+.flash .timer{animation:flash .5s ease-in-out 3}
+.glow{position:fixed;width:300px;height:300px;border-radius:50%;background:${t.accent};opacity:.03;filter:blur(80px);pointer-events:none}
+.glow-1{top:-100px;left:-100px}
+.glow-2{bottom:-100px;right:-100px}
+</style>
+</head>
+<body>
+<div class="glow glow-1"></div>
+<div class="glow glow-2"></div>
+<div class="container" id="container">
+<div class="paw">&#x1F43E;</div>
+<div class="label" id="label">Locked In</div>
+<div class="timer" id="timer">--:--:--</div>
+<div class="sub" id="sub">${safeDuration} min session</div>
+<div class="session-info">
+<span><span class="dot"></span> Focus active</span>
+</div>
+</div>
+<script>
+var endsAt = "${safeEndsAt}";
+var endTime = endsAt ? new Date(endsAt).getTime() : 0;
+var done = false;
+
+function pad(n) { return n < 10 ? "0" + n : "" + n; }
+
+function tick() {
+  if (!endTime || done) return;
+  var now = Date.now();
+  var diff = endTime - now;
+
+  if (diff <= 0) {
+    done = true;
+    document.getElementById("timer").textContent = "00:00:00";
+    document.getElementById("label").textContent = "Session Complete";
+    document.getElementById("sub").textContent = "Great work! Take a break.";
+    document.getElementById("container").classList.add("complete", "flash");
+    document.title = "${safeBotName} — Done!";
+    return;
+  }
+
+  var h = Math.floor(diff / 3600000);
+  var m = Math.floor((diff % 3600000) / 60000);
+  var s = Math.floor((diff % 60000) / 1000);
+  document.getElementById("timer").textContent = pad(h) + ":" + pad(m) + ":" + pad(s);
+}
+
+tick();
+setInterval(tick, 1000);
 </script>
 </body>
 </html>`;
