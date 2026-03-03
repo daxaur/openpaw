@@ -363,7 +363,6 @@ export const skills: Skill[] = [
 		platforms: ["darwin", "linux", "win32"],
 		depends: ["email", "calendar"],
 	},
-
 	// ── Browser & Automation ──
 	{
 		id: "browser",

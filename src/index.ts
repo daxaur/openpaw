@@ -12,6 +12,7 @@ import { exportCommand, importCommand } from "./commands/export.js";
 import { telegramCommand, telegramSetupCommand } from "./commands/telegram.js";
 import { dashboardCommand } from "./commands/dashboard.js";
 import { configureCommand } from "./commands/configure.js";
+import { focusCommand, focusSetupCommand, focusConfigureCommand, focusStartCommand, focusEndCommand, focusStatusCommand, focusAutoEndCommand } from "./commands/focus.js";
 import {
 	scheduleAddCommand,
 	scheduleListCommand,
@@ -103,6 +104,40 @@ program
 	.alias("config")
 	.description("Configure your setup — add skills, change personality, manage dashboard")
 	.action(configureCommand);
+
+// ── Focus ──
+
+const focus = program
+	.command("focus")
+	.description("Start a focus session — block distractions, set the mood, get in the zone");
+
+focus.action(focusCommand);
+
+focus.command("start")
+	.description("Start a focus session (non-interactive, for Claude Code)")
+	.option("--all", "Include ask-each-time sites and apps")
+	.action((opts) => focusStartCommand(opts));
+
+focus.command("end")
+	.description("End the current focus session and show receipt")
+	.action(() => focusEndCommand());
+
+focus.command("status")
+	.description("Show current focus session status")
+	.action(() => focusStatusCommand());
+
+focus.command("auto-end")
+	.description("Auto-end focus session (internal — triggered by timer)")
+	.action(focusAutoEndCommand);
+
+focus.command("setup")
+	.description("Set up or reconfigure Focus Mode")
+	.action(focusSetupCommand);
+
+focus.command("configure")
+	.alias("config")
+	.description("Reconfigure Focus Mode (alias for setup)")
+	.action(focusConfigureCommand);
 
 const tg = program
 	.command("telegram")

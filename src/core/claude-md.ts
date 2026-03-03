@@ -5,6 +5,7 @@ import { skills as catalog } from "../catalog/index.js";
 import { listInstalledSkills } from "./skills.js";
 import { readConfig as readDashboardConfig } from "./dashboard-server.js";
 import { readScheduleConfig } from "./scheduler.js";
+import { readFocusConfig } from "./focus.js";
 import type { Skill } from "../types.js";
 
 const START_MARKER = "<!-- OPENPAW:START -->";
@@ -82,6 +83,19 @@ function generateSection(
 				lines.push(`${schedConfig.jobs.filter((j) => j.enabled).length} active job(s).`);
 			}
 			lines.push("Run `openpaw schedule list` to see jobs, `openpaw schedule costs` to check spending.");
+			lines.push("");
+		}
+	} catch {}
+
+	// Check for focus mode
+	try {
+		const focusConfig = readFocusConfig();
+		if (focusConfig) {
+			lines.push("## Focus Mode");
+			lines.push("");
+			lines.push(`Focus Mode is configured (${focusConfig.duration} min sessions).`);
+			lines.push("When the user says \"focus\", \"deep work\", or similar, run `openpaw focus` to start a session.");
+			lines.push("Run `openpaw focus setup` to reconfigure.");
 			lines.push("");
 		}
 	} catch {}
