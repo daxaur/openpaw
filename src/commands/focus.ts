@@ -723,7 +723,7 @@ export async function focusSetupCommand(): Promise<void> {
 
 	console.log("");
 	printConfig(config);
-	p.outro(accent("Focus Mode configured!") + dim(" Run ") + bold("openpaw focus") + dim(" to start."));
+	p.outro(accent("Focus Mode configured! ") + dim('Tell Claude to "focus" or "lock in" to start a session. 🐾'));
 }
 
 // ── Install SKILL.md ──
