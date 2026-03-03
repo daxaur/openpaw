@@ -1,5 +1,7 @@
 import * as p from "@clack/prompts";
+import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
 import chalk from "chalk";
 import { spawn } from "node:child_process";
 import { showMini, accent, dim, bold } from "../core/branding.js";
@@ -585,10 +587,8 @@ export async function focusSetupCommand(): Promise<void> {
 		duration: parseInt(duration as string, 10),
 		dnd: false,
 		slackDnd: false,
-		calendarBlock: false,
 		timer: false,
 		obsidianLog: false,
-		telegramNotify: false,
 	};
 
 	// ── Website Blocking ──
@@ -856,10 +856,261 @@ export async function focusSetupCommand(): Promise<void> {
 
 	// ── Save ──
 	writeFocusConfig(config);
+	generateFocusSkillMd(config);
 
 	console.log("");
 	printConfig(config);
 	p.outro(accent("Focus Mode configured!") + dim(" Run ") + bold("openpaw focus") + dim(" to start."));
+}
+
+// ── Generate Personalized SKILL.md ──
+
+function generateFocusSkillMd(config: FocusConfig): void {
+	const skillDir = path.join(os.homedir(), ".claude", "skills", "c-focus");
+	fs.mkdirSync(skillDir, { recursive: true });
+
+	const lines: string[] = [];
+
+	lines.push("---");
+	lines.push("name: c-focus");
+	lines.push("description: Focus Mode — orchestrate distraction blocking, environment setup, and session tracking based on saved preferences.");
+	lines.push("tags: [focus, productivity, deep-work, pomodoro, distraction-blocking]");
+	lines.push("---");
+	lines.push("");
+	lines.push("## What This Skill Does");
+	lines.push("");
+	lines.push("You orchestrate focus sessions by running shell commands directly. The user's preferences are below — read them and execute each enabled step.");
+	lines.push("");
+
+	// ── Config summary ──
+	lines.push("## User Preferences");
+	lines.push("");
+	lines.push(`- **Default duration:** ${config.duration} minutes`);
+
+	if (config.blockedSites) {
+		if (config.blockedSites.always.length > 0) {
+			lines.push(`- **Always block:** ${config.blockedSites.always.join(", ")}`);
+		}
+		if (config.blockedSites.askEachTime.length > 0) {
+			lines.push(`- **Ask each time:** ${config.blockedSites.askEachTime.join(", ")}`);
+		}
+	}
+
+	if (config.quitApps) {
+		if (config.quitApps.always.length > 0) {
+			lines.push(`- **Always quit:** ${config.quitApps.always.join(", ")}`);
+		}
+		if (config.quitApps.askEachTime.length > 0) {
+			lines.push(`- **Ask to quit:** ${config.quitApps.askEachTime.join(", ")}`);
+		}
+	}
+
+	if (config.bluetooth) lines.push(`- **Bluetooth:** connect ${config.bluetooth.device}`);
+	if (config.music) lines.push(`- **Music:** ${config.music.source} → "${config.music.query}"`);
+	if (config.lights) {
+		let lightStr = `- **Lights:** ${config.lights.room} at ${config.lights.brightness}%`;
+		if (config.lights.color) lightStr += ` (${config.lights.color})`;
+		lines.push(lightStr);
+	}
+	if (config.dnd) lines.push("- **Do Not Disturb:** enabled");
+	if (config.slackDnd) lines.push("- **Slack DND:** enabled");
+	if (config.timer) lines.push("- **Timer notification:** enabled");
+	if (config.obsidianLog) lines.push("- **Obsidian logging:** enabled");
+
+	// ── Starting a session ──
+	lines.push("");
+	lines.push("## Starting a Focus Session");
+	lines.push("");
+	lines.push('When the user says "focus", "deep work", "lock in", or similar:');
+	lines.push("");
+	lines.push("1. Read `~/.config/openpaw/focus.json` — if missing, suggest: `openpaw focus setup`");
+	lines.push("2. Check `~/.config/openpaw/focus-session.json` — if it exists, a session is already active");
+
+	if (config.blockedSites?.askEachTime?.length || config.quitApps?.askEachTime?.length) {
+		lines.push("3. Ask the user which ask-each-time items to include this session");
+	}
+
+	lines.push(`${config.blockedSites?.askEachTime?.length || config.quitApps?.askEachTime?.length ? "4" : "3"}. Tell the user what you're about to do, then execute each step:`);
+	lines.push("");
+
+	// ── Commands ──
+	lines.push("### Commands to Run (in order)");
+	lines.push("");
+
+	if (config.blockedSites && (config.blockedSites.always.length > 0 || config.blockedSites.askEachTime.length > 0)) {
+		lines.push("**Block websites:**");
+		lines.push("```bash");
+		lines.push("# For each site in the list:");
+		lines.push('echo "127.0.0.1 site.com # OPENPAW-FOCUS');
+		lines.push('127.0.0.1 www.site.com # OPENPAW-FOCUS" | sudo tee -a /etc/hosts > /dev/null');
+		lines.push("sudo dscacheutil -flushcache");
+		lines.push("sudo killall -HUP mDNSResponder");
+		lines.push("```");
+		lines.push("");
+	}
+
+	if (config.quitApps && (config.quitApps.always.length > 0 || config.quitApps.askEachTime.length > 0)) {
+		lines.push("**Quit apps:**");
+		lines.push("```bash");
+		for (const app of [...config.quitApps.always, ...config.quitApps.askEachTime].slice(0, 5)) {
+			lines.push(`osascript -e 'quit app "${app}"'`);
+		}
+		if (config.quitApps.always.length + config.quitApps.askEachTime.length > 5) {
+			lines.push("# ... etc for each app");
+		}
+		lines.push("```");
+		lines.push("");
+	}
+
+	if (config.bluetooth) {
+		lines.push("**Connect bluetooth:**");
+		lines.push("```bash");
+		lines.push(`blu connect "${config.bluetooth.device}"`);
+		lines.push("```");
+		lines.push("");
+	}
+
+	if (config.music) {
+		lines.push("**Play music:**");
+		lines.push("```bash");
+		switch (config.music.source) {
+			case "spotify":
+				lines.push(`spogo search playlist "${config.music.query}" --play`);
+				break;
+			case "apple-music":
+				lines.push(`osascript -e 'tell application "Music" to play playlist "${config.music.query}"'`);
+				break;
+			case "sonos":
+				lines.push(`sonos play "${config.music.query}"`);
+				break;
+			case "youtube": {
+				const isUrl = config.music.query.startsWith("http://") || config.music.query.startsWith("https://");
+				const ytQuery = isUrl ? config.music.query : `ytsearch1:${config.music.query}`;
+				lines.push(`yt-dlp -x --audio-format mp3 -o "/tmp/openpaw-focus.%(ext)s" "${ytQuery}" && afplay /tmp/openpaw-focus.mp3 &`);
+				break;
+			}
+		}
+		lines.push("```");
+		lines.push("");
+	}
+
+	if (config.lights) {
+		lines.push("**Set lights:**");
+		lines.push("```bash");
+		let cmd = `openhue set room "${config.lights.room}" --on --brightness ${config.lights.brightness}`;
+		if (config.lights.color) cmd += ` --color "${config.lights.color}"`;
+		lines.push(cmd);
+		lines.push("```");
+		lines.push("");
+	}
+
+	if (config.dnd) {
+		lines.push("**Enable DND:**");
+		lines.push("```bash");
+		lines.push("defaults -currentHost write ~/Library/Preferences/ByHost/com.apple.notificationcenterui doNotDisturb -boolean true");
+		lines.push("killall NotificationCenter");
+		lines.push("```");
+		lines.push("");
+	}
+
+	if (config.slackDnd) {
+		lines.push("**Slack DND:**");
+		lines.push("```bash");
+		lines.push(`slack dnd set ${config.duration}`);
+		lines.push("```");
+		lines.push("");
+	}
+
+	// ── Session file ──
+	lines.push("**Write the session file** to `~/.config/openpaw/focus-session.json`:");
+	lines.push("```json");
+	lines.push("{");
+	lines.push('  "startedAt": "<ISO timestamp>",');
+	lines.push('  "endsAt": "<ISO timestamp + duration>",');
+	lines.push('  "config": { ... },');
+	lines.push('  "blockedSiteAttempts": 0,');
+	lines.push('  "gitCommitsBefore": <output of git rev-list --count HEAD>');
+	lines.push("}");
+	lines.push("```");
+	lines.push("");
+
+	// ── Auto-end timer ──
+	lines.push("**Start the auto-end timer:**");
+	lines.push("```bash");
+	lines.push("openpaw focus auto-end &");
+	lines.push("```");
+	lines.push("This sleeps for the duration, then spawns a Claude session to restore everything and send a summary.");
+	lines.push("");
+	lines.push("Or run `openpaw focus start` to do all of the above automatically.");
+
+	// ── Ending ──
+	lines.push("");
+	lines.push("## Ending a Focus Session");
+	lines.push("");
+	lines.push('When the user says "stop focus", "end focus", "I\'m done", or the timer fires:');
+	lines.push("");
+	lines.push("1. **Restore environment:**");
+	lines.push("```bash");
+
+	if (config.blockedSites) {
+		lines.push("# Unblock sites");
+		lines.push("sudo sed -i '' '/OPENPAW-FOCUS/d' /etc/hosts");
+		lines.push("sudo dscacheutil -flushcache");
+	}
+	if (config.dnd) {
+		lines.push("# Disable DND");
+		lines.push("defaults -currentHost write ~/Library/Preferences/ByHost/com.apple.notificationcenterui doNotDisturb -boolean false");
+		lines.push("killall NotificationCenter");
+	}
+	if (config.music) {
+		lines.push("# Stop music");
+		switch (config.music.source) {
+			case "spotify":
+				lines.push("spogo pause");
+				break;
+			case "apple-music":
+				lines.push(`osascript -e 'tell application "Music" to pause'`);
+				break;
+			case "sonos":
+				lines.push("sonos pause");
+				break;
+		}
+	}
+
+	lines.push("```");
+	lines.push("");
+	lines.push("2. **Generate receipt** — compute:");
+	lines.push("```bash");
+	lines.push("# Commits since session start");
+	lines.push("git rev-list --count HEAD  # subtract gitCommitsBefore from session file");
+	lines.push("# Lines changed");
+	lines.push("git diff --stat HEAD~N HEAD");
+	lines.push("```");
+	lines.push("");
+	lines.push("3. **Summarize naturally** — tell the user:");
+	lines.push("   - How long they focused");
+	lines.push("   - Commits made, lines added/removed");
+	lines.push("   - Be encouraging and specific");
+	lines.push("");
+
+	if (config.obsidianLog) {
+		lines.push("4. **Log to Obsidian** (enabled)");
+		lines.push("");
+	}
+
+	lines.push(`${config.obsidianLog ? "5" : "4"}. Delete \`~/.config/openpaw/focus-session.json\``);
+
+	// ── Guidelines ──
+	lines.push("");
+	lines.push("## Guidelines");
+	lines.push("");
+	lines.push("- Only start focus when the user explicitly asks — never suggest unprompted");
+	lines.push("- Always tell the user what you're doing before each step");
+	lines.push("- If a command fails (e.g. sudo denied), tell the user and continue with other steps");
+	lines.push("- Reference SOUL.md for personal preferences");
+	lines.push("- When ending, write a human summary — don't just dump numbers");
+
+	fs.writeFileSync(path.join(skillDir, "SKILL.md"), lines.join("\n") + "\n");
 }
 
 // ── Focus Configure (alias to setup) ──
