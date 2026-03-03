@@ -70,6 +70,7 @@ export interface DetectedCapabilities {
 	hasObsidian: boolean;
 	hasTerminalNotifier: boolean;
 	hasTelegram: boolean;
+	hasSelfControl: boolean;
 	runningApps: string[];
 }
 
@@ -104,6 +105,7 @@ export function detectCapabilities(): DetectedCapabilities {
 		hasObsidian: false,
 		hasTerminalNotifier: false,
 		hasTelegram: false,
+		hasSelfControl: false,
 		runningApps: [],
 	};
 
@@ -150,6 +152,9 @@ export function detectCapabilities(): DetectedCapabilities {
 
 	// Notifications
 	caps.hasTerminalNotifier = cmdExists("terminal-notifier");
+
+	// SelfControl
+	caps.hasSelfControl = fs.existsSync("/Applications/SelfControl.app");
 
 	// Telegram config
 	try {
