@@ -489,6 +489,8 @@ You orchestrate lock-in sessions by reading config and running commands directly
 Do NOT use \`openpaw lockin start\` or \`openpaw lockin end\` — those commands do not exist.
 You run each step yourself using the bash commands below.
 
+IMPORTANT: Run each step ONE AT A TIME, sequentially. Do NOT run multiple bash commands in parallel — if one fails, all parallel siblings will error too.
+
 ## Config
 
 Read \`~/.config/openpaw/lockin.json\` for preferences. If missing, suggest: \`openpaw lockin setup\`
@@ -502,7 +504,7 @@ When the user says "lock in", "focus", "deep work", or similar:
 3. If there are \`askEachTime\` sites or apps, ask the user which to include this session
 4. Tell the user what you're about to do
 5. Calculate \`endsAt\` = now + duration minutes (ISO 8601 format)
-6. Run each enabled step below in order
+6. Run each enabled step below ONE AT A TIME, in order
 7. Write the session file (see Session File section)
 8. Open the dashboard focus timer if the dashboard is running
 
@@ -513,7 +515,7 @@ Only if \`siteBlocker\` is \`"selfcontrol"\` and \`blockedSites\` has entries.
 SelfControl blocks cannot be ended early — this is by design. Warn the user before starting.
 
 1. Build the site list from \`blockedSites.always\` + any selected \`askEachTime\` sites
-2. Write a blocklist plist file:
+2. Write a blocklist plist file. The format uses \`HostBlacklist\` (array of plain strings) and \`BlockAsWhitelist\` (bool):
 
 \`\`\`bash
 cat > /tmp/lockin-blocklist.selfcontrol << 'PLIST'
@@ -521,9 +523,10 @@ cat > /tmp/lockin-blocklist.selfcontrol << 'PLIST'
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>Blocklist</key>
+    <key>HostBlacklist</key>
     <array>
-        <dict><key>hostname</key><string>SITE_HERE</string></dict>
+        <string>x.com</string>
+        <string>reddit.com</string>
     </array>
     <key>BlockAsWhitelist</key>
     <false/>
@@ -532,7 +535,7 @@ cat > /tmp/lockin-blocklist.selfcontrol << 'PLIST'
 PLIST
 \`\`\`
 
-Replace SITE_HERE with actual domains. Add one \`<dict><key>hostname</key><string>...</string></dict>\` per site.
+Replace the example domains with the actual sites to block. Each site is a plain \`<string>\` entry — not a dict.
 
 3. Start the block:
 
@@ -567,7 +570,7 @@ Only if \`music\` is set. Based on \`music.source\`:
 - **spotify**: \`spogo play "QUERY"\`
 - **apple-music**: \`osascript -e 'tell application "Music" to play (first playlist whose name contains "QUERY")'\`
 - **sonos**: \`sonos play "QUERY"\`
-- **youtube**: \`yt-dlp -x --audio-format mp3 -o - "ytsearch1:QUERY" | afplay -\` (background with &)
+- **youtube**: \`nohup bash -c 'yt-dlp -f bestaudio --no-playlist -o - "ytsearch1:QUERY" | afplay -' &>/dev/null &\`
 
 ### Lights
 
@@ -664,6 +667,8 @@ Get git commit count: \`git rev-list --count HEAD 2>/dev/null || echo 0\`
 
 When the user says "stop", "end session", "I'm done":
 
+Run each step ONE AT A TIME:
+
 1. **Disable DND**: \`defaults -currentHost write com.apple.notificationcenterui doNotDisturb -boolean false && killall NotificationCenter 2>/dev/null\`
 2. **Stop music**: \`osascript -e 'tell application "Music" to pause' 2>/dev/null; osascript -e 'tell application "Spotify" to pause' 2>/dev/null\`
 3. **SelfControl**: blocks expire on their own — nothing to do
@@ -694,9 +699,10 @@ openpaw lockin configure  # Alias for setup
 
 ## Guidelines
 
+- CRITICAL: Run steps ONE AT A TIME — never run multiple bash commands in parallel
 - Only start a session when the user explicitly asks — never suggest unprompted
 - Always tell the user what you're about to do before starting
-- If a command fails, tell the user and continue with other steps
+- If a command fails, tell the user and continue with the next step
 - Skip any step whose config field is missing or false
 - Warn about SelfControl blocks being unbypassable before starting
 - Reference SOUL.md for personal preferences
