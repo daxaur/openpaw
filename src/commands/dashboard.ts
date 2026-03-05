@@ -9,7 +9,7 @@ export function dashboardCommand(opts: {
 	const port = opts.port ? Number.parseInt(opts.port, 10) : undefined;
 	const theme =
 		opts.theme &&
-		(opts.theme === "paw" || opts.theme === "midnight" || opts.theme === "neon")
+		(opts.theme === "paw" || opts.theme === "midnight" || opts.theme === "neon" || opts.theme === "rose")
 			? (opts.theme as DashboardTheme)
 			: undefined;
 

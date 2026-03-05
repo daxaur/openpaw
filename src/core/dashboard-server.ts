@@ -79,7 +79,8 @@ export function startDashboard(opts: {
 					themeParam &&
 					(themeParam === "paw" ||
 						themeParam === "midnight" ||
-						themeParam === "neon")
+						themeParam === "neon" ||
+						themeParam === "rose")
 				) {
 					current.theme = themeParam as DashboardTheme;
 					writeConfig(current);
@@ -186,6 +187,21 @@ export function startDashboard(opts: {
 			if (method === "GET" && pathname === "/api/config") {
 				const { theme, botName, port: p } = readConfig();
 				json(res, { theme, botName, port: p });
+				return;
+			}
+
+			// ── PUT /api/config ──
+			if (method === "PUT" && pathname === "/api/config") {
+				const body = await parseBody(req);
+				const current = readConfig();
+				if (body.theme && ["paw", "midnight", "neon", "rose"].includes(String(body.theme))) {
+					current.theme = body.theme as DashboardTheme;
+				}
+				if (body.botName && typeof body.botName === "string") {
+					current.botName = body.botName.slice(0, 20);
+				}
+				writeConfig(current);
+				json(res, { theme: current.theme, botName: current.botName });
 				return;
 			}
 

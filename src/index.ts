@@ -96,7 +96,7 @@ program
 	.command("dashboard")
 	.description("Start the task manager dashboard in your browser")
 	.option("-p, --port <port>", "Port to run on (default: 3141)")
-	.option("-t, --theme <theme>", "Theme: paw, midnight, or neon")
+	.option("-t, --theme <theme>", "Theme: paw, midnight, neon, or rose")
 	.option("--no-open", "Start server without opening browser")
 	.action(dashboardCommand);
 

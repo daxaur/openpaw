@@ -54,6 +54,19 @@ const THEME_COLORS: Record<DashboardTheme, ThemeColors> = {
 		high: "#ff3355",
 		low: "#444",
 	},
+	rose: {
+		bg: "#120a0e",
+		surface: "#1a1014",
+		surfaceHover: "#24181e",
+		border: "#3a2030",
+		text: "#e8d0dc",
+		textDim: "#8a6a7a",
+		accent: "#d4688a",
+		accentDim: "#a04868",
+		done: "#6a9a7a",
+		high: "#e05555",
+		low: "#666",
+	},
 };
 
 export function generateDashboardHTML(
@@ -71,6 +84,7 @@ export function generateDashboardHTML(
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${safeBotName} — Task Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -83,13 +97,39 @@ export function generateDashboardHTML(
 }
 body{font-family:'JetBrains Mono',monospace;background:var(--bg);color:var(--text);min-height:100vh;font-size:13px}
 header{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;border-bottom:1px solid var(--border)}
+.header-left{display:flex;align-items:center;gap:14px}
 .logo{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:700;color:var(--accent)}
+.task-count{font-size:11px;color:var(--text-dim);background:var(--surface);padding:3px 10px;border-radius:10px;border:1px solid var(--border)}
+.header-right{display:flex;align-items:center;gap:14px}
+.search-wrap{position:relative;display:flex;align-items:center}
+.search-wrap input{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px 6px 28px;color:var(--text);font-family:inherit;font-size:11px;width:0;opacity:0;transition:all .25s;outline:none}
+.search-wrap input.open{width:180px;opacity:1;padding:6px 10px 6px 28px}
+.search-wrap input:focus{border-color:var(--accent)}
+.search-icon{position:absolute;left:8px;color:var(--text-dim);font-size:12px;cursor:pointer;z-index:1}
+.search-kbd{font-size:9px;color:var(--text-dim);border:1px solid var(--border);padding:1px 5px;border-radius:3px;margin-left:4px}
+.settings-btn{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text-dim);cursor:pointer;font-family:inherit;font-size:12px;transition:all .15s}
+.settings-btn:hover{border-color:var(--accent);color:var(--accent)}
 .theme-switcher{display:flex;gap:8px}
 .theme-dot{width:14px;height:14px;border-radius:50%;cursor:pointer;border:2px solid var(--border);transition:border-color .2s}
 .theme-dot:hover,.theme-dot.active{border-color:var(--text)}
 .theme-dot[data-theme="paw"]{background:#b4783c}
 .theme-dot[data-theme="midnight"]{background:#6688cc}
 .theme-dot[data-theme="neon"]{background:#00ff88}
+.theme-dot[data-theme="rose"]{background:#d4688a}
+.settings-panel{display:none;position:fixed;top:0;right:0;bottom:0;width:280px;background:var(--surface);border-left:1px solid var(--border);padding:24px;z-index:200;flex-direction:column;gap:20px}
+.settings-panel.open{display:flex}
+.settings-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:199}
+.settings-overlay.open{display:block}
+.settings-title{font-size:14px;font-weight:600;color:var(--accent);display:flex;justify-content:space-between;align-items:center}
+.settings-close{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;font-family:inherit}
+.settings-close:hover{color:var(--text)}
+.settings-label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.settings-input{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-family:inherit;font-size:12px;outline:none;width:100%}
+.settings-input:focus{border-color:var(--accent)}
+.settings-themes{display:flex;gap:10px;flex-wrap:wrap}
+.settings-theme{flex:1;min-width:50px;padding:8px;border:2px solid var(--border);border-radius:8px;cursor:pointer;text-align:center;font-size:10px;color:var(--text-dim);transition:all .15s}
+.settings-theme:hover{border-color:var(--text-dim)}
+.settings-theme.active{border-color:var(--accent);color:var(--accent)}
 .board{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;padding:24px 28px;min-height:calc(100vh - 80px)}
 .column{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;display:flex;flex-direction:column;min-height:300px}
 .column.drag-over{border-color:var(--accent);background:var(--surface-hover)}
@@ -100,14 +140,15 @@ header{display:flex;align-items:center;justify-content:space-between;padding:20p
 .col-progress .col-title{color:var(--text)}
 .col-done .col-title{color:var(--done)}
 .cards{flex:1;display:flex;flex-direction:column;gap:8px;min-height:50px}
-.card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;cursor:grab;transition:all .15s;position:relative}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;cursor:grab;transition:all .15s;position:relative;animation:cardIn .25s ease-out}
 .card:hover{border-color:var(--accent);transform:translateY(-1px)}
 .card.dragging{opacity:.4;transform:scale(.95)}
-.card-title{font-size:13px;font-weight:500;margin-bottom:6px;outline:none}
+.card-title{font-size:13px;font-weight:500;margin-bottom:4px;outline:none}
 .card-title:focus{border-bottom:1px solid var(--accent)}
-.card-desc{font-size:11px;color:var(--text-dim);margin-bottom:8px;outline:none}
+.card-desc{font-size:11px;color:var(--text-dim);margin-bottom:6px;outline:none}
 .card-desc:focus{border-bottom:1px solid var(--accent)}
 .card-footer{display:flex;align-items:center;justify-content:space-between}
+.card-meta{display:flex;align-items:center;gap:8px}
 .priority{display:flex;gap:4px}
 .priority-dot{width:8px;height:8px;border-radius:50%;cursor:pointer;transition:transform .1s}
 .priority-dot:hover{transform:scale(1.4)}
@@ -115,6 +156,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:20p
 .priority-dot.normal{background:var(--accent)}
 .priority-dot.low{background:var(--low)}
 .priority-dot.active{box-shadow:0 0 0 2px var(--bg),0 0 0 4px currentColor}
+.card-time{font-size:9px;color:var(--text-dim);opacity:.6}
 .card-delete{font-size:11px;color:var(--text-dim);cursor:pointer;opacity:0;transition:opacity .15s}
 .card:hover .card-delete{opacity:1}
 .card-delete:hover{color:var(--high)}
@@ -134,23 +176,58 @@ header{display:flex;align-items:center;justify-content:space-between;padding:20p
 .toast.show{opacity:1}
 .toast.error{background:var(--high);color:#fff}
 .toast.success{background:var(--done);color:#fff}
+.kbd-hint{position:fixed;bottom:14px;left:20px;font-size:10px;color:var(--text-dim);opacity:.5;display:flex;gap:14px}
+.kbd-hint span{display:flex;align-items:center;gap:4px}
+.kbd-hint kbd{border:1px solid var(--border);padding:1px 5px;border-radius:3px;font-family:inherit;font-size:9px}
+@keyframes cardIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:768px){.board{grid-template-columns:1fr;gap:12px;padding:12px}.search-wrap input.open{width:120px}.kbd-hint{display:none}}
 </style>
 </head>
 <body>
 <header>
+<div class="header-left">
 <div class="logo"><span>&#x1F43E;</span> ${safeBotName}</div>
+<span class="task-count" id="taskCount">0 tasks</span>
+</div>
+<div class="header-right">
+<div class="search-wrap">
+<span class="search-icon">&#x1F50D;</span>
+<input type="text" id="search" placeholder="Search tasks...">
+</div>
 <div class="theme-switcher">
 <div class="theme-dot${theme === "paw" ? " active" : ""}" data-theme="paw" title="Paw"></div>
 <div class="theme-dot${theme === "midnight" ? " active" : ""}" data-theme="midnight" title="Midnight"></div>
 <div class="theme-dot${theme === "neon" ? " active" : ""}" data-theme="neon" title="Neon"></div>
+<div class="theme-dot${theme === "rose" ? " active" : ""}" data-theme="rose" title="Rose"></div>
+</div>
+<button class="settings-btn" id="settingsBtn">&#x2699;</button>
 </div>
 </header>
 <div class="board" id="board"></div>
 <div class="toast" id="toast"></div>
+<div class="kbd-hint"><span><kbd>N</kbd> New task</span><span><kbd>/</kbd> Search</span><span><kbd>Esc</kbd> Close</span></div>
+<div class="settings-overlay" id="settingsOverlay"></div>
+<div class="settings-panel" id="settingsPanel">
+<div class="settings-title">Settings <button class="settings-close" id="settingsClose">&#x2715;</button></div>
+<div>
+<div class="settings-label">Bot Name</div>
+<input class="settings-input" id="botNameInput" type="text" value="${safeBotName}" maxlength="20" placeholder="Paw">
+</div>
+<div>
+<div class="settings-label">Theme</div>
+<div class="settings-themes">
+<div class="settings-theme${theme === "paw" ? " active" : ""}" data-theme="paw" style="color:#b4783c">Paw</div>
+<div class="settings-theme${theme === "midnight" ? " active" : ""}" data-theme="midnight" style="color:#6688cc">Midnight</div>
+<div class="settings-theme${theme === "neon" ? " active" : ""}" data-theme="neon" style="color:#00ff88">Neon</div>
+<div class="settings-theme${theme === "rose" ? " active" : ""}" data-theme="rose" style="color:#d4688a">Rose</div>
+</div>
+</div>
+</div>
 <script>
 var BOTNAME = "${safeBotName}";
 var tasks = [];
 var dragId = null;
+var searchQuery = "";
 
 function toast(msg, type) {
   var el = document.getElementById("toast");
@@ -184,6 +261,24 @@ function esc(s) {
   return d.innerHTML;
 }
 
+function timeAgo(iso) {
+  var diff = Date.now() - new Date(iso).getTime();
+  var m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return m + "m ago";
+  var h = Math.floor(m / 60);
+  if (h < 24) return h + "h ago";
+  var d = Math.floor(h / 24);
+  if (d < 30) return d + "d ago";
+  return Math.floor(d / 30) + "mo ago";
+}
+
+var emptyMsgs = {
+  "todo": "Nothing planned yet.\\nPress N to add a task! &#x1F43E;",
+  "in-progress": "Nothing in progress.\\nDrag a task here to start working.",
+  "done": "No completed tasks yet.\\nShip something! &#x1F680;"
+};
+
 function render() {
   var statuses = ["todo", "in-progress", "done"];
   var labels = { "todo": "Todo", "in-progress": "In Progress", "done": "Done" };
@@ -191,8 +286,19 @@ function render() {
   var board = document.getElementById("board");
   board.innerHTML = "";
 
+  var totalCount = tasks.length;
+  var doneCount = tasks.filter(function(t) { return t.status === "done"; }).length;
+  document.getElementById("taskCount").textContent = totalCount === 0 ? "0 tasks" : doneCount + "/" + totalCount + " done";
+
   statuses.forEach(function(status) {
-    var filtered = tasks.filter(function(t) { return t.status === status; }).sort(function(a, b) { return a.order - b.order; });
+    var filtered = tasks.filter(function(t) {
+      if (t.status !== status) return false;
+      if (searchQuery) {
+        var q = searchQuery.toLowerCase();
+        return (t.title.toLowerCase().indexOf(q) !== -1) || (t.description && t.description.toLowerCase().indexOf(q) !== -1);
+      }
+      return true;
+    }).sort(function(a, b) { return a.order - b.order; });
 
     var col = document.createElement("div");
     col.className = "column " + colClass[status];
@@ -209,7 +315,7 @@ function render() {
     cardsDiv.className = "cards";
 
     if (filtered.length === 0) {
-      cardsDiv.innerHTML = '<div class="empty">No tasks here yet.<br>' + BOTNAME + ' is waiting for work! &#x1F43E;</div>';
+      cardsDiv.innerHTML = '<div class="empty">' + emptyMsgs[status] + '</div>';
     } else {
       filtered.forEach(function(task) {
         var card = document.createElement("div");
@@ -227,6 +333,9 @@ function render() {
             api("tasks/" + task.id, { method: "PUT", body: JSON.stringify({ title: newTitle }) });
             task.title = newTitle;
           }
+        });
+        titleDiv.addEventListener("keydown", function(e) {
+          if (e.key === "Enter") { e.preventDefault(); this.blur(); }
         });
         card.appendChild(titleDiv);
 
@@ -246,6 +355,9 @@ function render() {
         var footer = document.createElement("div");
         footer.className = "card-footer";
 
+        var meta = document.createElement("div");
+        meta.className = "card-meta";
+
         var priorityDiv = document.createElement("div");
         priorityDiv.className = "priority";
         ["high", "normal", "low"].forEach(function(p) {
@@ -261,7 +373,14 @@ function render() {
           });
           priorityDiv.appendChild(dot);
         });
-        footer.appendChild(priorityDiv);
+        meta.appendChild(priorityDiv);
+
+        var timeSpan = document.createElement("span");
+        timeSpan.className = "card-time";
+        timeSpan.textContent = timeAgo(task.createdAt);
+        meta.appendChild(timeSpan);
+
+        footer.appendChild(meta);
 
         var delBtn = document.createElement("span");
         delBtn.className = "card-delete";
@@ -313,12 +432,16 @@ function render() {
     titleInput.placeholder = "Task title...";
     titleInput.addEventListener("keydown", function(e) {
       if (e.key === "Enter") doSave();
+      if (e.key === "Escape") closeForm();
     });
     formDiv.appendChild(titleInput);
 
     var descInput = document.createElement("textarea");
     descInput.placeholder = "Description (optional)";
     descInput.rows = 2;
+    descInput.addEventListener("keydown", function(e) {
+      if (e.key === "Escape") closeForm();
+    });
     formDiv.appendChild(descInput);
 
     var actions = document.createElement("div");
@@ -328,11 +451,14 @@ function render() {
     cancelBtn.type = "button";
     cancelBtn.className = "cancel";
     cancelBtn.textContent = "Cancel";
-    cancelBtn.addEventListener("click", function() {
+
+    function closeForm() {
       formDiv.classList.remove("show");
       titleInput.value = "";
       descInput.value = "";
-    });
+    }
+
+    cancelBtn.addEventListener("click", closeForm);
     actions.appendChild(cancelBtn);
 
     var saveBtn = document.createElement("button");
@@ -392,11 +518,105 @@ function render() {
   });
 }
 
-// Theme switcher
+// Theme switcher (dots in header)
 document.querySelectorAll(".theme-dot").forEach(function(dot) {
   dot.addEventListener("click", function() {
-    window.location.href = "/?theme=" + this.getAttribute("data-theme");
+    var t = this.getAttribute("data-theme");
+    api("config", { method: "PUT", body: JSON.stringify({ theme: t }) }).then(function() {
+      window.location.href = "/?theme=" + t;
+    });
   });
+});
+
+// Settings panel
+var settingsBtn = document.getElementById("settingsBtn");
+var settingsPanel = document.getElementById("settingsPanel");
+var settingsOverlay = document.getElementById("settingsOverlay");
+var settingsClose = document.getElementById("settingsClose");
+
+function openSettings() { settingsPanel.classList.add("open"); settingsOverlay.classList.add("open"); }
+function closeSettings() { settingsPanel.classList.remove("open"); settingsOverlay.classList.remove("open"); }
+
+settingsBtn.addEventListener("click", openSettings);
+settingsClose.addEventListener("click", closeSettings);
+settingsOverlay.addEventListener("click", closeSettings);
+
+// Settings theme buttons
+document.querySelectorAll(".settings-theme").forEach(function(el) {
+  el.addEventListener("click", function() {
+    var t = this.getAttribute("data-theme");
+    api("config", { method: "PUT", body: JSON.stringify({ theme: t }) }).then(function() {
+      window.location.href = "/?theme=" + t;
+    });
+  });
+});
+
+// Bot name change
+var botNameInput = document.getElementById("botNameInput");
+var botNameTimer = null;
+botNameInput.addEventListener("input", function() {
+  clearTimeout(botNameTimer);
+  var val = this.value.trim();
+  botNameTimer = setTimeout(function() {
+    if (val) {
+      api("config", { method: "PUT", body: JSON.stringify({ botName: val }) }).then(function() {
+        document.querySelector(".logo").innerHTML = '<span>&#x1F43E;</span> ' + esc(val);
+        BOTNAME = val;
+        document.title = val + " \\u2014 Task Dashboard";
+        toast("Name updated!");
+      });
+    }
+  }, 600);
+});
+
+// Search
+var searchInput = document.getElementById("search");
+var searchIcon = document.querySelector(".search-icon");
+
+function openSearch() {
+  searchInput.classList.add("open");
+  searchInput.focus();
+}
+function closeSearch() {
+  searchInput.classList.remove("open");
+  searchInput.value = "";
+  searchQuery = "";
+  render();
+}
+
+searchIcon.addEventListener("click", openSearch);
+searchInput.addEventListener("input", function() {
+  searchQuery = this.value;
+  render();
+});
+searchInput.addEventListener("keydown", function(e) {
+  if (e.key === "Escape") closeSearch();
+});
+
+// Keyboard shortcuts
+document.addEventListener("keydown", function(e) {
+  // Don't trigger shortcuts when typing in inputs
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.contentEditable === "true") {
+    if (e.key === "Escape") e.target.blur();
+    return;
+  }
+
+  if (e.key === "n" || e.key === "N") {
+    e.preventDefault();
+    var firstAddBtn = document.querySelector(".col-todo .add-btn");
+    if (firstAddBtn) firstAddBtn.click();
+  }
+
+  if (e.key === "/") {
+    e.preventDefault();
+    openSearch();
+  }
+
+  if (e.key === "Escape") {
+    closeSearch();
+    closeSettings();
+    document.querySelectorAll(".add-form.show").forEach(function(f) { f.classList.remove("show"); });
+  }
 });
 
 load();
@@ -415,7 +635,7 @@ export function generateFocusTimerHTML(
 	const safeBotName = botName.replace(/[&<>"']/g, "");
 	const safeEndsAt = endsAt.replace(/[&<>"']/g, "");
 	const safeDuration = duration.replace(/[^0-9]/g, "");
-	const catArt = "⠀⠀⠀⠀⠀⠀⣀⡠⠄⠒⠠⢄⠀⣀⠤⠒⠂⠤⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⠤⠐⠒⠤⡀⢀⡠⠔⠂⠠⢄⣀⠀⠀⠀⠀⠀⠀\n⠀⠀⠀⠀⣠⠞⠂⢀⣀⣀⠀⠀⠉⠁⠀⣀⣀⣀⠀⠑⣤⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣴⠋⠀⣀⣀⣀⠀⠈⠉⠀⢀⣀⣀⠀⠈⠲⡀⠀⠀⠀⠀\n⠀⠀⠀⣸⡏⠀⣴⢋⠤⢌⠙⠆⠀⢠⠎⢁⠤⠍⢧⠀⠀⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡿⠁⢠⡞⡡⠤⡉⠳⠀⠀⡴⠉⡠⠬⡹⡄⠀⢸⡄⠀⠀⠀\n⠀⠀⢀⣽⡁⠀⣿⡀⢀⡘⡄⡇⠀⢸⢢⠇⢀⢢⣺⠀⠀⣿⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣨⣇⠀⢸⣏⠀⡐⢣⢸⠀⠀⡗⡜⢀⠐⣄⣧⠀⢸⣇⠀⠀⠀\n⠀⣰⠉⠙⠷⠀⢛⣟⣦⣄⣣⡇⠀⠘⣎⣰⣤⣾⡿⠁⠴⠋⠈⠱⡀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡎⠉⠻⠆⠈⣿⣳⣤⣙⣼⠂⠀⢻⣁⣦⣼⣿⠇⠠⠞⠁⠙⣆⠀\n⣺⠁⠀⣠⠒⠶⣄⠉⠓⢚⣣⡠⠤⢤⣈⡓⠛⠋⢠⠖⠲⢤⡀⠀⢷⠀⠀⠀⠀⠀⠀⠀⢐⡟⠀⢀⠔⠲⢦⡈⠑⠛⣋⣡⠤⠤⣄⣙⠚⠛⢁⡴⠒⠦⣄⠀⠨⡆\n⣽⠀⢸⠄⠣⡐⢹⠀⡤⠏⢁⢀⢀⠠⢀⠉⢦⡀⢹⡁⠔⡁⣗⠀⢸⡅⠀⠀⠀⠀⠀⠀⢸⡇⠀⡗⠘⢄⢈⡇⢠⠖⠉⡀⣀⠠⠄⡈⠳⣄⠈⣟⠠⢈⢸⠀⠀⣿\n⠹⣄⠸⣷⣤⣧⠞⣾⢁⠐⢀⠀⠠⠄⣀⠑⠄⢱⡸⣧⣴⣶⡟⢠⡟⠁⠀⠀⠀⠀⠀⠀⠈⢷⡀⢿⣦⣾⡼⢳⡏⡠⠁⡀⠠⠠⢄⠈⠢⠈⣆⢿⣤⢶⣾⠃⣼⠃\n⠀⡸⢷⠈⠉⠉⢸⡟⣆⠀⢂⠌⣁⠒⡈⠢⢈⣾⣧⠈⠉⠉⢴⢏⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠿⡆⠉⠉⠁⣾⣳⠀⡀⠆⡑⠄⢂⠙⠄⣱⣿⠀⠉⠉⠡⡾⡅⠀\n⠐⡇⠀⠀⠀⠀⠘⣿⡞⣦⣅⣂⣄⣂⣰⣵⣻⣽⠏⠀⠀⠀⠀⢰⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⢺⠀⠀⠀⠀⠀⢻⣷⢳⣴⣈⣐⣈⣄⣮⣞⣯⡿⠂⠀⠀⠀⠀⣸⠀\n⠀⠘⢄⠀⠀⠀⠀⠈⠻⠶⣝⣮⣳⣭⣳⣧⠟⠋⠀⠀⠀⠀⣠⠟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠣⡀⠀⠀⠀⠀⠙⠷⢮⣽⣭⣻⣜⣷⠾⠛⠁⠀⠀⠀⠀⡼⠃⠀\n⠀⠀⠈⡗⢠⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⠀⠀⠀⠀⡠⢾⡏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠀⠀⠀⢀⠴⣟⠁⠀⠀\n⠀⠀⠀⢸⠏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠨⡷⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢻⠇⠀⠀⠀\n⠀⠀⠀⢸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡅⠀⠀⠀\n⠀⠀⠀⢽⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣾⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢨⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⡇⠀⠀⠀";
+	const catArt = "\u2800\u2800\u2800\u2800\u2800\u2800\u2880\u28c0\u2820\u2810\u2808\u2804\u2802\u2801\u2801\u2802\u2804\u2808\u2810\u2820\u2840\u2880\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2801\u2802\u2804\u2808\u2810\u2820\u28c0\u2880\u2801\u2802\u2804\u2808\u2810\u2820\u2840\u2880\u2800\u2800\u2800\u2800\u2800\n\u2800\u2800\u2800\u2800\u2860\u280b\u2801\u2800\u2800\u2880\u28c0\u28e0\u2800\u2800\u2800\u2880\u28c0\u28c0\u2800\u2800\u2808\u2877\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u28f4\u2809\u2800\u28c0\u28e0\u28c0\u2800\u2800\u2808\u2833\u2800\u2800\u2800\u28c0\u28c0\u2800\u2800\u2800\u283e\u2846\u2800\u2800\u2800\u2800\n\u2800\u2800\u2800\u28f8\u280f\u2800\u28e4\u2831\u2808\u2805\u280b\u2801\u2800\u2800\u2832\u280e\u2801\u2824\u2818\u2833\u2800\u2800\u28bf\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2880\u287f\u2801\u2862\u281e\u2841\u2818\u2825\u280b\u2800\u2800\u28e4\u2831\u2809\u2818\u2825\u281e\u2845\u2800\u2800\u28f8\u2844\u2800\u2800\u2800\n\u2800\u2800\u2880\u28fd\u2841\u2800\u28bf\u2840\u2800\u2818\u2844\u2845\u2800\u2800\u28f8\u2866\u2847\u2800\u2880\u2866\u28bf\u2800\u2800\u28bf\u2844\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u28e8\u28c7\u2800\u28f8\u28cf\u2800\u2818\u2862\u28f8\u2800\u2800\u2897\u2858\u2880\u2800\u2818\u2844\u28bf\u2800\u2800\u28f8\u28c7\u2800\u2800\u2800\n\u2800\u28f0\u2809\u280b\u2877\u2800\u281b\u28bf\u28e6\u2884\u2863\u2845\u2800\u2800\u2838\u2887\u28f0\u2864\u28b4\u287f\u2801\u2800\u2874\u280b\u2801\u2809\u2871\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2880\u280e\u2809\u283b\u2846\u2809\u28bf\u28f3\u2864\u2863\u28fc\u2801\u2800\u287b\u2841\u28e6\u28bc\u287f\u2803\u2800\u2874\u280b\u2801\u280b\u28e6\u2800\n\u28fa\u2801\u2800\u2860\u2809\u2836\u28e4\u2809\u2801\u2813\u281b\u280b\u2801\u2860\u2809\u2836\u2864\u2800\u2800\u28b7\u2800\u2800\u2800\u287f\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2890\u287f\u2800\u2880\u2809\u2836\u2864\u2809\u2801\u2813\u283b\u280b\u2860\u2809\u2836\u28e4\u2809\u2801\u2809\u280b\u28e6\u2800\u2800\u28a8\u2846\n\u28fd\u2800\u28f8\u2804\u2823\u2810\u28f9\u2800\u2864\u280f\u2801\u2880\u2880\u2818\u2880\u2809\u2866\u2844\u28f9\u2841\u2814\u2841\u28c7\u2800\u28f8\u2845\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u28f8\u2845\u2800\u2897\u2818\u2844\u2838\u28c7\u2800\u2860\u280f\u2809\u2810\u2804\u2841\u2809\u2866\u2800\u2818\u2844\u2838\u28c7\u2800\u2800\u28bf\n\u2809\u28b7\u2840\u28bf\u28e4\u28b4\u280f\u28be\u2841\u2810\u2880\u2800\u2818\u2804\u2880\u2809\u2844\u28f9\u28bf\u28e4\u28b4\u287f\u2801\u2862\u280f\u2801\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2809\u28b7\u2840\u287f\u28e6\u28bc\u28f3\u28cf\u2800\u2818\u2801\u2880\u2818\u2818\u2884\u2809\u2862\u28c6\u287f\u2864\u28b6\u287e\u2801\u28fc\u2803\n\u2800\u28f8\u28b7\u2809\u2809\u2809\u28f8\u280f\u28c6\u2800\u2860\u2818\u2880\u2809\u2818\u2846\u28c8\u28be\u2809\u2809\u2809\u2874\u280f\u2844\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2880\u287f\u2846\u2809\u2809\u2801\u28be\u28f3\u2800\u2840\u2818\u2844\u2809\u2862\u280b\u2844\u28bf\u2800\u2809\u2809\u2821\u287e\u2845\u2800\n\u2810\u2845\u2800\u2800\u2800\u2800\u2838\u28bf\u281e\u28e6\u28b4\u2862\u28f0\u2876\u28bf\u280f\u2800\u2800\u2800\u2800\u2800\u2800\u28f0\u2846\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u28ba\u2800\u2800\u2800\u2800\u2800\u287b\u28f7\u28b6\u28e6\u2888\u2886\u2864\u28ae\u28bf\u2803\u2800\u2800\u2800\u2800\u2800\u28f8\u2800\n\u2800\u2838\u2844\u2800\u2800\u2800\u2800\u2809\u287b\u2836\u28ee\u28dd\u28bb\u28f3\u28e7\u280f\u2801\u2800\u2800\u2800\u2800\u2860\u280f\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2823\u2844\u2800\u2800\u2800\u2800\u280b\u2877\u28ae\u28fd\u28bb\u283f\u28f7\u2836\u280b\u2800\u2800\u2800\u2800\u2800\u287c\u2803\u2800\n\u2800\u2800\u2809\u28c7\u2862\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2801\u2800\u2800\u2800\u2800\u2840\u28be\u280f\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u287b\u2846\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2809\u2800\u2800\u2800\u2800\u2880\u2874\u280f\u2801\u2800\u2800\n\u2800\u2800\u2800\u28f8\u280f\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u280b\u28bf\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u28a8\u2877\u2801\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2809\u287b\u2847\u2800\u2800\u2800\n\u2800\u2800\u2800\u28f8\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u28bf\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2845\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u28f8\u2845\u2800\u2800\u2800\n\u2800\u2800\u2800\u28fd\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u28be\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2868\u2845\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u28f0\u2845\u2800\u2800\u2800";
 
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -423,6 +643,7 @@ export function generateFocusTimerHTML(
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${safeBotName} — Locked In</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>

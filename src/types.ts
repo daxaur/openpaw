@@ -118,7 +118,7 @@ export interface CostTracker {
 
 // ── Dashboard ──
 
-export type DashboardTheme = "paw" | "midnight" | "neon";
+export type DashboardTheme = "paw" | "midnight" | "neon" | "rose";
 
 export interface DashboardTask {
 	id: string;
