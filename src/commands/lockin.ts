@@ -261,7 +261,7 @@ export async function lockInSetupCommand(): Promise<void> {
 		});
 
 		if (!p.isCancel(source)) {
-			const presets: Record<string, { value: string; label: string }[]> = {
+			const presets: Record<string, Array<{ value: string; label: string; hint?: string }>> = {
 				spotify: [
 					{ value: "lo-fi beats", label: "Lo-fi beats" },
 					{ value: "deep focus", label: "Deep focus" },

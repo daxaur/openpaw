@@ -318,7 +318,11 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 							initialValue: "1.00",
 						});
 
-						const deliveryOpts = [
+						const deliveryOpts: Array<{
+							value: "telegram" | "file" | "notify";
+							label: string;
+							hint: string;
+						}> = [
 							{ value: "file" as const, label: "File", hint: "save to ~/.config/openpaw/schedule-results/" },
 							{ value: "notify" as const, label: "Notification", hint: "macOS notification" },
 						];
@@ -339,6 +343,7 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 									prompt: jobPrompt as string,
 									schedule: parsed.cron,
 									scheduleHuman: parsed.human,
+									enabled: true,
 									model: jobModel as string,
 									maxBudgetUsd: Number.parseFloat(jobBudget as string) || 1.0,
 									delivery: { type: jobDelivery as "file" | "telegram" | "notify" },
