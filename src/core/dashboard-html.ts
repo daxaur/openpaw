@@ -249,6 +249,25 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
 .shimmer-line.short{width:60%}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 
+/* ── Quick actions bar ── */
+.quick-actions{display:flex;gap:8px;padding:0 24px 16px;flex-wrap:wrap}
+.quick-action{display:flex;align-items:center;gap:6px;padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);cursor:pointer;font-family:inherit;font-size:10px;transition:all .15s;text-decoration:none}
+.quick-action:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
+.quick-action .qa-icon{font-size:13px}
+.quick-action.danger:hover{border-color:var(--high);color:var(--high)}
+
+/* ── Confirm dialog ── */
+.confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:400;align-items:center;justify-content:center}
+.confirm-overlay.open{display:flex}
+.confirm-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:340px;max-width:90vw;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.confirm-msg{font-size:13px;margin-bottom:16px;line-height:1.5}
+.confirm-actions{display:flex;gap:8px;justify-content:center}
+.confirm-actions button{padding:8px 20px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:11px;cursor:pointer;transition:all .15s}
+.confirm-cancel{background:var(--surface);color:var(--text)}
+.confirm-cancel:hover{border-color:var(--text-dim)}
+.confirm-ok{background:var(--high);color:#fff;border-color:var(--high);font-weight:600}
+.confirm-ok:hover{opacity:.9}
+
 /* ── Keyboard hints ── */
 .kbd-hint{position:fixed;bottom:12px;left:20px;font-size:9px;color:var(--text-dim);opacity:.4;display:flex;gap:12px}
 .kbd-hint span{display:flex;align-items:center;gap:3px}
@@ -256,7 +275,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
 
 @keyframes cardIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
-@media(max-width:900px){.metrics{grid-template-columns:repeat(2,1fr)}.board{grid-template-columns:1fr}.feed{display:none}.kbd-hint{display:none}}
+@media(max-width:900px){.metrics{grid-template-columns:repeat(2,1fr)}.board{grid-template-columns:1fr}.feed{display:none}.kbd-hint{display:none}.quick-actions{display:none}}
 @media(max-width:600px){.metrics{grid-template-columns:1fr}.header-center{display:none}}
 
 /* Custom scrollbar */
@@ -301,6 +320,12 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
 <div class="shimmer"><div class="shimmer-line"></div><div class="shimmer-line short"></div></div>
 </div>
 
+<div class="quick-actions" id="quickActions" style="display:none">
+<button class="quick-action" id="qaStandup"><span class="qa-icon">&#x1F4DD;</span> Export Standup</button>
+<button class="quick-action danger" id="qaClearDone"><span class="qa-icon">&#x1F9F9;</span> Clear Done</button>
+<button class="quick-action" id="qaSortPriority"><span class="qa-icon">&#x2B06;</span> Sort by Priority</button>
+</div>
+
 <div class="main" id="mainWrap" style="display:none">
 <div class="board-wrap"><div class="board" id="board"></div></div>
 <div class="feed" id="feed">
@@ -333,6 +358,16 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
 <div class="settings-theme${theme === "midnight" ? " active" : ""}" data-theme="midnight" style="color:#6688cc">Midnight</div>
 <div class="settings-theme${theme === "neon" ? " active" : ""}" data-theme="neon" style="color:#00ff88">Neon</div>
 <div class="settings-theme${theme === "rose" ? " active" : ""}" data-theme="rose" style="color:#d4688a">Rose</div>
+</div>
+</div>
+</div>
+
+<div class="confirm-overlay" id="confirmOverlay">
+<div class="confirm-box">
+<div class="confirm-msg" id="confirmMsg"></div>
+<div class="confirm-actions">
+<button class="confirm-cancel" id="confirmCancel">Cancel</button>
+<button class="confirm-ok" id="confirmOk">Confirm</button>
 </div>
 </div>
 </div>
@@ -407,9 +442,74 @@ function load() {
     tasks = data;
     document.getElementById("loading").classList.remove("show");
     document.getElementById("mainWrap").style.display = "flex";
+    document.getElementById("quickActions").style.display = "flex";
     render();
+    checkFocusSession();
   });
 }
+
+// ── Focus session indicator ──
+function checkFocusSession() {
+  fetch("/api/focus").then(function(r){return r.json()}).then(function(data) {
+    if (data && data.endsAt) {
+      var remaining = new Date(data.endsAt).getTime() - Date.now();
+      if (remaining > 0) {
+        var mins = Math.ceil(remaining / 60000);
+        var el = document.getElementById("mHigh");
+        var label = el.parentElement.querySelector(".metric-label");
+        el.textContent = mins + "m";
+        label.textContent = "Focus Active";
+        el.parentElement.parentElement.querySelector(".metric-icon").innerHTML = "&#x1F512;";
+        el.parentElement.parentElement.style.borderColor = "var(--accent)";
+      }
+    }
+  }).catch(function(){});
+}
+
+// ── Confirm dialog ──
+var confirmCb = null;
+function showConfirm(msg, cb) {
+  document.getElementById("confirmMsg").textContent = msg;
+  document.getElementById("confirmOverlay").classList.add("open");
+  confirmCb = cb;
+}
+document.getElementById("confirmCancel").addEventListener("click", function() {
+  document.getElementById("confirmOverlay").classList.remove("open");
+  confirmCb = null;
+});
+document.getElementById("confirmOk").addEventListener("click", function() {
+  document.getElementById("confirmOverlay").classList.remove("open");
+  if (confirmCb) confirmCb();
+  confirmCb = null;
+});
+
+// ── Quick actions ──
+document.getElementById("qaClearDone").addEventListener("click", function() {
+  var doneCount = tasks.filter(function(t){return t.status==="done"}).length;
+  if (doneCount === 0) { toast("No completed tasks to clear"); return; }
+  showConfirm("Clear " + doneCount + " completed task" + (doneCount > 1 ? "s" : "") + "?", function() {
+    fetch("/api/tasks/done", { method: "DELETE" }).then(function(r){return r.json()}).then(function() {
+      tasks = tasks.filter(function(t){return t.status!=="done"});
+      logActivity("del", "Cleared " + doneCount + " completed tasks");
+      render();
+      toast("Cleared " + doneCount + " tasks");
+    });
+  });
+});
+
+document.getElementById("qaStandup").addEventListener("click", function() {
+  window.open("/api/standup", "_blank");
+  toast("Standup exported!");
+});
+
+document.getElementById("qaSortPriority").addEventListener("click", function() {
+  var order = { high: 0, normal: 1, low: 2 };
+  tasks.sort(function(a, b) { return (order[a.priority] || 1) - (order[b.priority] || 1); });
+  tasks.forEach(function(t, i) { t.order = i; });
+  logActivity("edit", "Sorted by priority");
+  render();
+  toast("Sorted by priority");
+});
 
 function render() {
   var statuses = ["todo", "in-progress", "done"];
@@ -533,10 +633,12 @@ function render() {
         delBtn.innerHTML = "&#x2715;";
         delBtn.addEventListener("click", function(e) {
           e.stopPropagation();
-          api("tasks/" + task.id, { method: "DELETE" }).then(function() {
-            logActivity("del", "Deleted: " + task.title);
-            tasks = tasks.filter(function(t) { return t.id !== task.id; });
-            render();
+          showConfirm("Delete \\\"" + task.title + "\\\"?", function() {
+            api("tasks/" + task.id, { method: "DELETE" }).then(function() {
+              logActivity("del", "Deleted: " + task.title);
+              tasks = tasks.filter(function(t) { return t.id !== task.id; });
+              render();
+            });
           });
         });
         footer.appendChild(delBtn);
