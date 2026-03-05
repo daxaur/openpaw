@@ -1,10 +1,11 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 
 const OPENPAW_CONFIG_DIR = path.join(os.homedir(), ".config", "openpaw");
 const OPENPAW_THEME_BACKUP_PATH = path.join(OPENPAW_CONFIG_DIR, "claude-theme-backup.json");
+const OPENPAW_PATCH_SCRIPT_PATH = path.join(OPENPAW_CONFIG_DIR, "claude-theme-patch.js");
 const TWEAKCC_CONFIG_DIR = path.join(os.homedir(), ".tweakcc");
 const TWEAKCC_CONFIG_PATH = path.join(TWEAKCC_CONFIG_DIR, "config.json");
 
@@ -20,6 +21,14 @@ interface ThemeBackup {
 	hadConfig: boolean;
 	config: JsonRecord | null;
 	savedAt: string;
+}
+
+export interface ThemeApplyReport {
+	failedPatches: string[];
+	fallbackPatchApplied: boolean;
+	fallbackPatchPath: string;
+	themePatchAvailable: boolean;
+	tweakccOutput: string;
 }
 
 const OPENPAW_THEME_COLORS = {
@@ -230,7 +239,8 @@ function buildPatchedConfig(baseConfig: JsonRecord): JsonRecord {
 	};
 	settings.misc = {
 		...getObject(settings.misc),
-		hideStartupClawd: true,
+		hideStartupClawd: false,
+		hideStartupBanner: false,
 		expandThinkingBlocks: true,
 	};
 
@@ -248,13 +258,168 @@ function buildPatchedConfig(baseConfig: JsonRecord): JsonRecord {
 	return config;
 }
 
-function runTweakcc(args: string[]): void {
+function resolveTweakccCommand(args: string[]): { command: string; args: string[] } {
 	if (commandExists("tweakcc")) {
-		execFileSync("tweakcc", args, { stdio: "inherit" });
-		return;
+		return { command: "tweakcc", args };
 	}
 
-	execFileSync("npx", ["-y", "tweakcc@latest", ...args], { stdio: "inherit" });
+	return { command: "npx", args: ["-y", "tweakcc@latest", ...args] };
+}
+
+function runTweakcc(args: string[], options?: { captureOutput?: boolean }): string {
+	const captureOutput = options?.captureOutput ?? false;
+	const invocation = resolveTweakccCommand(args);
+
+	if (!captureOutput) {
+		execFileSync(invocation.command, invocation.args, { stdio: "inherit" });
+		return "";
+	}
+
+	const result = spawnSync(invocation.command, invocation.args, {
+		encoding: "utf-8",
+		stdio: ["ignore", "pipe", "pipe"],
+	});
+	const stdout = result.stdout ?? "";
+	const stderr = result.stderr ?? "";
+	const combined = `${stdout}${stderr}`;
+
+	if (combined) {
+		process.stdout.write(combined);
+	}
+
+	if (result.status !== 0) {
+		throw new Error(
+			combined.trim() || `tweakcc exited with status ${result.status ?? "unknown"}.`,
+		);
+	}
+
+	return combined;
+}
+
+function stripAnsi(value: string): string {
+	return value.replace(/\u001b\[[0-9;]*m/g, "");
+}
+
+function parseFailedPatches(output: string): string[] {
+	const clean = stripAnsi(output);
+	return clean
+		.split("\n")
+		.map((line) => line.trim())
+		.filter((line) => line.startsWith("✗ "))
+		.map((line) => line.slice(2).split(":")[0].trim())
+		.filter(Boolean);
+}
+
+function buildOpenPawAdhocPatchScript(): string {
+	const mascotLines = [
+		"  /\\_/\\\\",
+		" ( ^.^ )  paw",
+		"  > ^ <",
+	];
+	const serializedLines = mascotLines.map((line) => `\`${line.replace(/\\/g, "\\\\")}\``).join(",");
+
+	return `const replacements = [
+	["Welcome to Claude Code for ","Welcome to Paw for "],
+	["\\\\u2022 Claude has context of ","\\\\u2022 Paw has context from "],
+	["\\\\u2022 Review Claude Code's changes","\\\\u2022 Review Paw's changes"],
+	["Press Enter to continue","Press Enter to continue with Paw"],
+];
+
+function applyReplacements(source) {
+	let next = source;
+	for (const [from, to] of replacements) {
+		if (next.includes(from)) {
+			next = next.replaceAll(from, to);
+		}
+	}
+	return next;
+}
+
+function findLastFunctionStart(source, offset) {
+	const prefix = source.slice(0, offset);
+	const matches = [...prefix.matchAll(/function ([$\\w]+)\\(\\)\\{/g)];
+	const match = matches.at(-1);
+	return match ? { name: match[1], index: match.index } : null;
+}
+
+function findMatchingBrace(source, openBraceIndex) {
+	let depth = 0;
+	let quote = null;
+	for (let index = openBraceIndex; index < source.length; index += 1) {
+		const char = source[index];
+		const previous = source[index - 1];
+		if (quote) {
+			if (char === quote && previous !== "\\\\") {
+				quote = null;
+			}
+			continue;
+		}
+		if (char === "'" || char === '"' || char === "\`") {
+			quote = char;
+			continue;
+		}
+		if (char === "{") {
+			depth += 1;
+			continue;
+		}
+		if (char === "}") {
+			depth -= 1;
+			if (depth === 0) {
+				return index;
+			}
+		}
+	}
+	throw new Error("Could not find end of mascot function.");
+}
+
+function replaceMascot(source) {
+	const mascotMarker = "\\\\u259B\\\\u2588\\\\u2588\\\\u2588\\\\u259C";
+	const markerIndex = source.indexOf(mascotMarker);
+	if (markerIndex === -1) {
+		throw new Error("Could not find Claude Code startup mascot.");
+	}
+
+	const functionInfo = findLastFunctionStart(source, markerIndex);
+	if (!functionInfo) {
+		throw new Error("Could not locate mascot function start.");
+	}
+
+	const openBraceIndex = source.indexOf("{", functionInfo.index);
+	const closeBraceIndex = findMatchingBrace(source, openBraceIndex);
+	const original = source.slice(functionInfo.index, closeBraceIndex + 1);
+	const cacheMatch = original.match(/let [$_\\w]+=([$_\\w]+)\\.c\\(\\d+\\)/);
+	const reactMatch = original.match(/([$_\\w]+)\\.createElement\\(k,/);
+	if (!cacheMatch || !reactMatch) {
+		throw new Error("Could not resolve mascot render variables.");
+	}
+
+	const cacheVar = cacheMatch[1];
+	const reactVar = reactMatch[1];
+	const mascotLines = [${serializedLines}];
+	const mascotChildren = mascotLines
+		.map((line) => \`\${reactVar}.createElement(k,{color:"clawd_body"},\${JSON.stringify(line)})\`)
+		.join(",");
+	const replacement =
+		\`function \${functionInfo.name}(){let T=\${cacheVar}.c(1),_;if(T[0]===Symbol.for("react.memo_cache_sentinel"))_=\${reactVar}.createElement(B,{flexDirection:"column",alignItems:"center"},\${mascotChildren}),T[0]=_;else _=T[0];return _}\`;
+
+	return source.slice(0, functionInfo.index) + replacement + source.slice(closeBraceIndex + 1);
+}
+
+js = applyReplacements(js);
+js = replaceMascot(js);
+return js;
+`;
+}
+
+function applyOpenPawFallbackPatch(): void {
+	ensureDir(OPENPAW_PATCH_SCRIPT_PATH);
+	fs.writeFileSync(OPENPAW_PATCH_SCRIPT_PATH, buildOpenPawAdhocPatchScript(), "utf-8");
+	runTweakcc([
+		"adhoc-patch",
+		"--script",
+		`@${OPENPAW_PATCH_SCRIPT_PATH}`,
+		"--confirm-possible-dangerous-patch",
+	]);
 }
 
 function saveBackup(config: JsonRecord | null): void {
@@ -299,7 +464,7 @@ export function getOpenPawThemeName(): string {
 	return OPENPAW_THEME_NAME;
 }
 
-export function applyOpenPawTheme(): void {
+export function applyOpenPawTheme(): ThemeApplyReport {
 	const nodeMajor = Number.parseInt(process.versions.node.split(".")[0] || "0", 10);
 	if (nodeMajor < 20) {
 		throw new Error("Claude Code theming requires Node.js 20+ because tweakcc requires it.");
@@ -310,7 +475,17 @@ export function applyOpenPawTheme(): void {
 
 	const nextConfig = buildPatchedConfig(existingConfig ?? {});
 	writeJson(TWEAKCC_CONFIG_PATH, nextConfig);
-	runTweakcc(["--apply"]);
+	const tweakccOutput = runTweakcc(["--apply"], { captureOutput: true });
+	const failedPatches = parseFailedPatches(tweakccOutput);
+	applyOpenPawFallbackPatch();
+
+	return {
+		failedPatches,
+		fallbackPatchApplied: true,
+		fallbackPatchPath: OPENPAW_PATCH_SCRIPT_PATH,
+		themePatchAvailable: !failedPatches.includes("Themes"),
+		tweakccOutput,
+	};
 }
 
 export function restoreOpenPawTheme(): void {
@@ -331,5 +506,9 @@ export function restoreOpenPawTheme(): void {
 
 	try {
 		fs.rmSync(OPENPAW_THEME_BACKUP_PATH, { force: true });
+	} catch {}
+
+	try {
+		fs.rmSync(OPENPAW_PATCH_SCRIPT_PATH, { force: true });
 	} catch {}
 }

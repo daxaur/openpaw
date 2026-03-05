@@ -26,16 +26,24 @@ export async function themeApplyCommand(preset = "paw"): Promise<void> {
 	}
 
 	p.log.info(`Applying ${accent(getOpenPawThemeName())} to Claude Code...`);
-	p.log.info(dim("This uses tweakcc under the hood and preserves existing tweakcc config."));
+	p.log.info(dim("This uses tweakcc under the hood, preserves existing tweakcc config, and applies an OpenPaw fallback patch for the mascot."));
 	console.log("");
 
 	try {
-		applyOpenPawTheme();
+		const report = applyOpenPawTheme();
 		console.log("");
-		p.log.success("Claude Code patched with the OpenPaw theme.");
+		p.log.success("Claude Code patched with OpenPaw.");
 		p.log.info(`Theme config: ${dim(getTweakccConfigPath())}`);
-		p.log.info(`Switch inside Claude Code with: ${bold("/theme openpaw")}`);
-		p.log.info(dim("If you're already using the dark theme, the new styling will be available after restarting Claude Code."));
+		p.log.info(`Mascot patch: ${dim(report.fallbackPatchPath)}`);
+		if (report.themePatchAvailable) {
+			p.log.info(`Switch inside Claude Code with: ${bold("/theme openpaw")}`);
+		} else {
+			p.log.warn("Claude Code accepted the Paw mascot patch, but the built-in /theme injection failed on this Claude Code version.");
+		}
+		if (report.failedPatches.length > 0) {
+			p.log.warn(`tweakcc reported patch failures: ${dim(report.failedPatches.join(", "))}`);
+		}
+		p.log.info(dim("Restart Claude Code to pick up the new mascot and patched welcome copy."));
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "Unknown error";
 		p.log.error(message);
