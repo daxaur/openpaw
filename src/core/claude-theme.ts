@@ -12,6 +12,9 @@ const TWEAKCC_CONFIG_PATH = path.join(TWEAKCC_CONFIG_DIR, "config.json");
 const OPENPAW_THEME_ID = "openpaw";
 const OPENPAW_THEME_NAME = "OpenPaw";
 const OPENPAW_HIGHLIGHTER_PREFIX = "OpenPaw:";
+const OPENPAW_VERIFY_MASCOT_ASCII = '" ( ^.^ )  paw"';
+const OPENPAW_VERIFY_MASCOT_COLOR = 'clawd_body:"rgb(224,164,110)"';
+const OPENPAW_VERIFY_WELCOME = "Welcome to Paw for ";
 
 interface JsonRecord {
 	[key: string]: unknown;
@@ -29,6 +32,16 @@ export interface ThemeApplyReport {
 	fallbackPatchPath: string;
 	themePatchAvailable: boolean;
 	tweakccOutput: string;
+}
+
+export interface ThemeVerifyReport {
+	configured: boolean;
+	markers: {
+		mascotAscii: boolean;
+		mascotColors: boolean;
+		welcomeCopy: boolean;
+	};
+	verified: boolean;
 }
 
 const OPENPAW_THEME_COLORS = {
@@ -323,6 +336,9 @@ function buildOpenPawAdhocPatchScript(): string {
 	["\\\\u2022 Claude has context of ","\\\\u2022 Paw has context from "],
 	["\\\\u2022 Review Claude Code's changes","\\\\u2022 Review Paw's changes"],
 	["Press Enter to continue","Press Enter to continue with Paw"],
+	['clawd_body:"rgb(215,119,87)"','clawd_body:"rgb(224,164,110)"'],
+	['clawd_background:"rgb(0,0,0)"','clawd_background:"rgb(32,20,13)"'],
+	['clawd_body:"ansi:redBright"','clawd_body:"ansi:yellow"'],
 ];
 
 function applyReplacements(source) {
@@ -422,6 +438,29 @@ function applyOpenPawFallbackPatch(): void {
 	]);
 }
 
+function readInstalledClaudeJs(): string {
+	const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "openpaw-claude-verify-"));
+	const outputPath = path.join(tempDir, "claude.js");
+	const invocation = resolveTweakccCommand(["unpack", outputPath]);
+	const result = spawnSync(invocation.command, invocation.args, {
+		encoding: "utf-8",
+		stdio: ["ignore", "pipe", "pipe"],
+	});
+
+	try {
+		if (result.status !== 0) {
+			const output = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
+			throw new Error(output || "Failed to unpack Claude Code for verification.");
+		}
+
+		return fs.readFileSync(outputPath, "utf-8");
+	} finally {
+		try {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		} catch {}
+	}
+}
+
 function saveBackup(config: JsonRecord | null): void {
 	const backup: ThemeBackup = {
 		hadConfig: config !== null,
@@ -462,6 +501,21 @@ export function getTweakccConfigPath(): string {
 
 export function getOpenPawThemeName(): string {
 	return OPENPAW_THEME_NAME;
+}
+
+export function verifyOpenPawTheme(): ThemeVerifyReport {
+	const js = readInstalledClaudeJs();
+	const markers = {
+		mascotAscii: js.includes(OPENPAW_VERIFY_MASCOT_ASCII),
+		mascotColors: js.includes(OPENPAW_VERIFY_MASCOT_COLOR),
+		welcomeCopy: js.includes(OPENPAW_VERIFY_WELCOME),
+	};
+
+	return {
+		configured: openPawThemeConfigured(),
+		markers,
+		verified: Object.values(markers).every(Boolean),
+	};
 }
 
 export function applyOpenPawTheme(): ThemeApplyReport {

@@ -13,7 +13,14 @@ import { telegramCommand, telegramSetupCommand } from "./commands/telegram.js";
 import { dashboardCommand } from "./commands/dashboard.js";
 import { configureCommand } from "./commands/configure.js";
 import { lockInCommand, lockInSetupCommand, lockInConfigureCommand, lockInGenScriptsCommand } from "./commands/lockin.js";
-import { themeApplyCommand, themeCommand, themeRestoreCommand, themeStatusCommand } from "./commands/theme.js";
+import {
+	themeApplyCommand,
+	themeCommand,
+	themeInstallCommand,
+	themeRestoreCommand,
+	themeStatusCommand,
+	themeVerifyCommand,
+} from "./commands/theme.js";
 import {
 	scheduleAddCommand,
 	scheduleListCommand,
@@ -116,6 +123,11 @@ theme
 	.action((preset) => themeCommand(preset));
 
 theme
+	.command("install [preset]")
+	.description("Install the OpenPaw Claude Code patch globally")
+	.action((preset) => themeInstallCommand(preset));
+
+theme
 	.command("apply [preset]")
 	.description("Apply an OpenPaw theme preset to Claude Code")
 	.action((preset) => themeApplyCommand(preset));
@@ -124,6 +136,11 @@ theme
 	.command("status")
 	.description("Show Claude Code theme status")
 	.action(() => themeStatusCommand());
+
+theme
+	.command("verify")
+	.description("Verify that the installed Claude Code binary contains OpenPaw markers")
+	.action(() => themeVerifyCommand());
 
 theme
 	.command("restore")

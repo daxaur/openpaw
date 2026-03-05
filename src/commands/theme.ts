@@ -9,13 +9,14 @@ import {
 	restoreOpenPawTheme,
 	themeBackupExists,
 	tweakccConfigExists,
+	verifyOpenPawTheme,
 } from "../core/claude-theme.js";
 
 export async function themeCommand(preset = "paw"): Promise<void> {
-	await themeApplyCommand(preset);
+	await themeInstallCommand(preset);
 }
 
-export async function themeApplyCommand(preset = "paw"): Promise<void> {
+export async function themeInstallCommand(preset = "paw"): Promise<void> {
 	showMini();
 	console.log("");
 
@@ -25,14 +26,15 @@ export async function themeApplyCommand(preset = "paw"): Promise<void> {
 		return;
 	}
 
-	p.log.info(`Applying ${accent(getOpenPawThemeName())} to Claude Code...`);
+	p.log.info(`Installing ${accent(getOpenPawThemeName())} into Claude Code...`);
 	p.log.info(dim("This uses tweakcc under the hood, preserves existing tweakcc config, and applies an OpenPaw fallback patch for the mascot."));
 	console.log("");
 
 	try {
 		const report = applyOpenPawTheme();
+		const verification = verifyOpenPawTheme();
 		console.log("");
-		p.log.success("Claude Code patched with OpenPaw.");
+		p.log.success("OpenPaw installed into Claude Code.");
 		p.log.info(`Theme config: ${dim(getTweakccConfigPath())}`);
 		p.log.info(`Mascot patch: ${dim(report.fallbackPatchPath)}`);
 		if (report.themePatchAvailable) {
@@ -43,11 +45,24 @@ export async function themeApplyCommand(preset = "paw"): Promise<void> {
 		if (report.failedPatches.length > 0) {
 			p.log.warn(`tweakcc reported patch failures: ${dim(report.failedPatches.join(", "))}`);
 		}
+		if (verification.verified) {
+			p.log.success("Verified Paw mascot, welcome copy, and mascot colors in the installed Claude Code binary.");
+		} else {
+			const missing = Object.entries(verification.markers)
+				.filter(([, present]) => !present)
+				.map(([name]) => name)
+				.join(", ");
+			p.log.warn(`Verification is incomplete. Missing markers: ${dim(missing)}`);
+		}
 		p.log.info(dim("Restart Claude Code to pick up the new mascot and patched welcome copy."));
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "Unknown error";
 		p.log.error(message);
 	}
+}
+
+export async function themeApplyCommand(preset = "paw"): Promise<void> {
+	await themeInstallCommand(preset);
 }
 
 export async function themeStatusCommand(): Promise<void> {
@@ -70,6 +85,26 @@ export async function themeStatusCommand(): Promise<void> {
 	}
 
 	p.note(lines.join("\n"), "Claude Code Theme");
+}
+
+export async function themeVerifyCommand(): Promise<void> {
+	showMini();
+	console.log("");
+
+	try {
+		const verification = verifyOpenPawTheme();
+		const lines = [
+			`${bold("Configured:")}    ${verification.configured ? accent("yes") : dim("no")}`,
+			`${bold("Mascot ASCII:")} ${verification.markers.mascotAscii ? accent("found") : dim("missing")}`,
+			`${bold("Mascot color:")} ${verification.markers.mascotColors ? accent("found") : dim("missing")}`,
+			`${bold("Welcome copy:")} ${verification.markers.welcomeCopy ? accent("found") : dim("missing")}`,
+			`${bold("Verified:")}     ${verification.verified ? accent("yes") : dim("no")}`,
+		];
+		p.note(lines.join("\n"), "OpenPaw Verify");
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Unknown error";
+		p.log.error(message);
+	}
 }
 
 export async function themeRestoreCommand(): Promise<void> {
