@@ -13,6 +13,7 @@ import { telegramCommand, telegramSetupCommand } from "./commands/telegram.js";
 import { dashboardCommand } from "./commands/dashboard.js";
 import { configureCommand } from "./commands/configure.js";
 import { lockInCommand, lockInSetupCommand, lockInConfigureCommand, lockInGenScriptsCommand } from "./commands/lockin.js";
+import { themeApplyCommand, themeCommand, themeRestoreCommand, themeStatusCommand } from "./commands/theme.js";
 import {
 	scheduleAddCommand,
 	scheduleListCommand,
@@ -105,6 +106,29 @@ program
 	.alias("config")
 	.description("Configure your setup — add skills, change personality, manage dashboard")
 	.action(configureCommand);
+
+const theme = program
+	.command("theme")
+	.description("Patch Claude Code with OpenPaw styling using tweakcc");
+
+theme
+	.argument("[preset]", "Theme preset to apply", "paw")
+	.action((preset) => themeCommand(preset));
+
+theme
+	.command("apply [preset]")
+	.description("Apply an OpenPaw theme preset to Claude Code")
+	.action((preset) => themeApplyCommand(preset));
+
+theme
+	.command("status")
+	.description("Show Claude Code theme status")
+	.action(() => themeStatusCommand());
+
+theme
+	.command("restore")
+	.description("Restore Claude Code to the pre-OpenPaw theme state")
+	.action(() => themeRestoreCommand());
 
 // ── Lock In ──
 

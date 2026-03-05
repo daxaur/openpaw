@@ -27,6 +27,7 @@ Run one command and OpenPaw:
 - **Adds a Telegram bridge** so you can talk to Claude from your phone
 - **Includes a task dashboard** — a local kanban board with drag-and-drop and 3 themes
 - **Enables smart scheduling** — recurring tasks with per-run and daily cost caps so nothing runs away
+- **Can paw-style Claude Code itself** — branded colors, spinners, input highlighting, and chat styling via `openpaw theme`
 
 After setup, you just talk to Claude:
 
@@ -167,6 +168,8 @@ npx pawmode --preset developer --yes  # fully non-interactive
 
 **Scheduling** — Recurring tasks with per-run and daily cost caps. `openpaw schedule add "weekdays 8am" --run "check email"`.
 
+**Claude Code Paw Theme** — Patch Claude Code with OpenPaw styling using tweakcc. Run `openpaw theme` and then switch inside Claude Code with `/theme openpaw`.
+
 **CLAUDE.md Integration** — OpenPaw writes a section into `~/.claude/CLAUDE.md` so Claude knows its name, installed skills, and personality on every session start. Your existing CLAUDE.md content is preserved.
 
 ---
@@ -184,6 +187,7 @@ npx pawmode --preset developer --yes  # fully non-interactive
 | `openpaw doctor` | Diagnose issues |
 | `openpaw update` | Upgrade CLI tools |
 | `openpaw dashboard` | Task dashboard (`--theme midnight`, `--port 8080`) |
+| `openpaw theme` | Apply the OpenPaw Claude Code theme |
 | `openpaw telegram` | Start Telegram bridge |
 | `openpaw schedule add` | Add a scheduled job |
 | `openpaw schedule list` | List scheduled jobs |

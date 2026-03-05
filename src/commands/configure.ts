@@ -15,6 +15,7 @@ export async function configureCommand(): Promise<void> {
 		options: [
 			{ value: "add", label: "Add more skills", hint: "install new capabilities" },
 			{ value: "remove", label: "Remove skills", hint: "uninstall capabilities" },
+			{ value: "theme", label: "Paw style Claude Code", hint: "patch Claude Code UI with OpenPaw styling" },
 			{ value: "model", label: "Model preferences", hint: "default model for Telegram + scheduling" },
 			{ value: "soul", label: "Edit personality", hint: "name, tone, verbosity" },
 			{ value: "dashboard", label: "Open dashboard", hint: "task manager in browser" },
