@@ -168,7 +168,7 @@ npx pawmode --preset developer --yes  # fully non-interactive
 
 **Scheduling** — Recurring tasks with per-run and daily cost caps. `openpaw schedule add "weekdays 8am" --run "check email"`.
 
-**Claude Code Paw Theme** — Patch Claude Code with OpenPaw styling using tweakcc. Run `openpaw theme` and then switch inside Claude Code with `/theme openpaw`.
+**Claude Code Paw Theme** — Patch Claude Code with OpenPaw styling using tweakcc plus a native mascot fallback patch. Run `openpaw theme`. If your Claude Code build accepts custom themes, switch inside Claude Code with `/theme openpaw`; otherwise you still get the Paw mascot, welcome copy, spinner, and input styling.
 
 **CLAUDE.md Integration** — OpenPaw writes a section into `~/.claude/CLAUDE.md` so Claude knows its name, installed skills, and personality on every session start. Your existing CLAUDE.md content is preserved.
 
