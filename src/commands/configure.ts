@@ -21,7 +21,7 @@ export async function configureCommand(): Promise<void> {
 			{ value: "dashboard", label: "Open dashboard", hint: "task manager in browser" },
 			{ value: "telegram", label: "Telegram setup", hint: "configure bot bridge" },
 			{ value: "lockin setup", label: "Lock In Mode", hint: "block distractions, set the mood" },
-		{ value: "schedule", label: "Manage schedules", hint: "recurring tasks + cost control" },
+			{ value: "schedule", label: "Manage schedules", hint: "recurring tasks + cost control" },
 			{ value: "status", label: "View status", hint: "see what's installed" },
 			{ value: "doctor", label: "Run diagnostics", hint: "check for issues" },
 		],
