@@ -126,6 +126,7 @@ export interface DashboardTask {
 	description?: string;
 	status: "todo" | "in-progress" | "done";
 	priority: "high" | "normal" | "low";
+	tags?: string[];
 	order: number;
 	createdAt: string;
 }

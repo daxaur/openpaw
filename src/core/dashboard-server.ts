@@ -134,6 +134,7 @@ export function startDashboard(opts: {
 					description: body.description ? String(body.description) : undefined,
 					status: (body.status as DashboardTask["status"]) || "todo",
 					priority: (body.priority as DashboardTask["priority"]) || "normal",
+					tags: Array.isArray(body.tags) ? body.tags.map(String).slice(0, 5) : undefined,
 					order: current.tasks.filter(
 						(t) => t.status === (body.status || "todo"),
 					).length,
@@ -166,6 +167,8 @@ export function startDashboard(opts: {
 				if (body.priority !== undefined)
 					task.priority = body.priority as DashboardTask["priority"];
 				if (body.order !== undefined) task.order = Number(body.order);
+				if (body.tags !== undefined)
+					task.tags = Array.isArray(body.tags) ? body.tags.map(String).slice(0, 5) : undefined;
 				writeConfig(current);
 				json(res, task);
 				return;
