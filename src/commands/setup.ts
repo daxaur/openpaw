@@ -16,6 +16,7 @@ import { isTmuxAvailable, isInTmux, launchInTmux, launchInBackground } from "../
 import { readConfig as readDashboardConfig, writeConfig as writeDashboardConfig } from "../core/dashboard-server.js";
 import { writeClaudeMd } from "../core/claude-md.js";
 import { readScheduleConfig, writeScheduleConfig, addJob, installSystemJob, parseHumanSchedule } from "../core/scheduler.js";
+import { applyOpenPawTheme, verifyOpenPawTheme } from "../core/claude-theme.js";
 import type { CliTool, DashboardTheme, InterfaceMode, Skill, TelegramConfig } from "../types.js";
 
 // Category icons for the wizard
@@ -255,6 +256,7 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	let wantScheduling = false;
 	let schedulingCap = 5.0;
 	let schedulingJobCount = 0;
+	let wantClaudePawStyle = false;
 
 	if (!opts.yes) {
 		const schedChoice = await p.confirm({
@@ -358,6 +360,18 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 					}
 				}
 			}
+		}
+	}
+
+	// ── Claude Code Paw Style ──
+	if (!opts.yes) {
+		const pawStyleChoice = await p.confirm({
+			message: `Patch Claude Code globally so ${botName} gets the full Paw mascot and lock-in status line?`,
+			initialValue: false,
+		});
+
+		if (!p.isCancel(pawStyleChoice) && pawStyleChoice) {
+			wantClaudePawStyle = true;
 		}
 	}
 
@@ -529,6 +543,24 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	writeClaudeMd(botName, selectedSkills, wantDashboard);
 	s.stop(`${chalk.green("✓")} CLAUDE.md — ${botName} knows who they are now`);
 
+	let pawThemeVerified = false;
+	if (wantClaudePawStyle) {
+		s.start("🐾 Teaching Claude some Paw manners...");
+		try {
+			applyOpenPawTheme();
+			pawThemeVerified = verifyOpenPawTheme().verified;
+			s.stop(
+				pawThemeVerified
+					? `${chalk.green("✓")} Claude Code is now Paw-styled`
+					: `${chalk.yellow("!")} Claude Code patched, but verification is partial`,
+			);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Unknown error";
+			s.stop(`${chalk.red("✗")} Claude Code paw style failed`);
+			p.log.warn(message);
+		}
+	}
+
 	// MCP servers can be configured separately via `openpaw mcp`
 
 	// ── Auth Steps ──
@@ -591,6 +623,9 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	}
 	if (wantScheduling) {
 		summaryLines.push(`${bold("Scheduling:")}  $${schedulingCap}/day cap` + (schedulingJobCount > 0 ? `, ${schedulingJobCount} job` : ""));
+	}
+	if (wantClaudePawStyle) {
+		summaryLines.push(`${bold("Claude UI:")}   Paw style ${pawThemeVerified ? "installed" : "partially installed"}`);
 	}
 	summaryLines.push(`${bold("CLAUDE.md:")}   ${botName} is self-aware`);
 	summaryLines.push(`${bold("Memory:")}      ~/.claude/memory/`);
@@ -800,6 +835,7 @@ function buildSummary(
 	lines.push(`${bold("Workspace:")}  ${projectDir.replace(os.homedir(), "~")}`);
 	lines.push(`${bold("Memory:")}     ~/.claude/memory/`);
 	lines.push(`${bold("Soul:")}       ~/.claude/SOUL.md`);
+	lines.push(`${bold("Claude UI:")}  optional Paw global patch`);
 	return lines.join("\n");
 }
 
