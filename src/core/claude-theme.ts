@@ -2,19 +2,23 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
+import { readSettings, writeSettings } from "./permissions.js";
 
 const OPENPAW_CONFIG_DIR = path.join(os.homedir(), ".config", "openpaw");
 const OPENPAW_THEME_BACKUP_PATH = path.join(OPENPAW_CONFIG_DIR, "claude-theme-backup.json");
 const OPENPAW_PATCH_SCRIPT_PATH = path.join(OPENPAW_CONFIG_DIR, "claude-theme-patch.js");
+const OPENPAW_STATUSLINE_DIR = path.join(os.homedir(), ".claude", "openpaw");
+const OPENPAW_STATUSLINE_SCRIPT_PATH = path.join(OPENPAW_STATUSLINE_DIR, "paw-statusline.js");
 const TWEAKCC_CONFIG_DIR = path.join(os.homedir(), ".tweakcc");
 const TWEAKCC_CONFIG_PATH = path.join(TWEAKCC_CONFIG_DIR, "config.json");
 
 const OPENPAW_THEME_ID = "openpaw";
 const OPENPAW_THEME_NAME = "OpenPaw";
 const OPENPAW_HIGHLIGHTER_PREFIX = "OpenPaw:";
-const OPENPAW_VERIFY_MASCOT_ASCII = '" ( ^.^ )  paw"';
+const OPENPAW_VERIFY_MASCOT_ASCII = '"  ( =^.^= )"';
 const OPENPAW_VERIFY_MASCOT_COLOR = 'clawd_body:"rgb(224,164,110)"';
 const OPENPAW_VERIFY_WELCOME = "Welcome to Paw for ";
+const OPENPAW_VERIFY_STATUSLINE = "paw-statusline.js";
 
 interface JsonRecord {
 	[key: string]: unknown;
@@ -23,6 +27,8 @@ interface JsonRecord {
 interface ThemeBackup {
 	hadConfig: boolean;
 	config: JsonRecord | null;
+	hadStatusLine: boolean;
+	statusLine: unknown;
 	savedAt: string;
 }
 
@@ -40,6 +46,7 @@ export interface ThemeVerifyReport {
 		mascotAscii: boolean;
 		mascotColors: boolean;
 		welcomeCopy: boolean;
+		statusLine: boolean;
 	};
 	verified: boolean;
 }
@@ -325,9 +332,11 @@ function parseFailedPatches(output: string): string[] {
 
 function buildOpenPawAdhocPatchScript(): string {
 	const mascotLines = [
-		"  /\\_/\\\\",
-		" ( ^.^ )  paw",
-		"  > ^ <",
+		"   /\\_/\\\\",
+		"  ( =^.^= )",
+		"  /  ---  \\\\",
+		" (__/   \\__)",
+		"   🐾   🐾",
 	];
 	const serializedLines = mascotLines.map((line) => `\`${line.replace(/\\/g, "\\\\")}\``).join(",");
 
@@ -438,6 +447,71 @@ function applyOpenPawFallbackPatch(): void {
 	]);
 }
 
+function buildOpenPawStatuslineScript(): string {
+	return `#!/usr/bin/env node
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+
+function readJson(filePath) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+const input = (() => {
+  try {
+    return JSON.parse(fs.readFileSync(0, "utf8"));
+  } catch {
+    return {};
+  }
+})();
+
+const sessionPath = path.join(os.homedir(), ".config", "openpaw", "lockin-session.json");
+const session = readJson(sessionPath);
+const now = Date.now();
+let lockinLabel = "lock-in off";
+let lockinTone = "idle";
+
+if (session && session.endsAt) {
+  const endsAt = Date.parse(session.endsAt);
+  if (Number.isFinite(endsAt) && endsAt > now) {
+    const remainingMin = Math.max(1, Math.round((endsAt - now) / 60000));
+    lockinLabel = \`lock-in on \${remainingMin}m\`;
+    lockinTone = "active";
+  }
+}
+
+const remaining = input?.context_window?.remaining_percentage;
+const ctx = typeof remaining === "number" ? \`ctx \${Math.round(remaining)}%\` : null;
+const mode = input?.vim?.mode ? \`vim \${String(input.vim.mode).toLowerCase()}\` : null;
+const parts = ["🐾 paw", lockinLabel, ctx, mode].filter(Boolean);
+
+if (lockinTone === "active") {
+  process.stdout.write(parts.join(" | "));
+} else {
+  process.stdout.write(parts.join(" | "));
+}
+`;
+}
+
+function installOpenPawStatusline(): void {
+	ensureDir(OPENPAW_STATUSLINE_SCRIPT_PATH);
+	fs.writeFileSync(OPENPAW_STATUSLINE_SCRIPT_PATH, buildOpenPawStatuslineScript(), {
+		mode: 0o755,
+	});
+
+	const settings = readSettings();
+	settings.statusLine = {
+		type: "command",
+		command: OPENPAW_STATUSLINE_SCRIPT_PATH,
+		padding: 1,
+	};
+	writeSettings(settings);
+}
+
 function readInstalledClaudeJs(): string {
 	const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "openpaw-claude-verify-"));
 	const outputPath = path.join(tempDir, "claude.js");
@@ -462,9 +536,13 @@ function readInstalledClaudeJs(): string {
 }
 
 function saveBackup(config: JsonRecord | null): void {
+	const settings = readSettings();
+	const hadStatusLine = Object.prototype.hasOwnProperty.call(settings, "statusLine");
 	const backup: ThemeBackup = {
 		hadConfig: config !== null,
 		config,
+		hadStatusLine,
+		statusLine: settings.statusLine,
 		savedAt: new Date().toISOString(),
 	};
 	writeJson(OPENPAW_THEME_BACKUP_PATH, backup);
@@ -505,10 +583,15 @@ export function getOpenPawThemeName(): string {
 
 export function verifyOpenPawTheme(): ThemeVerifyReport {
 	const js = readInstalledClaudeJs();
+	const settings = readSettings();
+	const statusLine = settings.statusLine as { command?: unknown } | undefined;
 	const markers = {
 		mascotAscii: js.includes(OPENPAW_VERIFY_MASCOT_ASCII),
 		mascotColors: js.includes(OPENPAW_VERIFY_MASCOT_COLOR),
 		welcomeCopy: js.includes(OPENPAW_VERIFY_WELCOME),
+		statusLine:
+			typeof statusLine?.command === "string" &&
+			statusLine.command.includes(OPENPAW_VERIFY_STATUSLINE),
 	};
 
 	return {
@@ -532,6 +615,7 @@ export function applyOpenPawTheme(): ThemeApplyReport {
 	const tweakccOutput = runTweakcc(["--apply"], { captureOutput: true });
 	const failedPatches = parseFailedPatches(tweakccOutput);
 	applyOpenPawFallbackPatch();
+	installOpenPawStatusline();
 
 	return {
 		failedPatches,
@@ -565,4 +649,16 @@ export function restoreOpenPawTheme(): void {
 	try {
 		fs.rmSync(OPENPAW_PATCH_SCRIPT_PATH, { force: true });
 	} catch {}
+
+	try {
+		fs.rmSync(OPENPAW_STATUSLINE_SCRIPT_PATH, { force: true });
+	} catch {}
+
+	const settings = readSettings();
+	if (backup.hadStatusLine) {
+		settings.statusLine = backup.statusLine;
+	} else {
+		delete settings.statusLine;
+	}
+	writeSettings(settings);
 }

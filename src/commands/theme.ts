@@ -46,7 +46,7 @@ export async function themeInstallCommand(preset = "paw"): Promise<void> {
 			p.log.warn(`tweakcc reported patch failures: ${dim(report.failedPatches.join(", "))}`);
 		}
 		if (verification.verified) {
-			p.log.success("Verified Paw mascot, welcome copy, and mascot colors in the installed Claude Code binary.");
+			p.log.success("Verified Paw mascot, welcome copy, mascot colors, and lock-in status line.");
 		} else {
 			const missing = Object.entries(verification.markers)
 				.filter(([, present]) => !present)
@@ -98,6 +98,7 @@ export async function themeVerifyCommand(): Promise<void> {
 			`${bold("Mascot ASCII:")} ${verification.markers.mascotAscii ? accent("found") : dim("missing")}`,
 			`${bold("Mascot color:")} ${verification.markers.mascotColors ? accent("found") : dim("missing")}`,
 			`${bold("Welcome copy:")} ${verification.markers.welcomeCopy ? accent("found") : dim("missing")}`,
+			`${bold("Status line:")}  ${verification.markers.statusLine ? accent("found") : dim("missing")}`,
 			`${bold("Verified:")}     ${verification.verified ? accent("yes") : dim("no")}`,
 		];
 		p.note(lines.join("\n"), "OpenPaw Verify");
