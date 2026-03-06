@@ -29,6 +29,8 @@ interface ThemeBackup {
 	config: JsonRecord | null;
 	hadStatusLine: boolean;
 	statusLine: unknown;
+	hadCompanyAnnouncements: boolean;
+	companyAnnouncements: unknown;
 	savedAt: string;
 }
 
@@ -348,6 +350,29 @@ function buildOpenPawAdhocPatchScript(): string {
 	['clawd_body:"rgb(215,119,87)"','clawd_body:"rgb(224,164,110)"'],
 	['clawd_background:"rgb(0,0,0)"','clawd_background:"rgb(32,20,13)"'],
 	['clawd_body:"ansi:redBright"','clawd_body:"ansi:yellow"'],
+	['promptBorder:"rgb(136,136,136)"','promptBorder:"rgb(147,110,77)"'],
+	['promptBorderShimmer:"rgb(166,166,166)"','promptBorderShimmer:"rgb(214,180,140)"'],
+	['text:"rgb(255,255,255)"','text:"rgb(252,245,233)"'],
+	['inverseText:"rgb(0,0,0)"','inverseText:"rgb(37,24,17)"'],
+	['inactive:"rgb(153,153,153)"','inactive:"rgb(174,149,121)"'],
+	['inactiveShimmer:"rgb(193,193,193)"','inactiveShimmer:"rgb(214,180,140)"'],
+	['subtle:"rgb(80,80,80)"','subtle:"rgb(92,68,53)"'],
+	['suggestion:"rgb(177,185,249)"','suggestion:"rgb(230,190,135)"'],
+	['remember:"rgb(177,185,249)"','remember:"rgb(176,203,162)"'],
+	['background:"rgb(0,204,204)"','background:"rgb(99,71,52)"'],
+	['permission:"rgb(177,185,249)"','permission:"rgb(206,156,96)"'],
+	['permissionShimmer:"rgb(207,215,255)"','permissionShimmer:"rgb(234,198,145)"'],
+	['claudeBlue_FOR_SYSTEM_SPINNER:"rgb(147,165,255)"','claudeBlue_FOR_SYSTEM_SPINNER:"rgb(160,117,70)"'],
+	['claudeBlueShimmer_FOR_SYSTEM_SPINNER:"rgb(177,195,255)"','claudeBlueShimmer_FOR_SYSTEM_SPINNER:"rgb(212,173,118)"'],
+	['claude:"rgb(215,119,87)"','claude:"rgb(214,143,92)"'],
+	['claudeShimmer:"rgb(235,159,127)"','claudeShimmer:"rgb(236,191,133)"'],
+	['planMode:"rgb(72,150,140)"','planMode:"rgb(127,92,57)"'],
+	['userMessageBackground:"rgb(55, 55, 55)"','userMessageBackground:"rgb(70,49,37)"'],
+	['bashMessageBackgroundColor:"rgb(65, 60, 65)"','bashMessageBackgroundColor:"rgb(63,47,43)"'],
+	['memoryBackgroundColor:"rgb(55, 65, 70)"','memoryBackgroundColor:"rgb(58,61,52)"'],
+	['rate_limit_fill:"rgb(177,185,249)"','rate_limit_fill:"rgb(221,178,117)"'],
+	['rate_limit_empty:"rgb(80,83,112)"','rate_limit_empty:"rgb(79,60,46)"'],
+	['selectionBackground:"rgb(38,58,94)"','selectionBackground:"rgb(93,69,52)"'],
 ];
 
 function applyReplacements(source) {
@@ -487,7 +512,7 @@ if (session && session.endsAt) {
 const remaining = input?.context_window?.remaining_percentage;
 const ctx = typeof remaining === "number" ? \`ctx \${Math.round(remaining)}%\` : null;
 const mode = input?.vim?.mode ? \`vim \${String(input.vim.mode).toLowerCase()}\` : null;
-const parts = ["🐾 paw", lockinLabel, ctx, mode].filter(Boolean);
+const parts = ["🐾 PAW MODE", lockinLabel, ctx, mode].filter(Boolean);
 
 if (lockinTone === "active") {
   process.stdout.write(parts.join(" | "));
@@ -509,6 +534,14 @@ function installOpenPawStatusline(): void {
 		command: OPENPAW_STATUSLINE_SCRIPT_PATH,
 		padding: 1,
 	};
+	writeSettings(settings);
+}
+
+function installOpenPawAnnouncements(): void {
+	const settings = readSettings();
+	settings.companyAnnouncements = [
+		"PAW MODE active. Warm paws, sharp focus, clean output.",
+	];
 	writeSettings(settings);
 }
 
@@ -538,11 +571,17 @@ function readInstalledClaudeJs(): string {
 function saveBackup(config: JsonRecord | null): void {
 	const settings = readSettings();
 	const hadStatusLine = Object.prototype.hasOwnProperty.call(settings, "statusLine");
+	const hadCompanyAnnouncements = Object.prototype.hasOwnProperty.call(
+		settings,
+		"companyAnnouncements",
+	);
 	const backup: ThemeBackup = {
 		hadConfig: config !== null,
 		config,
 		hadStatusLine,
 		statusLine: settings.statusLine,
+		hadCompanyAnnouncements,
+		companyAnnouncements: settings.companyAnnouncements,
 		savedAt: new Date().toISOString(),
 	};
 	writeJson(OPENPAW_THEME_BACKUP_PATH, backup);
@@ -616,6 +655,7 @@ export function applyOpenPawTheme(): ThemeApplyReport {
 	const failedPatches = parseFailedPatches(tweakccOutput);
 	applyOpenPawFallbackPatch();
 	installOpenPawStatusline();
+	installOpenPawAnnouncements();
 
 	return {
 		failedPatches,
@@ -659,6 +699,11 @@ export function restoreOpenPawTheme(): void {
 		settings.statusLine = backup.statusLine;
 	} else {
 		delete settings.statusLine;
+	}
+	if (backup.hadCompanyAnnouncements) {
+		settings.companyAnnouncements = backup.companyAnnouncements;
+	} else {
+		delete settings.companyAnnouncements;
 	}
 	writeSettings(settings);
 }
