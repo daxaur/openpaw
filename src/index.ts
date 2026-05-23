@@ -1,18 +1,32 @@
 import { Command } from "commander";
-import { setupCommand } from "./commands/setup.js";
 import { addCommand } from "./commands/add.js";
-import { removeCommand } from "./commands/remove.js";
-import { statusCommand } from "./commands/status.js";
-import { doctorCommand } from "./commands/doctor.js";
-import { updateCommand } from "./commands/update.js";
-import { resetCommand } from "./commands/reset.js";
-import { listCommand } from "./commands/list.js";
-import { soulCommand } from "./commands/soul.js";
-import { exportCommand, importCommand } from "./commands/export.js";
-import { telegramCommand, telegramSetupCommand } from "./commands/telegram.js";
-import { dashboardCommand } from "./commands/dashboard.js";
 import { configureCommand } from "./commands/configure.js";
-import { lockInCommand, lockInSetupCommand, lockInConfigureCommand, lockInGenScriptsCommand } from "./commands/lockin.js";
+import { dashboardCommand } from "./commands/dashboard.js";
+import { doctorCommand } from "./commands/doctor.js";
+import { exportCommand, importCommand } from "./commands/export.js";
+import { listCommand } from "./commands/list.js";
+import {
+	lockInCommand,
+	lockInConfigureCommand,
+	lockInGenScriptsCommand,
+	lockInSetupCommand,
+} from "./commands/lockin.js";
+import { migrateCommand } from "./commands/migrate.js";
+import { removeCommand } from "./commands/remove.js";
+import { resetCommand } from "./commands/reset.js";
+import {
+	scheduleAddCommand,
+	scheduleCostsCommand,
+	scheduleListCommand,
+	scheduleRemoveCommand,
+	scheduleRunCommand,
+	scheduleSetCapCommand,
+	scheduleToggleCommand,
+} from "./commands/schedule.js";
+import { setupCommand } from "./commands/setup.js";
+import { soulCommand } from "./commands/soul.js";
+import { statusCommand } from "./commands/status.js";
+import { telegramCommand, telegramSetupCommand } from "./commands/telegram.js";
 import {
 	themeApplyCommand,
 	themeCommand,
@@ -21,15 +35,7 @@ import {
 	themeStatusCommand,
 	themeVerifyCommand,
 } from "./commands/theme.js";
-import {
-	scheduleAddCommand,
-	scheduleListCommand,
-	scheduleRemoveCommand,
-	scheduleRunCommand,
-	scheduleToggleCommand,
-	scheduleCostsCommand,
-	scheduleSetCapCommand,
-} from "./commands/schedule.js";
+import { updateCommand } from "./commands/update.js";
 
 const program = new Command();
 
@@ -40,8 +46,13 @@ program
 
 program
 	.command("setup", { isDefault: true })
-	.description("Interactive setup wizard — pick skills, install tools, configure Claude Code")
-	.option("-p, --preset <name>", "Use a preset (everything, essentials, productivity, developer, creative, smart-home)")
+	.description(
+		"Interactive setup wizard — pick skills, install tools, configure Claude Code",
+	)
+	.option(
+		"-p, --preset <name>",
+		"Use a preset (everything, essentials, productivity, developer, creative, smart-home)",
+	)
 	.option("-y, --yes", "Skip confirmations, use defaults")
 	.option("--dry-run", "Show what would be installed without making changes")
 	.action(setupCommand);
@@ -101,6 +112,19 @@ program
 	.action(importCommand);
 
 program
+	.command("migrate")
+	.description(
+		"Import what another assistant (Hermes, OpenClaw, Copilot, Claude Code) already knows",
+	)
+	.option(
+		"--from <agents>",
+		"Comma-separated agent ids, or 'all' (hermes,openclaw,copilot,claude-code)",
+	)
+	.option("-y, --yes", "Skip confirmations, import all detected sources")
+	.option("--dry-run", "Show what would be imported without writing anything")
+	.action(migrateCommand);
+
+program
 	.command("dashboard")
 	.description("Start the task manager dashboard in your browser")
 	.option("-p, --port <port>", "Port to run on (default: 3141)")
@@ -111,7 +135,9 @@ program
 program
 	.command("configure")
 	.alias("config")
-	.description("Configure your setup — add skills, change personality, manage dashboard")
+	.description(
+		"Configure your setup — add skills, change personality, manage dashboard",
+	)
 	.action(configureCommand);
 
 const theme = program
@@ -139,7 +165,9 @@ theme
 
 theme
 	.command("verify")
-	.description("Verify that the installed Claude Code binary contains OpenPaw markers")
+	.description(
+		"Verify that the installed Claude Code binary contains OpenPaw markers",
+	)
 	.action(() => themeVerifyCommand());
 
 theme
@@ -151,20 +179,25 @@ theme
 
 const lockin = program
 	.command("lockin")
-	.description("Start a lock-in session — block distractions, set the mood, get in the zone");
+	.description(
+		"Start a lock-in session — block distractions, set the mood, get in the zone",
+	);
 
 lockin.action(lockInCommand);
 
-lockin.command("setup")
+lockin
+	.command("setup")
 	.description("Set up or reconfigure Lock In Mode")
 	.action(lockInSetupCommand);
 
-lockin.command("configure")
+lockin
+	.command("configure")
 	.alias("config")
 	.description("Reconfigure Lock In Mode (alias for setup)")
 	.action(lockInConfigureCommand);
 
-lockin.command("gen-scripts")
+lockin
+	.command("gen-scripts")
 	.description("Generate start/end shell scripts from config (used by Claude)")
 	.requiredOption("--ends <iso>", "Session end time (ISO 8601)")
 	.option("--extra-sites <sites>", "Comma-separated extra sites to block")
@@ -185,7 +218,9 @@ tg.command("setup")
 
 const sched = program
 	.command("schedule")
-	.description("Manage scheduled jobs — automate recurring tasks with cost control");
+	.description(
+		"Manage scheduled jobs — automate recurring tasks with cost control",
+	);
 
 sched
 	.command("add [schedule]")
