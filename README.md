@@ -158,7 +158,7 @@ npx pawmode --preset developer --yes  # fully non-interactive
 
 ## Features
 
-**Telegram Bridge** — Talk to Claude from your phone. Set up with `openpaw telegram setup`, start with `openpaw telegram`.
+**Telegram Bridge** — Talk to Claude from your phone. OpenPaw configures the official Claude Code Telegram plugin (`telegram@claude-plugins-official`) — the bridge runs *inside* Claude Code with the same model, skills, and permissions as your terminal, so there's no separate bot process to drift or crash. Set up with `openpaw telegram setup`, start with `openpaw telegram`.
 
 **Task Dashboard** — Local kanban board with 3 themes (Paw, Midnight, Neon). Run `openpaw dashboard`.
 
@@ -166,7 +166,9 @@ npx pawmode --preset developer --yes  # fully non-interactive
   <img src="docs/dashboard.png" alt="OpenPaw Task Dashboard" width="700">
 </p>
 
-**Self-Learning** — Opt in during setup and paw quietly gets better over time. After each session a Stop hook runs a cheap heuristic gate (≥5 tool calls, an error it recovered from, or a correction you made); only then does it spend one small `claude -p` call to distill a single durable takeaway into `~/.claude/memory/learnings.md`. Never stores secrets or full transcripts. Turn it off anytime with `export OPENPAW_SELF_LEARNING=off`.
+**Self-Learning** — Opt in during setup and paw quietly gets better over time. After each session a Stop hook runs a cheap heuristic gate (≥5 tool calls, an error it recovered from, or a correction you made); only then does it spend one small `claude -p` call to distill a single durable takeaway into a learnings file. You choose where that lives during setup — plain markdown (`~/.claude/memory/learnings.md`, zero setup), an Obsidian vault, or any custom path — so it doesn't have to be Obsidian. Never stores secrets or full transcripts. Turn it off anytime with `export OPENPAW_SELF_LEARNING=off`.
+
+**Token Saving** — Opt in and OpenPaw wires up `rtk` (Rust Token Killer) as a PreToolUse hook that compresses verbose command output — git status/diff, build logs, etc. — for 40–90% fewer tokens. Offered in the wizard; installs via Homebrew if you don't have it.
 
 **Migrate from another assistant** — Already using Hermes, OpenClaw, Copilot, or Claude Code? `openpaw migrate` imports what they already know — facts from Hermes `~/.hermes/memories`, OpenClaw's memory store, and your Claude Code history — into paw's self-learning memory, and can seed your SOUL.md from an existing persona. Secrets are stripped on the way in. Preview first with `openpaw migrate --dry-run`. The setup wizard offers this automatically when it detects another assistant on your machine.
 
