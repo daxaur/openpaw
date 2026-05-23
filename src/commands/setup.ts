@@ -58,16 +58,12 @@ import {
 	writeSoulRaw,
 } from "../core/soul.js";
 import {
+	ensureTelegramReady,
 	telegramConfigExists,
 	telegramQuestionnaire,
 	writeTelegramConfig,
 } from "../core/telegram.js";
-import {
-	isInTmux,
-	isTmuxAvailable,
-	launchInBackground,
-	launchInTmux,
-} from "../core/tmux.js";
+import { isInTmux, isTmuxAvailable, launchInTmux } from "../core/tmux.js";
 import {
 	installRtk,
 	installRtkHook,
@@ -747,7 +743,13 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		telegramConfig.workspaceDir = projectDir;
 		telegramConfig.skills = selectedSkills.map((sk) => sk.id);
 		writeTelegramConfig(telegramConfig);
-		p.log.success("Telegram bridge configured");
+		const tg = ensureTelegramReady();
+		p.log.success(
+			tg.ok
+				? "Telegram bridge configured (official plugin)"
+				: "Telegram configured",
+		);
+		if (!tg.ok) p.log.info(dim(tg.message));
 	}
 
 	// ── Dashboard Config ──
@@ -945,32 +947,24 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		}
 	}
 
-	// ── Build launch commands ──
+	// ── Build launch command ──
+	// The official Telegram plugin runs inside Claude Code, so "both" mode is
+	// just Claude Code with the plugin enabled — no separate bridge process.
 	const dangerFlag = useDangerousMode ? " --dangerously-skip-permissions" : "";
 	const nativeCmd = `claude${dangerFlag}`;
-	const telegramCmd = "npx openpaw telegram";
+	if (interfaceMode === "both") {
+		p.log.info(
+			dim(
+				"Telegram runs inside Claude Code — just message your bot once it's up.",
+			),
+		);
+	}
 
 	// ── Launch ──
 	if (useTmux) {
 		p.outro(accent("Launching in tmux... 🐾"));
-		launchInTmux({
-			nativeCmd,
-			telegramCmd: interfaceMode === "both" ? telegramCmd : undefined,
-			workDir: projectDir,
-		});
-	} else if (interfaceMode === "native") {
-		p.outro(accent("Starting Claude Code... 🐾"));
-		try {
-			execSync(nativeCmd, { stdio: "inherit", cwd: projectDir });
-		} catch {
-			p.log.warn(
-				"Could not launch Claude Code. Make sure it's installed: https://claude.ai/code",
-			);
-		}
+		launchInTmux({ nativeCmd, workDir: projectDir });
 	} else {
-		// Both without tmux: telegram in background, native in foreground
-		p.log.info(dim("Starting Telegram bridge in background..."));
-		launchInBackground(telegramCmd);
 		p.outro(accent("Starting Claude Code... 🐾"));
 		try {
 			execSync(nativeCmd, { stdio: "inherit", cwd: projectDir });

@@ -1,46 +1,86 @@
-import * as p from "@clack/prompts";
-import { Bot, type Context } from "grammy";
-import { hydrate, type HydrateFlavor } from "@grammyjs/hydrate";
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import { execSync } from "node:child_process";
 import * as fs from "node:fs";
-import * as path from "node:path";
 import * as os from "node:os";
-import { accent, dim, bold } from "./branding.js";
+import * as path from "node:path";
+import * as p from "@clack/prompts";
 import type { TelegramConfig } from "../types.js";
-import { listInstalledSkills } from "./skills.js";
+import { accent, bold, dim } from "./branding.js";
 
-type BotContext = HydrateFlavor<Context>;
+// OpenPaw uses the official Claude Code Telegram plugin
+// (telegram@claude-plugins-official) instead of a homegrown bot. We only
+// install + configure it: write the bot token and an allowlist, then the
+// plugin runs the bridge as a channel inside Claude Code itself — same model,
+// same skills, same permissions as your terminal session. No second process,
+// no drift, no custom session handling to go stale.
 
-const CONFIG_DIR = path.join(os.homedir(), ".config", "openpaw");
-const CONFIG_PATH = path.join(CONFIG_DIR, "telegram.json");
+const PLUGIN_SPEC = "telegram@claude-plugins-official";
+const CHANNEL_DIR = path.join(os.homedir(), ".claude", "channels", "telegram");
+const ENV_FILE = path.join(CHANNEL_DIR, ".env");
+const ACCESS_FILE = path.join(CHANNEL_DIR, "access.json");
 
-// ── Config Management ──
+// ── Config (written to the official plugin's own locations) ──
 
 export function writeTelegramConfig(config: TelegramConfig): void {
-	fs.mkdirSync(CONFIG_DIR, { recursive: true });
-	fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
-	fs.chmodSync(CONFIG_PATH, 0o600);
+	fs.mkdirSync(CHANNEL_DIR, { recursive: true, mode: 0o700 });
+
+	// Bot token → .env (the plugin reads TELEGRAM_BOT_TOKEN from here).
+	fs.writeFileSync(ENV_FILE, `TELEGRAM_BOT_TOKEN=${config.botToken}\n`, {
+		mode: 0o600,
+	});
+
+	// Allowlist → access.json. allowlist mode = only these user IDs get through;
+	// DMs from anyone else are dropped (no open pairing).
+	const access = {
+		dmPolicy: "allowlist",
+		allowFrom: config.allowedUserIds,
+		groups: {},
+		pending: {},
+		mentionPatterns: ["paw"],
+	};
+	fs.writeFileSync(ACCESS_FILE, JSON.stringify(access, null, 2), {
+		mode: 0o600,
+	});
 }
 
 export function readTelegramConfig(): TelegramConfig | null {
 	try {
-		const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
-		return JSON.parse(raw) as TelegramConfig;
+		const env = fs.readFileSync(ENV_FILE, "utf-8");
+		const token = env.match(/TELEGRAM_BOT_TOKEN=(.+)/)?.[1]?.trim();
+		if (!token) return null;
+
+		let allowedUserIds: string[] = [];
+		try {
+			const access = JSON.parse(fs.readFileSync(ACCESS_FILE, "utf-8"));
+			if (Array.isArray(access.allowFrom))
+				allowedUserIds = access.allowFrom.map(String);
+		} catch {}
+
+		return {
+			botToken: token,
+			allowedUserIds,
+			workspaceDir: os.homedir(),
+			model: "sonnet",
+			skills: [],
+		};
 	} catch {
 		return null;
 	}
 }
 
 export function telegramConfigExists(): boolean {
-	return fs.existsSync(CONFIG_PATH);
+	return fs.existsSync(ENV_FILE);
 }
 
 // ── Wizard Questionnaire ──
 
 export async function telegramQuestionnaire(): Promise<TelegramConfig | null> {
 	p.log.info(dim("Let's set up your Telegram bot! You'll need:"));
-	p.log.info(`  ${accent("1.")} Message ${bold("@BotFather")} on Telegram → /newbot`);
-	p.log.info(`  ${accent("2.")} Message ${bold("@userinfobot")} to get your user ID`);
+	p.log.info(
+		`  ${accent("1.")} Message ${bold("@BotFather")} on Telegram → /newbot`,
+	);
+	p.log.info(
+		`  ${accent("2.")} Message ${bold("@userinfobot")} to get your user ID`,
+	);
 	console.log("");
 
 	const botToken = await p.text({
@@ -48,11 +88,11 @@ export async function telegramQuestionnaire(): Promise<TelegramConfig | null> {
 		placeholder: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
 		validate: (v) => {
 			if (v.length === 0) return "Bot token is required";
-			if (!v.includes(":")) return "That doesn't look like a bot token (should contain ':')";
+			if (!v.includes(":"))
+				return "That doesn't look like a bot token (should contain ':')";
 			return undefined;
 		},
 	});
-
 	if (p.isCancel(botToken)) return null;
 
 	const userId = await p.text({
@@ -64,7 +104,6 @@ export async function telegramQuestionnaire(): Promise<TelegramConfig | null> {
 			return undefined;
 		},
 	});
-
 	if (p.isCancel(userId)) return null;
 
 	return {
@@ -76,272 +115,68 @@ export async function telegramQuestionnaire(): Promise<TelegramConfig | null> {
 	};
 }
 
-// ── Bot Startup ──
+// ── Official plugin management ──
 
-// Active sessions per user (for multi-turn conversations)
-const sessions = new Map<number, { sessionId?: string; controller?: AbortController }>();
-
-// Model name mapping
-const MODEL_MAP: Record<string, string> = {
-	sonnet: "claude-sonnet-4-5-20250514",
-	opus: "claude-opus-4-6",
-	haiku: "claude-haiku-4-5-20251001",
-};
-
-function getModelId(shortName: string): string {
-	return MODEL_MAP[shortName] || MODEL_MAP.sonnet;
+export function telegramPluginInstalled(): boolean {
+	try {
+		const out = execSync("claude plugin list", {
+			encoding: "utf-8",
+			stdio: ["ignore", "pipe", "ignore"],
+		});
+		if (out.includes("telegram@claude-plugins-official")) return true;
+	} catch {}
+	// Fallback: the plugin cache dir exists.
+	return fs.existsSync(
+		path.join(
+			os.homedir(),
+			".claude",
+			"plugins",
+			"cache",
+			"claude-plugins-official",
+			"telegram",
+		),
+	);
 }
 
-export async function startTelegramBot(config: TelegramConfig): Promise<void> {
-	const bot = new Bot<BotContext>(config.botToken);
-	bot.use(hydrate());
-
-	const allowedIds = new Set(config.allowedUserIds.map(Number));
-	let currentModel = config.model || "sonnet";
-
-	// ── Auth middleware ──
-	bot.use(async (ctx, next) => {
-		if (!ctx.from || !allowedIds.has(ctx.from.id)) {
-			await ctx.reply("Woof! I don't know you. Unauthorized. 🐾");
-			return;
-		}
-		await next();
-	});
-
-	// ── Register skill commands with Telegram ──
-	const installedSkills = listInstalledSkills();
-	const skillCommands = installedSkills
-		.filter((id) => id !== "core" && id !== "memory")
-		.map((id) => ({ command: id, description: `Use the ${id} skill` }));
-
-	const allCommands = [
-		{ command: "start", description: "Start the bot" },
-		{ command: "model", description: "Switch Claude model (sonnet/opus/haiku)" },
-		{ command: "skills", description: "List installed skills" },
-		{ command: "stop", description: "Cancel current operation" },
-		{ command: "clear", description: "Reset conversation" },
-		...skillCommands,
-	];
-
+/** Install the official Telegram plugin via the Claude Code CLI. */
+export function installTelegramPlugin(): boolean {
 	try {
-		await bot.api.setMyCommands(allCommands);
+		execSync(`claude plugin install ${PLUGIN_SPEC}`, { stdio: "ignore" });
+		return telegramPluginInstalled();
 	} catch {
-		// Non-fatal — commands just won't show in Telegram UI
+		return false;
 	}
-
-	// ── /start ──
-	bot.command("start", async (ctx) => {
-		const skills = installedSkills.filter((id) => id !== "core" && id !== "memory");
-		await ctx.reply(
-			`*PAW MODE active* 🐾\n\n` +
-			`I'm your personal assistant, powered by OpenPaw.\n` +
-			`Model: \`${currentModel}\`\n` +
-			`Skills: ${skills.length > 0 ? skills.map((s) => `/${s}`).join(", ") : "none"}\n\n` +
-			`Just send me a message or use a /command!`,
-			{ parse_mode: "Markdown" },
-		);
-	});
-
-	// ── /model ──
-	bot.command("model", async (ctx) => {
-		const arg = ctx.match?.trim().toLowerCase();
-		if (!arg || !["sonnet", "opus", "haiku"].includes(arg)) {
-			await ctx.reply(
-				`Current model: \`${currentModel}\`\n\n` +
-				`Switch with:\n` +
-				`/model sonnet\n` +
-				`/model opus\n` +
-				`/model haiku`,
-				{ parse_mode: "Markdown" },
-			);
-			return;
-		}
-		currentModel = arg;
-		config.model = arg;
-		writeTelegramConfig(config);
-		await ctx.reply(`Model switched to \`${currentModel}\` 🐾`, { parse_mode: "Markdown" });
-	});
-
-	// ── /skills ──
-	bot.command("skills", async (ctx) => {
-		const skills = installedSkills.filter((id) => id !== "core" && id !== "memory");
-		if (skills.length === 0) {
-			await ctx.reply("No skills installed yet. Run `openpaw setup` first! 🐾");
-			return;
-		}
-		const list = skills.map((s) => `• /${s}`).join("\n");
-		await ctx.reply(`*Installed skills:*\n\n${list}`, { parse_mode: "Markdown" });
-	});
-
-	// ── /stop ──
-	bot.command("stop", async (ctx) => {
-		const userId = ctx.from!.id;
-		const session = sessions.get(userId);
-		if (session?.controller) {
-			session.controller.abort();
-			sessions.delete(userId);
-			await ctx.reply("Operation cancelled. 🐾");
-		} else {
-			await ctx.reply("Nothing running right now. 🐾");
-		}
-	});
-
-	// ── /clear ──
-	bot.command("clear", async (ctx) => {
-		const userId = ctx.from!.id;
-		sessions.delete(userId);
-		await ctx.reply("Conversation cleared! Fresh start. 🐾");
-	});
-
-	// ── Skill commands (dynamic) ──
-	for (const skillId of installedSkills) {
-		if (skillId === "core" || skillId === "memory") continue;
-		bot.command(skillId, async (ctx) => {
-			const args = ctx.match || "";
-			const prompt = args
-				? `Use the c-${skillId} skill: ${args}`
-				: `What can the c-${skillId} skill do? Give a brief overview.`;
-			await handleClaudeMessage(ctx, prompt, currentModel, config);
-		});
-	}
-
-	// ── Regular text messages ──
-	bot.on("message:text", async (ctx) => {
-		await handleClaudeMessage(ctx, ctx.msg.text, currentModel, config);
-	});
-
-	// ── Error handling ──
-	bot.catch((err) => {
-		console.error("Bot error:", err.message || err);
-	});
-
-	// ── Graceful shutdown ──
-	process.on("SIGINT", () => {
-		console.log("\nShutting down gracefully... 🐾");
-		bot.stop();
-		process.exit(0);
-	});
-	process.on("SIGTERM", () => {
-		bot.stop();
-		process.exit(0);
-	});
-
-	// ── Start ──
-	console.log("");
-	console.log(`  🐾 ${bold("OpenPaw Telegram Bridge")}`);
-	console.log(`     Model: ${accent(currentModel)}`);
-	console.log(`     Skills: ${accent(String(installedSkills.length))}`);
-	console.log(`     Workspace: ${dim(config.workspaceDir)}`);
-	console.log(`     Allowed users: ${dim(config.allowedUserIds.join(", "))}`);
-	console.log("");
-	console.log(dim("  Listening for messages... (Ctrl+C to stop)"));
-	console.log("");
-
-	await bot.start();
 }
 
-// ── Claude Message Handler ──
-
-async function handleClaudeMessage(
-	ctx: BotContext,
-	prompt: string,
-	model: string,
-	config: TelegramConfig,
-): Promise<void> {
-	const userId = ctx.from!.id;
-
-	// Cancel any existing request for this user
-	const existing = sessions.get(userId);
-	if (existing?.controller) {
-		existing.controller.abort();
-	}
-
-	const controller = new AbortController();
-	const session = sessions.get(userId) || {};
-	session.controller = controller;
-	sessions.set(userId, session);
-
-	// Send initial "thinking" message
-	const statusMsg = await ctx.reply("Thinking... 🐾");
-
-	let fullText = "";
-	let lastEditTime = 0;
-	const EDIT_INTERVAL = 1500; // Telegram rate limits: don't edit more than every 1.5s
-
+/** Enable the plugin (idempotent; ignored if already enabled). */
+export function enableTelegramPlugin(): void {
 	try {
-		const q = query({
-			prompt,
-			options: {
-				model: getModelId(model),
-				permissionMode: "bypassPermissions",
-				allowDangerouslySkipPermissions: true,
-				cwd: config.workspaceDir,
-				abortController: controller,
-				maxTurns: 25,
-				...(session.sessionId ? { resume: session.sessionId } : {}),
-			},
-		});
+		execSync(`claude plugin enable ${PLUGIN_SPEC}`, { stdio: "ignore" });
+	} catch {}
+}
 
-		for await (const message of q) {
-			if (controller.signal.aborted) break;
-
-			if (message.type === "system" && "session_id" in message) {
-				session.sessionId = (message as { session_id: string }).session_id;
-			}
-
-			if (message.type === "assistant") {
-				const msgContent = (message as { message: { content: Array<{ type: string; text?: string }> } }).message;
-				const text = msgContent.content
-					.filter((block: { type: string }) => block.type === "text")
-					.map((block: { text?: string }) => block.text || "")
-					.join("");
-
-				if (text) {
-					fullText = text;
-					const now = Date.now();
-					if (now - lastEditTime > EDIT_INTERVAL) {
-						lastEditTime = now;
-						const truncated = fullText.length > 4000 ? `${fullText.slice(0, 4000)}...` : fullText;
-						try {
-							await statusMsg.editText(truncated);
-						} catch {
-							// Edit might fail if content hasn't changed
-						}
-					}
-				}
-			}
-
-			if (message.type === "result") {
-				const result = (message as { result?: string }).result;
-				if (result) fullText = result;
-			}
-		}
-
-		// Final edit with complete response
-		if (fullText) {
-			const truncated = fullText.length > 4000 ? `${fullText.slice(0, 4000)}...` : fullText;
-			try {
-				await statusMsg.editText(truncated);
-			} catch {
-				// If edit fails, send as new message
-				await ctx.reply(truncated);
-			}
-		} else {
-			await statusMsg.editText("Done! (no text output) 🐾");
-		}
-	} catch (err: unknown) {
-		const errorMsg = err instanceof Error ? err.message : "Unknown error";
-		if (errorMsg.includes("abort") || controller.signal.aborted) {
-			// User cancelled — already handled
-			return;
-		}
-		try {
-			await statusMsg.editText(`Woof, something went wrong: ${errorMsg.slice(0, 200)} 🐾`);
-		} catch {
-			await ctx.reply(`Woof, something went wrong: ${errorMsg.slice(0, 200)} 🐾`);
-		}
-	} finally {
-		session.controller = undefined;
-		sessions.set(userId, session);
+/**
+ * Ensure the official plugin is installed, configured, and enabled.
+ * Returns a human-readable status for the wizard/CLI to print.
+ */
+export function ensureTelegramReady(): { ok: boolean; message: string } {
+	if (!telegramConfigExists()) {
+		return {
+			ok: false,
+			message: "No Telegram config yet — run `openpaw telegram setup`.",
+		};
 	}
+	if (!telegramPluginInstalled()) {
+		if (!installTelegramPlugin()) {
+			return {
+				ok: false,
+				message: `Couldn't auto-install the plugin. Install it once with:\n  claude plugin install ${PLUGIN_SPEC}`,
+			};
+		}
+	}
+	enableTelegramPlugin();
+	return {
+		ok: true,
+		message: "Telegram bridge ready — it runs inside Claude Code.",
+	};
 }
