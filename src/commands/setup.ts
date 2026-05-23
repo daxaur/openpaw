@@ -1,23 +1,80 @@
-import * as p from "@clack/prompts";
-import * as os from "node:os";
-import chalk from "chalk";
 import { execSync } from "node:child_process";
-import { skills, categoryLabels, getSkillsByCategory, getPresetSkills, presets, getAllTaps, getSkillById } from "../catalog/index.js";
-import { detectPlatform } from "../core/platform.js";
-import { showBanner, pawStep, pawPulse, showPuppyDisclaimer, accent, subtle, dim, bold } from "../core/branding.js";
-import { installTaps, getMissingTools, installTool } from "../core/installer.js";
-import { installSkill, getDefaultSkillsDir, listInstalledSkills } from "../core/skills.js";
-import { addPermissions } from "../core/permissions.js";
-import { installSafetyHooks } from "../core/hooks.js";
-import { soulQuestionnaire, writeSoul, showSoulSummary, soulExists } from "../core/soul.js";
-import { setupMemory } from "../core/memory.js";
-import { telegramQuestionnaire, writeTelegramConfig, telegramConfigExists } from "../core/telegram.js";
-import { isTmuxAvailable, isInTmux, launchInTmux, launchInBackground } from "../core/tmux.js";
-import { readConfig as readDashboardConfig, writeConfig as writeDashboardConfig } from "../core/dashboard-server.js";
+import * as os from "node:os";
+import * as p from "@clack/prompts";
+import chalk from "chalk";
+import {
+	categoryLabels,
+	getAllTaps,
+	getPresetSkills,
+	getSkillById,
+	getSkillsByCategory,
+	presets,
+	skills,
+} from "../catalog/index.js";
+import {
+	accent,
+	bold,
+	dim,
+	pawPulse,
+	pawStep,
+	showBanner,
+	showPuppyDisclaimer,
+	subtle,
+} from "../core/branding.js";
 import { writeClaudeMd } from "../core/claude-md.js";
-import { readScheduleConfig, writeScheduleConfig, addJob, installSystemJob, parseHumanSchedule } from "../core/scheduler.js";
 import { applyOpenPawTheme, verifyOpenPawTheme } from "../core/claude-theme.js";
-import type { CliTool, DashboardTheme, InterfaceMode, Skill, TelegramConfig } from "../types.js";
+import {
+	readConfig as readDashboardConfig,
+	writeConfig as writeDashboardConfig,
+} from "../core/dashboard-server.js";
+import { installSafetyHooks } from "../core/hooks.js";
+import {
+	getMissingTools,
+	installTaps,
+	installTool,
+} from "../core/installer.js";
+import { setupMemory } from "../core/memory.js";
+import { detectAgents, getPersona, runMigration } from "../core/migrate.js";
+import { addPermissions } from "../core/permissions.js";
+import { detectPlatform } from "../core/platform.js";
+import {
+	addJob,
+	installSystemJob,
+	parseHumanSchedule,
+	readScheduleConfig,
+	writeScheduleConfig,
+} from "../core/scheduler.js";
+import { installSelfLearning } from "../core/self-learning.js";
+import {
+	getDefaultSkillsDir,
+	installSkill,
+	listInstalledSkills,
+} from "../core/skills.js";
+import {
+	showSoulSummary,
+	soulExists,
+	soulQuestionnaire,
+	writeSoul,
+	writeSoulRaw,
+} from "../core/soul.js";
+import {
+	telegramConfigExists,
+	telegramQuestionnaire,
+	writeTelegramConfig,
+} from "../core/telegram.js";
+import {
+	isInTmux,
+	isTmuxAvailable,
+	launchInBackground,
+	launchInTmux,
+} from "../core/tmux.js";
+import type {
+	CliTool,
+	DashboardTheme,
+	InterfaceMode,
+	Skill,
+	TelegramConfig,
+} from "../types.js";
 
 // Category icons for the wizard
 const CATEGORY_ICONS: Record<string, string> = {
@@ -44,18 +101,26 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	p.intro(accent(" openpaw setup "));
 
 	// ── Platform ──
-	const brewStatus = platform.hasBrew ? chalk.green("✓ brew") : chalk.red("✗ brew");
+	const brewStatus = platform.hasBrew
+		? chalk.green("✓ brew")
+		: chalk.red("✗ brew");
 	const npmStatus = platform.hasNpm ? chalk.green("✓ npm") : chalk.red("✗ npm");
 	const pipStatus = platform.hasPip ? chalk.green("✓ pip") : chalk.dim("○ pip");
-	p.log.info(`${chalk.bold(platform.osName)} ${platform.osVersion}  ${brewStatus}  ${npmStatus}  ${pipStatus}`);
+	p.log.info(
+		`${chalk.bold(platform.osName)} ${platform.osVersion}  ${brewStatus}  ${npmStatus}  ${pipStatus}`,
+	);
 
 	// ── Prerequisites ──
 	const missingPrereqs: string[] = [];
 	if (!platform.hasBrew && platform.os === "darwin") {
-		missingPrereqs.push(`${chalk.bold("Homebrew")} — most tools need it\n    ${dim('Install:')} /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"\n    ${dim('or visit')} https://brew.sh`);
+		missingPrereqs.push(
+			`${chalk.bold("Homebrew")} — most tools need it\n    ${dim("Install:")} /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"\n    ${dim("or visit")} https://brew.sh`,
+		);
 	}
 	if (!platform.hasNpm) {
-		missingPrereqs.push(`${chalk.bold("Node.js + npm")} — needed for some tools\n    ${dim('Install:')} brew install node\n    ${dim('or visit')} https://nodejs.org`);
+		missingPrereqs.push(
+			`${chalk.bold("Node.js + npm")} — needed for some tools\n    ${dim("Install:")} brew install node\n    ${dim("or visit")} https://nodejs.org`,
+		);
 	}
 
 	if (missingPrereqs.length > 0) {
@@ -122,6 +187,48 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		setupMemory();
 	}
 
+	// ── Migrate from another assistant ──
+	// Bring over what Hermes / OpenClaw / Copilot / Claude Code already learned.
+	if (!opts.yes) {
+		const present = detectAgents().filter((a) => a.present);
+		if (present.length > 0) {
+			const wantMigrate = await p.confirm({
+				message: `Found ${present.map((a) => a.name).join(", ")}. Bring over what they already know?`,
+				initialValue: true,
+			});
+			if (!p.isCancel(wantMigrate) && wantMigrate) {
+				const ids = present.map((a) => a.id);
+				const result = runMigration(ids, { dryRun: false });
+				p.log.success(
+					`Imported ${result.factsWritten} fact${result.factsWritten === 1 ? "" : "s"} into self-learning memory`,
+				);
+				if (result.personasFound.length > 0 && !soulExists()) {
+					const persona = getPersona(result.personasFound[0]);
+					if (persona) {
+						writeSoulRaw(persona);
+						p.log.success(`Seeded personality from ${result.personasFound[0]}`);
+					}
+				}
+			}
+		}
+	}
+
+	// ── Self-learning ──
+	// A Stop hook that distills durable learnings from sessions into memory.
+	if (!opts.yes) {
+		const wantLearning = await p.confirm({
+			message:
+				"Let me learn from our sessions over time? (saves durable takeaways to memory)",
+			initialValue: true,
+		});
+		if (!p.isCancel(wantLearning) && wantLearning) {
+			if (installSelfLearning()) p.log.success("Self-learning enabled");
+			else p.log.warn("Self-learning hook failed (non-critical)");
+		}
+	} else {
+		installSelfLearning();
+	}
+
 	// ── Skills ──
 	let selectedSkills: Skill[];
 
@@ -132,7 +239,9 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 			p.log.info(`Available: ${presets.map((pr) => pr.id).join(", ")}`);
 			process.exit(1);
 		}
-		p.log.info(`Using preset: ${bold(opts.preset)} (${selectedSkills.length} skills)`);
+		p.log.info(
+			`Using preset: ${bold(opts.preset)} (${selectedSkills.length} skills)`,
+		);
 	} else {
 		selectedSkills = await selectSkills(platform.os);
 	}
@@ -151,7 +260,10 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		selectedSkills.push(...resolved);
 	}
 
-	await pawPulse("happy", `${selectedSkills.length} skill${selectedSkills.length > 1 ? "s" : ""} selected — good taste!`);
+	await pawPulse(
+		"happy",
+		`${selectedSkills.length} skill${selectedSkills.length > 1 ? "s" : ""} selected — good taste!`,
+	);
 
 	// ── Sub-Choices ──
 	if (!opts.yes) {
@@ -192,8 +304,16 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		const modeChoice = await p.select({
 			message: "How do you want to talk to Claude? 🐾",
 			options: [
-				{ value: "native", label: "🖥  Terminal only", hint: "Claude Code in your terminal" },
-				{ value: "both", label: "🖥📱 Terminal + Telegram", hint: "terminal + talk from your phone" },
+				{
+					value: "native",
+					label: "🖥  Terminal only",
+					hint: "Claude Code in your terminal",
+				},
+				{
+					value: "both",
+					label: "🖥📱 Terminal + Telegram",
+					hint: "terminal + talk from your phone",
+				},
 			],
 		});
 
@@ -207,7 +327,9 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		// Telegram setup
 		if (interfaceMode === "telegram" || interfaceMode === "both") {
 			if (telegramConfigExists()) {
-				p.log.info(dim("Telegram already configured — keeping existing config"));
+				p.log.info(
+					dim("Telegram already configured — keeping existing config"),
+				);
 			} else {
 				telegramConfig = await telegramQuestionnaire();
 				if (!telegramConfig) {
@@ -260,7 +382,8 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 
 	if (!opts.yes) {
 		const schedChoice = await p.confirm({
-			message: "Enable smart scheduling? (automate recurring tasks with cost control)",
+			message:
+				"Enable smart scheduling? (automate recurring tasks with cost control)",
 			initialValue: false,
 		});
 
@@ -273,7 +396,9 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 				initialValue: "5.00",
 				validate: (v) => {
 					const n = Number.parseFloat(v);
-					return Number.isNaN(n) || n <= 0 ? "Enter a valid dollar amount" : undefined;
+					return Number.isNaN(n) || n <= 0
+						? "Enter a valid dollar amount"
+						: undefined;
 				},
 			});
 
@@ -300,7 +425,8 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 
 				if (!p.isCancel(jobPrompt)) {
 					const jobSchedule = await p.text({
-						message: "When? (e.g. \"weekdays 8am\", \"daily 6pm\", \"every 30 minutes\")",
+						message:
+							'When? (e.g. "weekdays 8am", "daily 6pm", "every 30 minutes")',
 						placeholder: "weekdays 8am",
 					});
 
@@ -308,7 +434,11 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 						const jobModel = await p.select({
 							message: "Model for this job",
 							options: [
-								{ value: "sonnet", label: "Sonnet", hint: "fast + capable (recommended)" },
+								{
+									value: "sonnet",
+									label: "Sonnet",
+									hint: "fast + capable (recommended)",
+								},
 								{ value: "haiku", label: "Haiku", hint: "cheapest" },
 								{ value: "opus", label: "Opus", hint: "most capable" },
 							],
@@ -325,11 +455,23 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 							label: string;
 							hint: string;
 						}> = [
-							{ value: "file" as const, label: "File", hint: "save to ~/.config/openpaw/schedule-results/" },
-							{ value: "notify" as const, label: "Notification", hint: "macOS notification" },
+							{
+								value: "file" as const,
+								label: "File",
+								hint: "save to ~/.config/openpaw/schedule-results/",
+							},
+							{
+								value: "notify" as const,
+								label: "Notification",
+								hint: "macOS notification",
+							},
 						];
 						if (interfaceMode === "telegram" || interfaceMode === "both") {
-							deliveryOpts.unshift({ value: "telegram" as const, label: "Telegram", hint: "send to your bot" });
+							deliveryOpts.unshift({
+								value: "telegram" as const,
+								label: "Telegram",
+								hint: "send to your bot",
+							});
 						}
 
 						const jobDelivery = await p.select({
@@ -337,7 +479,11 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 							options: deliveryOpts,
 						});
 
-						if (!p.isCancel(jobModel) && !p.isCancel(jobBudget) && !p.isCancel(jobDelivery)) {
+						if (
+							!p.isCancel(jobModel) &&
+							!p.isCancel(jobBudget) &&
+							!p.isCancel(jobDelivery)
+						) {
 							try {
 								const parsed = parseHumanSchedule(jobSchedule as string);
 								const job = addJob({
@@ -348,13 +494,17 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 									enabled: true,
 									model: jobModel as string,
 									maxBudgetUsd: Number.parseFloat(jobBudget as string) || 1.0,
-									delivery: { type: jobDelivery as "file" | "telegram" | "notify" },
+									delivery: {
+										type: jobDelivery as "file" | "telegram" | "notify",
+									},
 								});
 								installSystemJob(job);
 								schedulingJobCount = 1;
 								p.log.success(`Scheduled: "${parsed.human}" — ${jobModel}`);
 							} catch (e) {
-								p.log.warn(`Couldn't parse schedule — run ${bold("openpaw schedule add")} later`);
+								p.log.warn(
+									`Couldn't parse schedule — run ${bold("openpaw schedule add")} later`,
+								);
 							}
 						}
 					}
@@ -383,7 +533,9 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	for (const skill of selectedSkills) {
 		allTools.push(...skill.tools);
 	}
-	const uniqueTools = [...new Map(allTools.map((t) => [t.command, t])).values()];
+	const uniqueTools = [
+		...new Map(allTools.map((t) => [t.command, t])).values(),
+	];
 	const taps = getAllTaps(selectedSkills);
 	const missing = getMissingTools(uniqueTools);
 
@@ -396,7 +548,11 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		const skillsDir = await p.select({
 			message: "Where should skills live?",
 			options: [
-				{ value: defaultDir, label: `Global ${dim("~/.claude/skills/")}`, hint: "recommended" },
+				{
+					value: defaultDir,
+					label: `Global ${dim("~/.claude/skills/")}`,
+					hint: "recommended",
+				},
 				{ value: ".claude/skills", label: `Project ${dim(".claude/skills/")}` },
 				{ value: "custom", label: "Custom path" },
 			],
@@ -423,7 +579,14 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	}
 
 	// ── Confirmation ──
-	const summary = buildSummary(selectedSkills, uniqueTools, missing, taps, interfaceMode, projectDir);
+	const summary = buildSummary(
+		selectedSkills,
+		uniqueTools,
+		missing,
+		taps,
+		interfaceMode,
+		projectDir,
+	);
 	p.note(summary, "Here's what we're fetching");
 
 	if (!opts.yes) {
@@ -455,7 +618,9 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		const tapResults = installTaps(taps);
 		const failed = [...tapResults].filter(([, ok]) => !ok);
 		if (failed.length > 0) {
-			s.stop(`Taps: ${taps.size - failed.length} added, ${failed.length} failed`);
+			s.stop(
+				`Taps: ${taps.size - failed.length} added, ${failed.length} failed`,
+			);
 		} else {
 			s.stop(`🐾 ${taps.size} tap${taps.size > 1 ? "s" : ""} ready`);
 		}
@@ -466,7 +631,9 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	if (missing.length > 0) {
 		for (let i = 0; i < missing.length; i++) {
 			const tool = missing[i];
-			s.start(`🐾 [${i + 1}/${missing.length}] Teaching Claude a new trick: ${bold(tool.name)}...`);
+			s.start(
+				`🐾 [${i + 1}/${missing.length}] Teaching Claude a new trick: ${bold(tool.name)}...`,
+			);
 			const result = installTool(tool);
 			if (result.success) {
 				s.stop(`${chalk.green("✓")} ${tool.name}`);
@@ -482,7 +649,9 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 
 	// Check for existing skills before installing
 	const existingSkills = listInstalledSkills(targetDir);
-	const overlapping = selectedSkills.filter((sk) => existingSkills.includes(sk.id));
+	const overlapping = selectedSkills.filter((sk) =>
+		existingSkills.includes(sk.id),
+	);
 	let updateExisting = true;
 
 	if (overlapping.length > 0 && !opts.yes) {
@@ -515,11 +684,19 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 
 	s.start("🐾 Setting up the doggy door...");
 	const added = addPermissions(uniqueTools);
-	s.stop(added.length > 0 ? `🐾 ${added.length} permission${added.length > 1 ? "s" : ""} added` : "🐾 Doggy door already open");
+	s.stop(
+		added.length > 0
+			? `🐾 ${added.length} permission${added.length > 1 ? "s" : ""} added`
+			: "🐾 Doggy door already open",
+	);
 
 	s.start("🐾 Putting up the baby gate...");
 	const hooksOk = installSafetyHooks();
-	s.stop(hooksOk ? "🐾 Safety gate installed" : "🐾 Safety gate failed (non-critical)");
+	s.stop(
+		hooksOk
+			? "🐾 Safety gate installed"
+			: "🐾 Safety gate failed (non-critical)",
+	);
 
 	// ── Telegram Config ──
 	if (telegramConfig) {
@@ -566,11 +743,16 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	// ── Auth Steps ──
 	const authSteps = selectedSkills
 		.flatMap((skill) => skill.authSteps ?? [])
-		.filter((step, i, arr) => arr.findIndex((s) => s.command === step.command) === i);
+		.filter(
+			(step, i, arr) => arr.findIndex((s) => s.command === step.command) === i,
+		);
 
 	if (authSteps.length > 0 && !opts.yes) {
 		const authList = authSteps
-			.map((st) => `${chalk.yellow("→")} ${chalk.bold(st.command)}  ${dim(st.description)}`)
+			.map(
+				(st) =>
+					`${chalk.yellow("→")} ${chalk.bold(st.command)}  ${dim(st.description)}`,
+			)
 			.join("\n");
 		p.note(authList, "One-time auth needed");
 
@@ -588,7 +770,9 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 
 				if (p.isCancel(runThis)) break;
 				if (!runThis) {
-					p.log.info(dim(`Skipped ${step.command} — run it later when you need it`));
+					p.log.info(
+						dim(`Skipped ${step.command} — run it later when you need it`),
+					);
 					continue;
 				}
 
@@ -597,15 +781,22 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 					execSync(step.command, { stdio: "inherit" });
 					p.log.success(`${step.command} — signed in`);
 				} catch {
-					p.log.warn(`${step.command} — failed or cancelled (you can run it later)`);
+					p.log.warn(
+						`${step.command} — failed or cancelled (you can run it later)`,
+					);
 				}
 			}
 		} else {
-			p.log.info(dim("No problem — run these commands when you need each skill"));
+			p.log.info(
+				dim("No problem — run these commands when you need each skill"),
+			);
 		}
 	} else if (authSteps.length > 0) {
 		const authList = authSteps
-			.map((st) => `${chalk.yellow("→")} ${chalk.bold(st.command)}  ${dim(st.description)}`)
+			.map(
+				(st) =>
+					`${chalk.yellow("→")} ${chalk.bold(st.command)}  ${dim(st.description)}`,
+			)
 			.join("\n");
 		p.note(authList, "One-time auth needed (run these later)");
 	}
@@ -613,19 +804,31 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 	// ── Summary ──
 	const summaryLines: string[] = [
 		`${bold("Skills:")}      ${installed.length} installed`,
-		`${bold("Tools:")}       ${uniqueTools.length - missing.length} ready` + (installedTools.length > 0 ? `, ${installedTools.length} newly installed` : ""),
+		`${bold("Tools:")}       ${uniqueTools.length - missing.length} ready` +
+			(installedTools.length > 0
+				? `, ${installedTools.length} newly installed`
+				: ""),
 	];
 	if (failedTools.length > 0) {
-		summaryLines.push(`${bold("Failed:")}      ${chalk.red(failedTools.join(", "))}`);
+		summaryLines.push(
+			`${bold("Failed:")}      ${chalk.red(failedTools.join(", "))}`,
+		);
 	}
 	if (wantDashboard) {
-		summaryLines.push(`${bold("Dashboard:")}   ${dashboardTheme} theme on :3141`);
+		summaryLines.push(
+			`${bold("Dashboard:")}   ${dashboardTheme} theme on :3141`,
+		);
 	}
 	if (wantScheduling) {
-		summaryLines.push(`${bold("Scheduling:")}  $${schedulingCap}/day cap` + (schedulingJobCount > 0 ? `, ${schedulingJobCount} job` : ""));
+		summaryLines.push(
+			`${bold("Scheduling:")}  $${schedulingCap}/day cap` +
+				(schedulingJobCount > 0 ? `, ${schedulingJobCount} job` : ""),
+		);
 	}
 	if (wantClaudePawStyle) {
-		summaryLines.push(`${bold("Claude UI:")}   Paw style ${pawThemeVerified ? "installed" : "partially installed"}`);
+		summaryLines.push(
+			`${bold("Claude UI:")}   Paw style ${pawThemeVerified ? "installed" : "partially installed"}`,
+		);
 	}
 	summaryLines.push(`${bold("CLAUDE.md:")}   ${botName} is self-aware`);
 	summaryLines.push(`${bold("Memory:")}      ~/.claude/memory/`);
@@ -661,7 +864,9 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 
 	if (p.isCancel(launch) || !launch) {
 		if (interfaceMode === "telegram" || interfaceMode === "both") {
-			p.log.info(`Start the Telegram bridge anytime with: ${bold("openpaw telegram")}`);
+			p.log.info(
+				`Start the Telegram bridge anytime with: ${bold("openpaw telegram")}`,
+			);
 		}
 		p.outro(accent("openpaw setup complete 🐾 — come back anytime!"));
 		return;
@@ -714,7 +919,9 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		try {
 			execSync(nativeCmd, { stdio: "inherit", cwd: projectDir });
 		} catch {
-			p.log.warn("Could not launch Claude Code. Make sure it's installed: https://claude.ai/code");
+			p.log.warn(
+				"Could not launch Claude Code. Make sure it's installed: https://claude.ai/code",
+			);
 		}
 	} else {
 		// Both without tmux: telegram in background, native in foreground
@@ -724,7 +931,9 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		try {
 			execSync(nativeCmd, { stdio: "inherit", cwd: projectDir });
 		} catch {
-			p.log.warn("Could not launch Claude Code. Make sure it's installed: https://claude.ai/code");
+			p.log.warn(
+				"Could not launch Claude Code. Make sure it's installed: https://claude.ai/code",
+			);
 		}
 	}
 }
@@ -735,8 +944,16 @@ async function selectSkills(os: string): Promise<Skill[]> {
 	const mode = await p.select({
 		message: "How should we set things up, human?",
 		options: [
-			{ value: "preset", label: "⚡ Quick Setup", hint: "pick a treat... I mean, a preset" },
-			{ value: "custom", label: "🎯 Custom", hint: "sniff through skills one by one" },
+			{
+				value: "preset",
+				label: "⚡ Quick Setup",
+				hint: "pick a treat... I mean, a preset",
+			},
+			{
+				value: "custom",
+				label: "🎯 Custom",
+				hint: "sniff through skills one by one",
+			},
 		],
 	});
 
@@ -790,7 +1007,9 @@ async function selectCustom(os: string): Promise<Skill[]> {
 			options.push({
 				value: skill.id,
 				label: `${icon} ${skill.name}`,
-				hint: isFirst ? `── ${catLabel} ── ${skill.description}` : skill.description,
+				hint: isFirst
+					? `── ${catLabel} ── ${skill.description}`
+					: skill.description,
 			});
 			isFirst = false;
 		}
@@ -813,7 +1032,6 @@ async function selectCustom(os: string): Promise<Skill[]> {
 		.filter((s): s is Skill => !!s);
 }
 
-
 // ── Summary ──
 
 function buildSummary(
@@ -825,12 +1043,17 @@ function buildSummary(
 	projectDir: string,
 ): string {
 	const lines: string[] = [];
-	lines.push(`${bold("Skills:")}     ${selectedSkills.map((s) => s.name).join(", ")}`);
-	lines.push(`${bold("Tools:")}      ${uniqueTools.length} total, ${missing.length} to install`);
+	lines.push(
+		`${bold("Skills:")}     ${selectedSkills.map((s) => s.name).join(", ")}`,
+	);
+	lines.push(
+		`${bold("Tools:")}      ${uniqueTools.length} total, ${missing.length} to install`,
+	);
 	if (taps.size > 0) {
 		lines.push(`${bold("Taps:")}       ${[...taps].join(", ")}`);
 	}
-	const modeLabel = interfaceMode === "native" ? "Terminal" : "Terminal + Telegram";
+	const modeLabel =
+		interfaceMode === "native" ? "Terminal" : "Terminal + Telegram";
 	lines.push(`${bold("Interface:")}  ${modeLabel}`);
 	lines.push(`${bold("Workspace:")}  ${projectDir.replace(os.homedir(), "~")}`);
 	lines.push(`${bold("Memory:")}     ~/.claude/memory/`);
