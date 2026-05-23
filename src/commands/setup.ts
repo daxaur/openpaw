@@ -68,6 +68,11 @@ import {
 	launchInBackground,
 	launchInTmux,
 } from "../core/tmux.js";
+import {
+	installRtk,
+	installRtkHook,
+	rtkInstalled,
+} from "../core/token-saver.js";
 import type {
 	CliTool,
 	DashboardTheme,
@@ -231,6 +236,41 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 		}
 	} else {
 		installSelfLearning();
+	}
+
+	// ── Token saving (rtk) ──
+	if (!opts.yes) {
+		const wantRtk = await p.confirm({
+			message:
+				"Enable token saving? (rtk compresses command output — 40–90% fewer tokens)",
+			initialValue: false,
+		});
+		if (!p.isCancel(wantRtk) && wantRtk) {
+			let ready = rtkInstalled();
+			if (!ready && platform.hasBrew) {
+				const inst = await p.confirm({
+					message: "rtk isn't installed. Install it via Homebrew now?",
+					initialValue: true,
+				});
+				if (!p.isCancel(inst) && inst) {
+					const rs = p.spinner();
+					rs.start("🐾 Installing rtk...");
+					ready = installRtk();
+					rs.stop(
+						ready ? "🐾 rtk installed" : `${chalk.red("✗")} rtk install failed`,
+					);
+				}
+			} else if (!ready) {
+				p.log.warn(
+					"Homebrew not found — install rtk yourself, then run openpaw again: brew install rtk",
+				);
+			}
+			if (ready) {
+				if (installRtkHook())
+					p.log.success("Token saving enabled (rtk hook wired)");
+				else p.log.warn("Couldn't wire rtk hook (non-critical)");
+			}
+		}
 	}
 
 	// ── Skills ──
