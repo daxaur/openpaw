@@ -98,14 +98,14 @@ npx pawmode --preset developer --yes  # fully non-interactive
 |---|---|---|
 | `c-lights` | Philips Hue control | [`openhue-cli`](https://github.com/openhue/openhue-cli) |
 | `c-speakers` | Sonos speakers | [`sonoscli`](https://github.com/steipete/sonoscli) |
-| `c-bluetooth` | Bluetooth devices | `blueutil` |
+| `c-bluetooth` | Bluetooth devices | `blucli` |
 
 ### Browser & Automation
 
 | Skill | What it does | Tools |
 |---|---|---|
 | `c-browser` | Headless browser — navigate, click, scrape | `playwright` |
-| `c-cron` | Cron jobs + launchctl services | `lunchy` |
+| `c-cron` | Cron jobs + launchctl services | `lunchy-go` |
 | `c-schedule` | Recurring tasks with cost control | built-in |
 | `c-briefing` | Daily morning briefing | depends on email + calendar |
 
