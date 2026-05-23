@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { LEARNINGS_FILE } from "./self-learning.js";
+import { learningsPath } from "./self-learning.js";
 
 const HOME = os.homedir();
 
@@ -123,8 +123,18 @@ function textToFacts(text: string): string[] {
 			inFence = !inFence;
 			continue;
 		}
-		if (inFence || !line || line.startsWith("#") || line.startsWith("|") || line.startsWith("---")) continue;
-		const cleaned = line.replace(/^[-*+]\s*/, "").replace(/^\d+\.\s*/, "").trim();
+		if (
+			inFence ||
+			!line ||
+			line.startsWith("#") ||
+			line.startsWith("|") ||
+			line.startsWith("---")
+		)
+			continue;
+		const cleaned = line
+			.replace(/^[-*+]\s*/, "")
+			.replace(/^\d+\.\s*/, "")
+			.trim();
 		if (!looksLikeFact(cleaned)) continue;
 		// Split multi-sentence lines into atomic facts.
 		for (const sentence of cleaned.split(/(?<=[.!?])\s+(?=[A-Z])/)) {
@@ -161,7 +171,9 @@ function importHermes(): ImportedKnowledge {
 	const memDir = path.join(HERMES_DIR, "memories");
 	if (exists(memDir)) {
 		for (const f of fs.readdirSync(memDir).filter((x) => x.endsWith(".md"))) {
-			facts.push(...textToFacts(fs.readFileSync(path.join(memDir, f), "utf-8")));
+			facts.push(
+				...textToFacts(fs.readFileSync(path.join(memDir, f), "utf-8")),
+			);
 		}
 	}
 
@@ -181,7 +193,10 @@ function importOpenClaw(): ImportedKnowledge {
 		for (const db of dbs) {
 			// OpenClaw stores indexed memory documents in chunks.text (FTS + vector).
 			// Read via the sqlite3 CLI (no native dep). Best-effort across schema versions.
-			for (const sql of ["SELECT text FROM chunks LIMIT 300;", "SELECT content FROM facts LIMIT 500;"]) {
+			for (const sql of [
+				"SELECT text FROM chunks LIMIT 300;",
+				"SELECT content FROM facts LIMIT 500;",
+			]) {
 				try {
 					const out = execFileSync("sqlite3", [path.join(memDir, db), sql], {
 						encoding: "utf-8",
@@ -278,10 +293,11 @@ export function runMigration(
 		return result;
 	}
 
-	fs.mkdirSync(path.dirname(LEARNINGS_FILE), { recursive: true });
-	if (!fs.existsSync(LEARNINGS_FILE)) {
+	const store = learningsPath();
+	fs.mkdirSync(path.dirname(store), { recursive: true });
+	if (!fs.existsSync(store)) {
 		fs.writeFileSync(
-			LEARNINGS_FILE,
+			store,
 			"# Learnings\n\nAtomic, dated takeaways OpenPaw captured from sessions. Newest at the bottom.\n",
 		);
 	}
@@ -291,7 +307,7 @@ export function runMigration(
 	for (const { source, line } of allFacts) {
 		block.push(`- **${date}** [migrated:${source}] ${line}`);
 	}
-	fs.appendFileSync(LEARNINGS_FILE, `${block.join("\n")}\n`);
+	fs.appendFileSync(store, `${block.join("\n")}\n`);
 	result.factsWritten = allFacts.length;
 	return result;
 }

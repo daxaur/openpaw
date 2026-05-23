@@ -5,12 +5,28 @@ import { readSettings, writeSettings } from "./permissions.js";
 
 const HOOKS_DIR = path.join(os.homedir(), ".claude", "openpaw-hooks");
 const SCRIPT_PATH = path.join(HOOKS_DIR, "session-learn.sh");
-export const LEARNINGS_FILE = path.join(
+// Where the hook should append learnings. Written by installSelfLearning() so
+// the user can choose plain markdown, an Obsidian vault, or a custom path in
+// the wizard. The hook reads this file at runtime; absent → the default below.
+const STORE_CONF = path.join(HOOKS_DIR, "learnings-path");
+export const DEFAULT_LEARNINGS_FILE = path.join(
 	os.homedir(),
 	".claude",
 	"memory",
 	"learnings.md",
 );
+
+/** The configured learnings file, or the default if none chosen yet. */
+export function learningsPath(): string {
+	try {
+		const p = fs.readFileSync(STORE_CONF, "utf-8").trim();
+		if (p) return p.replace(/^~/, os.homedir());
+	} catch {}
+	return DEFAULT_LEARNINGS_FILE;
+}
+
+/** Back-compat alias used elsewhere (migrate writes to the configured store). */
+export const LEARNINGS_FILE = DEFAULT_LEARNINGS_FILE;
 
 // Stop-hook script. A cheap deterministic gate decides whether a session is
 // worth remembering; only then does it spend one small `claude -p` call to
@@ -25,10 +41,13 @@ const LEARN_SCRIPT = `#!/bin/bash
 set -euo pipefail
 [ "\${OPENPAW_SELF_LEARNING:-on}" = "off" ] && exit 0
 
-MEM_DIR="$HOME/.claude/memory"
-LEARN_FILE="$MEM_DIR/learnings.md"
+# Destination is user-selectable (markdown / Obsidian / custom) via the wizard.
+CONF="$HOME/.claude/openpaw-hooks/learnings-path"
+LEARN_FILE=$(head -1 "$CONF" 2>/dev/null || true)
+[ -n "$LEARN_FILE" ] || LEARN_FILE="$HOME/.claude/memory/learnings.md"
+LEARN_FILE=$(printf '%s' "$LEARN_FILE" | sed "s#^~#$HOME#")
 LOG="$HOME/.claude/logs/openpaw-self-learning.log"
-mkdir -p "$MEM_DIR" "$(dirname "$LOG")"
+mkdir -p "$(dirname "$LEARN_FILE")" "$(dirname "$LOG")"
 
 INPUT=$(cat)
 if command -v jq >/dev/null 2>&1; then
@@ -131,10 +150,20 @@ export function selfLearningInstalled(): boolean {
 	return hasOpenPawStopHook(stopHooks as unknown[]);
 }
 
-export function installSelfLearning(): boolean {
+export function installSelfLearning(
+	opts: { storePath?: string } = {},
+): boolean {
 	try {
 		fs.mkdirSync(HOOKS_DIR, { recursive: true });
 		fs.writeFileSync(SCRIPT_PATH, LEARN_SCRIPT, { mode: 0o755 });
+
+		// Persist the chosen destination so the hook knows where to append.
+		if (opts.storePath) {
+			fs.writeFileSync(
+				STORE_CONF,
+				`${opts.storePath.replace(/^~/, os.homedir())}\n`,
+			);
+		}
 
 		const settings = readSettings();
 		if (!settings.hooks) settings.hooks = {};
@@ -157,6 +186,7 @@ export function installSelfLearning(): boolean {
 export function removeSelfLearning(): boolean {
 	try {
 		if (fs.existsSync(SCRIPT_PATH)) fs.rmSync(SCRIPT_PATH, { force: true });
+		if (fs.existsSync(STORE_CONF)) fs.rmSync(STORE_CONF, { force: true });
 
 		const settings = readSettings();
 		const hooks = settings.hooks as Record<string, unknown[]> | undefined;
@@ -190,8 +220,9 @@ export function removeSelfLearning(): boolean {
 /** Count captured learnings so far (for status/summary output). */
 export function countLearnings(): number {
 	try {
-		if (!fs.existsSync(LEARNINGS_FILE)) return 0;
-		const text = fs.readFileSync(LEARNINGS_FILE, "utf-8");
+		const file = learningsPath();
+		if (!fs.existsSync(file)) return 0;
+		const text = fs.readFileSync(file, "utf-8");
 		return (text.match(/^- \*\*\d{4}-\d{2}-\d{2}\*\*/gm) ?? []).length;
 	} catch {
 		return 0;

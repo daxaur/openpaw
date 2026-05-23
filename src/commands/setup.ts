@@ -222,7 +222,11 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 			initialValue: true,
 		});
 		if (!p.isCancel(wantLearning) && wantLearning) {
-			if (installSelfLearning()) p.log.success("Self-learning enabled");
+			const storePath = await chooseLearningsStore();
+			if (installSelfLearning({ storePath }))
+				p.log.success(
+					`Self-learning enabled → ${storePath.replace(os.homedir(), "~")}`,
+				);
 			else p.log.warn("Self-learning hook failed (non-critical)");
 		}
 	} else {
@@ -936,6 +940,47 @@ export async function setupCommand(opts: SetupOptions = {}): Promise<void> {
 			);
 		}
 	}
+}
+
+// ── Self-learning store location ──
+
+async function chooseLearningsStore(): Promise<string> {
+	const markdownDefault = `${os.homedir()}/.claude/memory/learnings.md`;
+	const where = await p.select({
+		message: "Where should I keep what I learn?",
+		options: [
+			{
+				value: "markdown",
+				label: "Plain markdown",
+				hint: "~/.claude/memory/learnings.md — zero setup",
+			},
+			{
+				value: "obsidian",
+				label: "Obsidian vault",
+				hint: "append into a vault you already use",
+			},
+			{ value: "custom", label: "Custom path", hint: "any .md file" },
+		],
+	});
+	if (p.isCancel(where) || where === "markdown") return markdownDefault;
+
+	if (where === "obsidian") {
+		const vault = await p.text({
+			message: "Path to your Obsidian vault:",
+			placeholder: "~/Documents/Obsidian Vault",
+			validate: (v) => (v.length === 0 ? "Path cannot be empty" : undefined),
+		});
+		if (p.isCancel(vault)) return markdownDefault;
+		return `${(vault as string).replace(/^~/, os.homedir())}/learnings.md`;
+	}
+
+	const custom = await p.text({
+		message: "Path to the learnings markdown file:",
+		placeholder: markdownDefault,
+		validate: (v) => (v.length === 0 ? "Path cannot be empty" : undefined),
+	});
+	if (p.isCancel(custom)) return markdownDefault;
+	return (custom as string).replace(/^~/, os.homedir());
 }
 
 // ── Skill Selection ──
