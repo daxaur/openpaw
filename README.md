@@ -166,6 +166,10 @@ npx pawmode --preset developer --yes  # fully non-interactive
   <img src="docs/dashboard.png" alt="OpenPaw Task Dashboard" width="700">
 </p>
 
+**Self-Learning** — Opt in during setup and paw quietly gets better over time. After each session a Stop hook runs a cheap heuristic gate (≥5 tool calls, an error it recovered from, or a correction you made); only then does it spend one small `claude -p` call to distill a single durable takeaway into `~/.claude/memory/learnings.md`. Never stores secrets or full transcripts. Turn it off anytime with `export OPENPAW_SELF_LEARNING=off`.
+
+**Migrate from another assistant** — Already using Hermes, OpenClaw, Copilot, or Claude Code? `openpaw migrate` imports what they already know — facts from Hermes `~/.hermes/memories`, OpenClaw's memory store, and your Claude Code history — into paw's self-learning memory, and can seed your SOUL.md from an existing persona. Secrets are stripped on the way in. Preview first with `openpaw migrate --dry-run`. The setup wizard offers this automatically when it detects another assistant on your machine.
+
 **Scheduling** — Recurring tasks with per-run and daily cost caps. `openpaw schedule add "weekdays 8am" --run "check email"`.
 
 **Claude Code Paw Theme** — Patch Claude Code with OpenPaw styling using tweakcc plus a native mascot fallback patch. Run `openpaw theme install` and then `openpaw theme verify`, or opt into it during `openpaw setup`. If your Claude Code build accepts custom themes, switch inside Claude Code with `/theme openpaw`; otherwise you still get the Paw mascot, welcome copy, mascot colors, lock-in status line, spinner, and input styling.
@@ -194,6 +198,7 @@ npx pawmode --preset developer --yes  # fully non-interactive
 | `openpaw schedule list` | List scheduled jobs |
 | `openpaw schedule costs` | View cost usage |
 | `openpaw soul` | Edit personality |
+| `openpaw migrate` | Import knowledge from Hermes/OpenClaw/Copilot/Claude Code (`--dry-run`, `--from`) |
 | `openpaw export` / `import` | Backup and restore config |
 | `openpaw reset` | Remove everything OpenPaw installed |
 
